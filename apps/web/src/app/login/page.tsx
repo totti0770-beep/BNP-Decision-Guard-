@@ -33,7 +33,8 @@ export default function LoginPage() {
         setMfaToken(data.mfaToken);
       } else {
         setSession(data);
-        router.push('/dashboard');
+        // Full navigation so the AuthProvider mounts fresh with the new session.
+        window.location.href = '/dashboard';
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

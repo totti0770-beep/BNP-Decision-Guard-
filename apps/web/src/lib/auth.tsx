@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { getSession, setSession, type Session } from './api';
 
 interface AuthContextValue {
@@ -28,11 +28,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setState] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
+  // Re-read on every navigation: login/logout mutate localStorage directly,
+  // so provider state must be refreshed when the route changes.
   useEffect(() => {
     setState(getSession());
     setLoading(false);
-  }, []);
+  }, [pathname]);
 
   const logout = () => {
     setSession(null);

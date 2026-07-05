@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { getSession } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 const NAV: { href: string; label: string; permission?: string; icon: string }[] = [
@@ -26,7 +27,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !session) router.replace('/login');
+    // Check storage directly: provider state may lag one render behind
+    // a client-side navigation that follows login.
+    if (!loading && !session && !getSession()) router.replace('/login');
   }, [loading, session, router]);
 
   if (loading || !session) {
