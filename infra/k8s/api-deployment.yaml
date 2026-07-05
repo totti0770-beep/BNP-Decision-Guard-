@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bnp-api
+  labels: { app: bnp-api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: bnp-api }
+  template:
+    metadata:
+      labels: { app: bnp-api }
+    spec:
+      containers:
+        - name: api
+          image: bnp-decision-guard/api:latest
+          ports: [{ containerPort: 4000 }]
+          envFrom:
+            - secretRef: { name: bnp-secrets }
+          env:
+            - { name: API_PORT, value: "4000" }
+            - { name: LLM_PROVIDER, value: "mock" }
+            - { name: EMBEDDING_PROVIDER, value: "mock" }
+            - { name: S3_FORCE_PATH_STYLE, value: "true" }
+            - { name: SEED_ON_BOOT, value: "false" }
+          readinessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 30
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bnp-api
+spec:
+  selector: { app: bnp-api }
+  ports:
+    - port: 80
+      targetPort: 4000

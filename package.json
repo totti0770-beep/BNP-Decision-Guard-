@@ -1,0 +1,23 @@
+{
+  "name": "bnp-decision-guard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BNP Decision Guard - Knowledge Governance and Authorized Decision Platform",
+  "workspaces": [
+    "packages/shared",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @bnp/shared",
+    "build:api": "npm run build:shared && npm run build -w @bnp/api",
+    "build:web": "npm run build:shared && npm run build -w @bnp/web",
+    "dev:api": "npm run build:shared && npm run start:dev -w @bnp/api",
+    "dev:web": "npm run build:shared && npm run dev -w @bnp/web",
+    "seed": "npm run seed -w @bnp/api",
+    "test": "npm run test -w @bnp/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

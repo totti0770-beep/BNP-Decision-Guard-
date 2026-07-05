@@ -1,0 +1,79 @@
+import { Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { DocumentStatus } from '@bnp/shared';
+import { EmbeddingService } from './embedding.service';
+
+export interface RetrievedChunk {
+  chunkId: string;
+  documentId: string;
+  documentTitle: string;
+  category: string;
+  pageNumber: number | null;
+  approvalDate: Date | null;
+  content: string;
+  similarity: number;
+  rerankScore?: number;
+}
+
+@Injectable()
+export class RetrievalService {
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly embeddings: EmbeddingService,
+  ) {}
+
+  /**
+   * Vector search over pgvector, hard-restricted to governed content:
+   * only ACTIVE (approved + indexed) documents whose expiry date has not
+   * passed, and only chunks of the document's current version. Expired,
+   * rejected, draft and deactivated documents can never be retrieved.
+   */
+  async search(
+    query: string,
+    opts: { topK?: number; category?: string } = {},
+  ): Promise<RetrievedChunk[]> {
+    const topK = opts.topK ?? parseInt(process.env.RAG_TOP_K ?? '8', 10);
+    const queryVector = await this.embeddings.embedOne(query);
+    const vectorLiteral = `[${queryVector.join(',')}]`;
+
+    const params: unknown[] = [vectorLiteral, DocumentStatus.ACTIVE];
+    let categoryFilter = '';
+    if (opts.category) {
+      params.push(opts.category);
+      categoryFilter = `AND d.category = $${params.length}`;
+    }
+    params.push(topK);
+
+    const rows = await this.dataSource.query(
+      `SELECT c.id            AS chunk_id,
+              c.document_id   AS document_id,
+              c.page_number   AS page_number,
+              c.content       AS content,
+              d.title         AS document_title,
+              d.category      AS category,
+              d.approval_date AS approval_date,
+              1 - (c.embedding <=> $1::vector) AS similarity
+         FROM document_chunks c
+         JOIN documents d ON d.id = c.document_id
+        WHERE d.status = $2
+          AND (d.expiry_date IS NULL OR d.expiry_date > now())
+          AND c.version_number = d.version_number
+          ${categoryFilter}
+        ORDER BY c.embedding <=> $1::vector
+        LIMIT $${params.length}`,
+      params,
+    );
+
+    return rows.map((r: any) => ({
+      chunkId: r.chunk_id,
+      documentId: r.document_id,
+      documentTitle: r.document_title,
+      category: r.category,
+      pageNumber: r.page_number,
+      approvalDate: r.approval_date,
+      content: r.content,
+      similarity: Number(r.similarity),
+    }));
+  }
+}

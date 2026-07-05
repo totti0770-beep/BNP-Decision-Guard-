@@ -1,0 +1,25 @@
+# ---- Build stage ----
+FROM node:22-alpine AS build
+WORKDIR /repo
+COPY package.json package-lock.json* ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+RUN npm install --workspace @bnp/shared --workspace @bnp/api --include-workspace-root
+COPY packages/shared packages/shared
+COPY apps/api apps/api
+RUN npm run build -w @bnp/shared && npm run build -w @bnp/api
+
+# ---- Runtime stage ----
+FROM node:22-alpine AS runtime
+WORKDIR /repo
+ENV NODE_ENV=production
+COPY --from=build /repo/package.json ./
+COPY --from=build /repo/node_modules ./node_modules
+COPY --from=build /repo/packages/shared/package.json ./packages/shared/
+COPY --from=build /repo/packages/shared/dist ./packages/shared/dist
+COPY --from=build /repo/apps/api/package.json ./apps/api/
+COPY --from=build /repo/apps/api/dist ./apps/api/dist
+WORKDIR /repo/apps/api
+EXPOSE 4000
+# Runs migrations, optionally seeds demo data (SEED_ON_BOOT=true), then starts the API
+CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then node dist/seed/seed.js || true; fi && node dist/main.js"]

@@ -1,0 +1,114 @@
+name: bnp-decision-guard
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: bnp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bnp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bnp_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-bnp_decision_guard}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bnp} -d ${POSTGRES_DB:-bnp_decision_guard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: bnp-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-bnp_minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-bnp_minio_secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/${S3_BUCKET:-bnp-documents} &&
+      echo 'MinIO bucket ready'
+      "
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-bnp_minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-bnp_minio_secret}
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: bnp-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-bnp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bnp_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-bnp_decision_guard}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-too-in-production}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-bnp_minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-bnp_minio_secret}
+      S3_BUCKET: ${S3_BUCKET:-bnp-documents}
+      S3_FORCE_PATH_STYLE: "true"
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-mock}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-384}
+      RAG_TOP_K: ${RAG_TOP_K:-8}
+      RAG_FINAL_K: ${RAG_FINAL_K:-4}
+      RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-0.25}
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    container_name: bnp-web
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+  # Optional cache / queue backend (not required by the MVP)
+  redis:
+    image: redis:7-alpine
+    container_name: bnp-redis
+    profiles: ["redis"]
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+  minio_data:

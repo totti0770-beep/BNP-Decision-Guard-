@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bnp-web
+  labels: { app: bnp-web }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: bnp-web }
+  template:
+    metadata:
+      labels: { app: bnp-web }
+    spec:
+      containers:
+        - name: web
+          image: bnp-decision-guard/web:latest
+          ports: [{ containerPort: 3000 }]
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bnp-web
+spec:
+  selector: { app: bnp-web }
+  ports:
+    - port: 80
+      targetPort: 3000
