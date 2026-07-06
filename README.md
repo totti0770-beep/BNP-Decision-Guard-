@@ -1,0 +1,217 @@
+# BNP Decision Guard
+
+**Knowledge Governance and Authorized Decision Platform**
+
+A web + mobile platform that gives nurses trusted, cited answers **exclusively
+from approved hospital PDF documents** — with an AI that refuses instead of
+guessing, a governed document approval workflow, a pharmacist-gated dose
+calculator, role-based access control, and a complete audit trail.
+
+> When no sufficiently approved source exists, the assistant answers **exactly**:
+>
+> **«لا توجد وثيقة معتمدة كافية للإجابة. الرجاء الرجوع للمسؤول المختص.»**
+>
+> Every dose calculation carries the warning:
+>
+> **«لا يعتمد هذا الحساب دون مراجعة سريرية من المختص.»**
+
+---
+
+## Architecture
+
+```
+apps/
+  api/        NestJS + TypeScript — REST API, RAG pipeline, RBAC, audit
+  web/        Next.js 14 + Tailwind — 13 governance screens
+  mobile/     Expo React Native — nurse-focused companion app
+packages/
+  shared/     RBAC matrix, clinical safety strings, lifecycle enums, DTO types
+infra/
+  docker/     Dockerfiles + Postgres init SQL
+  k8s/        Kubernetes-ready reference manifests
+docs/         Architecture, database schema, API reference
+```
+
+**Stack**: PostgreSQL 16 + pgvector (embeddings + HNSW index), MinIO
+(S3-compatible PDF storage), NestJS 10, TypeORM, Next.js 14, Expo 51,
+JWT auth (+ refresh, TOTP/MFA-ready), Docker Compose.
+
+**RAG pipeline**: PDF → page-aware extraction → chunking → embeddings →
+pgvector → cosine retrieval (**restricted to ACTIVE, non-expired documents**)
+→ rerank → threshold check → context-only LLM → citations (document, page,
+approval date, confidence) → exact refusal when no source qualifies.
+
+**Pluggable AI providers**: with no API key the platform runs a deterministic
+mock embedding provider and an **extractive** mock LLM that can only quote
+approved documents — the entire system works offline. Set
+`LLM_PROVIDER=openai`, `EMBEDDING_PROVIDER=openai` and `OPENAI_API_KEY` to use
+any OpenAI-compatible endpoint (the context-only prompt and refusal gate still
+apply).
+
+**Document lifecycle**:
+`DRAFT → IN_REVIEW → APPROVED → INDEXED → ACTIVE` (+ `REJECTED`, `EXPIRED`,
+`INACTIVE`). Only **ACTIVE** documents are retrievable by the AI. Re-uploading
+creates a new version and resets the lifecycle to DRAFT. A daily job expires
+stale documents (removing them from retrieval immediately) and alerts knowledge
+managers 30 days before expiry.
+
+## Prerequisites
+
+- Docker + Docker Compose v2 (that's all for the containerized run)
+- For local development: Node.js ≥ 20
+
+## Run locally (Docker Compose)
+
+```bash
+cp .env.example .env          # optional — sensible defaults are built in
+docker compose up --build
+```
+
+| Service      | URL                                            |
+| ------------ | ---------------------------------------------- |
+| Web app      | http://localhost:3000                          |
+| API          | http://localhost:4000 (health: `/health`)      |
+| MinIO console| http://localhost:9001 (bnp_minio / bnp_minio_secret) |
+| PostgreSQL   | localhost:5432 (bnp / bnp_secret)              |
+
+The API container runs migrations and (with `SEED_ON_BOOT=true`, the default)
+seeds roles, demo users, sample approved documents and dose formulas on first
+boot.
+
+## Run locally (without Docker for the apps)
+
+```bash
+docker compose up -d postgres minio minio-init   # infra only
+npm install
+npm run build:shared
+npm run seed          # migrations + demo data (idempotent)
+npm run dev:api       # API on :4000
+npm run dev:web       # web on :3000
+```
+
+Mobile:
+
+```bash
+cd apps/mobile && npm install && npm start
+# Android emulator: EXPO_PUBLIC_API_URL=http://10.0.2.2:4000 npm start
+# Physical device:  EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4000 npm start
+```
+
+## Demo users
+
+| Role                       | Email                  | Password        |
+| -------------------------- | ---------------------- | --------------- |
+| Super Admin                | superadmin@bnp.health  | SuperAdmin123!  |
+| Hospital Admin             | admin@bnp.health       | HospAdmin123!   |
+| Nursing Knowledge Manager  | knowledge@bnp.health   | Knowledge123!   |
+| Pharmacist Reviewer        | pharmacist@bnp.health  | Pharmacist123!  |
+| CBAHI / Quality Officer    | quality@bnp.health     | Quality123!     |
+| Nurse User                 | nurse@bnp.health       | NurseUser123!   |
+| Auditor                    | auditor@bnp.health     | Auditor123!     |
+
+*Demo data only — no real patient data is used anywhere in this MVP.*
+
+## How to upload and approve a PDF
+
+1. Sign in as **knowledge@bnp.health** → **Upload Document** → choose a PDF,
+   title, category and expiry date. The document is created as **DRAFT**.
+2. On **Approval Workflow**, click **Submit for review** (→ IN_REVIEW).
+3. Sign in as **pharmacist@bnp.health** (or quality@ for CBAHI docs) and click
+   **Approve** (→ APPROVED). Reject sends it back with a reason.
+4. Back as the knowledge manager, click **Index into AI** — the PDF is
+   extracted, chunked, embedded into pgvector and becomes **ACTIVE**.
+5. Only now can the AI cite it. **Deactivate** (or expiry) removes it from
+   retrieval instantly.
+
+## How to ask the AI assistant
+
+Sign in as **nurse@bnp.health** → **AI Nursing Assistant** (or Drug
+Preparation / CBAHI Search, which restrict retrieval to their category).
+
+Every answer includes: short answer, practical steps, warnings, source document
+name, page number, document approval date, and a confidence level. Try:
+
+- *“What is the IV paracetamol dose for a patient weighing 50 kg or less?”* → cited answer
+- *“What is the chemotherapy protocol for lung cancer?”* → exact Arabic refusal
+
+## Dose calculator
+
+Sign in as a nurse → **Dose Calculator**. Only formulas **approved by a
+Pharmacist Reviewer** are usable; draft formulas are rejected by the API.
+Output shows the formula source, step-by-step math, max-dose capping,
+prescribed-vs-calculated deviation warnings, and always the Arabic safety
+warning. Pharmacists manage formulas via `POST /dose/formulas` and
+`POST /dose/formulas/:id/approve`.
+
+## Tests
+
+```bash
+npm test               # 22 unit tests over the clinical safety paths
+```
+
+Covered: exact refusal contract, retrieval thresholding, mock-embedding
+determinism, chunk/page integrity, dose math + unapproved-formula rejection +
+max-dose caps, and the RBAC permission matrix (nurse cannot approve/download,
+only pharmacists approve formulas, auditor is read-only).
+
+A browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives
+login → cited answer → refusal → dose calculation → copy-protection →
+role-aware navigation against a running stack.
+
+## Environment variables
+
+See `.env.example`. Key ones:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LLM_PROVIDER` / `EMBEDDING_PROVIDER` | `mock` | `mock` or `openai` |
+| `OPENAI_API_KEY` | — | required only for `openai` providers |
+| `RAG_MIN_SIMILARITY` | `0.25` | refusal threshold |
+| `RAG_TOP_K` / `RAG_FINAL_K` | `8` / `4` | retrieval / rerank depth |
+| `SEED_ON_BOOT` | `true` (docker) | seed demo data on API start |
+| `JWT_SECRET` / `JWT_REFRESH_SECRET` | change-me | **must** be rotated in production |
+
+## Security & governance design
+
+- **RBAC**: 7 roles with a central permission matrix (`packages/shared`),
+  enforced by a global guard; roles/permissions are also persisted for admin UI.
+- **Refusal-first AI**: retrieval is hard-filtered to ACTIVE, non-expired
+  document versions; sub-threshold matches refuse with the exact Arabic string;
+  the mock LLM is extractive (cannot generate beyond context) and the OpenAI
+  provider runs under a context-only prompt with the same server-side gate.
+- **Audit**: every login, question, answer (incl. refusals), document action,
+  dose calculation, permission change and settings edit is recorded with actor,
+  IP and before/after metadata.
+- **Copy protection**: `documents:download` is withheld from nurses and
+  auditors; downloads are short-lived presigned URLs, and every download is
+  audited.
+- **Answer review**: `POST /chat/answers/:id/review` lets the scientific
+  committee (pharmacist/quality/knowledge manager) approve or flag AI answers.
+- **MFA-ready**: TOTP flow (`/auth/mfa/verify`) is implemented; enable per-user
+  by setting `mfa_enabled` + secret.
+- **HTTPS-ready**: the API and web containers sit behind whatever TLS
+  terminator you deploy (see `infra/k8s/`); no HTTP-only assumptions in code.
+- **Encryption at rest**: object storage is S3-compatible — enable SSE/KMS on
+  MinIO or your cloud bucket; Postgres supports TDE/disk encryption at the
+  infrastructure layer.
+
+## Deployment notes
+
+- `infra/k8s/` contains reference Deployments/Services and a Secret template;
+  add an Ingress with TLS, point the env at a managed PostgreSQL (with the
+  `vector` extension) and an S3 bucket, and set `SEED_ON_BOOT=false`.
+- Images build from `infra/docker/Dockerfile.api` and `Dockerfile.web`.
+- Scale-out: the API is stateless (JWT), so replicas are safe; the near-expiry
+  cron should be limited to a single replica or moved to a Job in production.
+
+## Documentation
+
+- [docs/architecture.md](docs/architecture.md) — system + RAG flow diagrams
+- [docs/database-schema.md](docs/database-schema.md) — all 16 tables
+- [docs/api.md](docs/api.md) — REST endpoint reference
+
+## Disclaimer
+
+This MVP is a clinical **decision-support governance** platform demo. It ships
+with synthetic demo content, uses no real patient data, and must pass local
+clinical, security and regulatory review before any real-world use.

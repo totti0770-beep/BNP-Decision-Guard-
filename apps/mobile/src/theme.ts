@@ -1,0 +1,66 @@
+import { StyleSheet } from 'react-native';
+
+export const colors = {
+  brand: '#0f766e',
+  brandDark: '#0b544e',
+  bg: '#f8fafc',
+  card: '#ffffff',
+  border: '#e2e8f0',
+  text: '#0f172a',
+  muted: '#64748b',
+  danger: '#b91c1c',
+  dangerBg: '#fef2f2',
+  warn: '#92400e',
+  warnBg: '#fffbeb',
+  success: '#065f46',
+  successBg: '#ecfdf5',
+};
+
+export const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  container: { padding: 16 },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    marginBottom: 12,
+  },
+  h1: { fontSize: 22, fontWeight: '700', color: colors.text },
+  h2: { fontSize: 16, fontWeight: '600', color: colors.text },
+  muted: { color: colors.muted, fontSize: 13 },
+  body: { color: colors.text, fontSize: 14, lineHeight: 20 },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    backgroundColor: colors.card,
+    marginBottom: 12,
+  },
+  label: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 4 },
+  btn: {
+    backgroundColor: colors.brand,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  btnText: { color: 'white', fontWeight: '600', fontSize: 15 },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    fontSize: 11,
+    overflow: 'hidden',
+    fontWeight: '600',
+  },
+  arabic: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});
