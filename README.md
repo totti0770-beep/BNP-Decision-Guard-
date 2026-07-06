@@ -146,13 +146,18 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test               # 22 unit tests over the clinical safety paths
+npm test               # 33 unit tests over the clinical safety + security paths
 ```
 
 Covered: exact refusal contract, retrieval thresholding, mock-embedding
 determinism, chunk/page integrity, dose math + unapproved-formula rejection +
-max-dose caps, and the RBAC permission matrix (nurse cannot approve/download,
-only pharmacists approve formulas, auditor is read-only).
+max-dose caps, the RBAC permission matrix (nurse cannot approve/download,
+only pharmacists approve formulas, auditor is read-only), and the production
+secret fail-fast.
+
+Continuous integration (`.github/workflows/ci.yml`) runs the API build +
+tests + migrations (against a real pgvector service), the web production
+build, and the mobile typecheck on every push and pull request.
 
 A browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives
 login → cited answer → refusal → dose calculation → copy-protection →
@@ -173,6 +178,26 @@ See `.env.example`. Key ones:
 
 ## Security & governance design
 
+See **[SECURITY.md](SECURITY.md)** for the full control list and operational
+requirements, and **[docs/production-readiness.md](docs/production-readiness.md)**
+for the pilot/production launch checklist. Highlights:
+
+- **Production secret fail-fast**: with `NODE_ENV=production` the API refuses to
+  boot if any JWT secret, DB password or S3 secret is missing or left at a
+  shipped default.
+- **Hardened edge**: `helmet` security headers, per-IP rate limiting with a
+  stricter cap on `/auth/*` (brute-force defense, returns 429), an explicit
+  `CORS_ORIGINS` allowlist, and a JSON body-size cap.
+- **Revocable sessions**: `POST /auth/logout` (and any password change) bumps
+  the user's `token_version`, immediately invalidating all outstanding refresh
+  tokens.
+- **Brute-force lockout**: an account locks for `AUTH_LOCKOUT_MINUTES` after
+  `AUTH_MAX_FAILED_ATTEMPTS` failed logins — blocking even a correct password.
+- **Self-service password reset**: `POST /auth/forgot-password` (no account
+  enumeration) and `POST /auth/reset-password` (single-use token bound to
+  `token_version`; rotating the password invalidates every session).
+- **Safe errors**: a global exception filter returns a uniform envelope and
+  never leaks internal 5xx details in production.
 - **RBAC**: 7 roles with a central permission matrix (`packages/shared`),
   enforced by a global guard; roles/permissions are also persisted for admin UI.
 - **Refusal-first AI**: retrieval is hard-filtered to ACTIVE, non-expired

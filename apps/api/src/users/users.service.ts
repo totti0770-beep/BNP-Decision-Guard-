@@ -99,6 +99,8 @@ export class UsersService {
     if (input.password) {
       changes.password = 'rotated';
       user.passwordHash = await bcrypt.hash(input.password, 10);
+      // Invalidate existing refresh tokens when the password changes.
+      user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     }
     if (input.roles) {
       changes.roles = {

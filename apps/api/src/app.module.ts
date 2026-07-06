@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { buildDataSourceOptions } from './config/data-source';
+import { loadEnv } from './config/env';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
@@ -24,6 +26,12 @@ import { NotificationsModule } from './notifications/notifications.module';
   imports: [
     TypeOrmModule.forRoot(buildDataSourceOptions()),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([
+      {
+        ttl: loadEnv().rateLimit.ttlSeconds * 1000,
+        limit: loadEnv().rateLimit.limit,
+      },
+    ]),
     AuditLogModule,
     StorageModule,
     AuthModule,
@@ -39,6 +47,9 @@ import { NotificationsModule } from './notifications/notifications.module';
   ],
   controllers: [HealthController],
   providers: [
+    // Rate limiting runs before auth so unauthenticated floods (e.g. login
+    // brute-force) are throttled at the edge.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  api:
+    name: API — build & test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: bnp
+          POSTGRES_PASSWORD: bnp_secret
+          POSTGRES_DB: bnp_decision_guard
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bnp -d bnp_decision_guard"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: bnp
+      POSTGRES_PASSWORD: bnp_secret
+      POSTGRES_DB: bnp_decision_guard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build shared package
+        run: npm run build:shared
+      - name: Build API
+        run: npm run build -w @bnp/api
+      - name: Unit tests
+        run: npm test -w @bnp/api
+      - name: Run migrations against Postgres
+        run: node apps/api/dist/scripts/migrate.js
+
+  web:
+    name: Web — typecheck & build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:shared
+      - name: Build web
+        run: npm run build -w @bnp/web
+
+  mobile:
+    name: Mobile — typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install mobile deps
+        working-directory: apps/mobile
+        run: npm install
+      - name: Typecheck
+        working-directory: apps/mobile
+        run: npx tsc --noEmit
