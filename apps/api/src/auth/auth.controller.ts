@@ -37,6 +37,15 @@ class MfaVerifyDto {
   @IsString() @IsNotEmpty() code: string;
 }
 
+class ForgotPasswordDto {
+  @IsEmail() email: string;
+}
+
+class ResetPasswordDto {
+  @IsString() @IsNotEmpty() token: string;
+  @IsString() @MinLength(8) newPassword: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -67,6 +76,20 @@ export class AuthController {
   @Post('mfa/verify')
   verifyMfa(@Body() dto: MfaVerifyDto, @Ip() ip: string) {
     return this.auth.verifyMfa(dto.mfaToken, dto.code, ip);
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Ip() ip: string) {
+    return this.auth.forgotPassword(dto.email, ip);
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto, @Ip() ip: string) {
+    return this.auth.resetPassword(dto.token, dto.newPassword, ip);
   }
 
   @Post('logout')

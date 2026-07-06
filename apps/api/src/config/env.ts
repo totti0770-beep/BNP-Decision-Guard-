@@ -55,6 +55,8 @@ export interface AppEnv {
   cors: { origins: string[] };
   bodyLimit: string;
   rateLimit: { ttlSeconds: number; limit: number; authLimit: number };
+  lockout: { maxFailedAttempts: number; lockoutMinutes: number };
+  passwordResetTokenMinutes: number;
 }
 
 let cached: AppEnv | null = null;
@@ -106,6 +108,14 @@ export function loadEnv(): AppEnv {
       limit: parseInt(process.env.RATE_LIMIT_MAX ?? '120', 10),
       authLimit: parseInt(process.env.AUTH_RATE_LIMIT_MAX ?? '10', 10),
     },
+    lockout: {
+      maxFailedAttempts: parseInt(process.env.AUTH_MAX_FAILED_ATTEMPTS ?? '5', 10),
+      lockoutMinutes: parseInt(process.env.AUTH_LOCKOUT_MINUTES ?? '15', 10),
+    },
+    passwordResetTokenMinutes: parseInt(
+      process.env.PASSWORD_RESET_TOKEN_MINUTES ?? '30',
+      10,
+    ),
   };
   return cached;
 }

@@ -146,7 +146,7 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test               # 26 unit tests over the clinical safety + security paths
+npm test               # 33 unit tests over the clinical safety + security paths
 ```
 
 Covered: exact refusal contract, retrieval thresholding, mock-embedding
@@ -191,6 +191,11 @@ for the pilot/production launch checklist. Highlights:
 - **Revocable sessions**: `POST /auth/logout` (and any password change) bumps
   the user's `token_version`, immediately invalidating all outstanding refresh
   tokens.
+- **Brute-force lockout**: an account locks for `AUTH_LOCKOUT_MINUTES` after
+  `AUTH_MAX_FAILED_ATTEMPTS` failed logins — blocking even a correct password.
+- **Self-service password reset**: `POST /auth/forgot-password` (no account
+  enumeration) and `POST /auth/reset-password` (single-use token bound to
+  `token_version`; rotating the password invalidates every session).
 - **Safe errors**: a global exception filter returns a uniform envelope and
   never leaks internal 5xx details in production.
 - **RBAC**: 7 roles with a central permission matrix (`packages/shared`),

@@ -8,7 +8,7 @@ production. Use this as the launch checklist.
 | Dimension | MVP | Pilot | Production |
 | --- | --- | --- | --- |
 | Core features (RAG, RBAC, audit, dose, workflow) | ✅ | ✅ | ✅ |
-| Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation) | ✅ | ✅ | 🟡 (add lockout, secret mgr) |
+| Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr, email delivery) |
 | CI (build + test + migrate on every push/PR) | ✅ | ✅ | 🟡 (add SCA/vuln scan) |
 | Real semantic AI (OpenAI-compatible provider) | 🟡 config-gated | ✅ (key + eval) | ✅ |
 | Approved clinical content corpus | 🔴 synthetic | ✅ real, governed | ✅ |
@@ -38,8 +38,11 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    eval against a gold set of nurse questions.
 2. **Ingest the real approved corpus** — upload actual hospital PDFs and run
    them through the governed `DRAFT → … → ACTIVE` workflow with real reviewers.
-3. **Account lockout + password reset** — add failed-attempt lockout and a
-   self-service reset flow (both build on the existing `token_version`).
+3. ~~**Account lockout + password reset**~~ — ✅ done: per-account lockout
+   (`AUTH_MAX_FAILED_ATTEMPTS`/`AUTH_LOCKOUT_MINUTES`) and a self-service reset
+   flow (`/auth/forgot-password`, `/auth/reset-password`) bound to
+   `token_version`. Remaining: wire an email provider to deliver the reset token
+   in production.
 4. **Mobile build** — add `eas.json`, produce signed Android/iOS builds, point
    `EXPO_PUBLIC_API_URL` at the deployed API.
 5. **Scientific committee review UI** — surface the existing
