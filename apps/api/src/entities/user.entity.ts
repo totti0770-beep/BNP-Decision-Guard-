@@ -69,6 +69,9 @@ export class User {
   @Column({ name: 'mfa_secret', type: 'varchar', nullable: true })
   mfaSecret: string | null;
 
+  @Column({ name: 'token_version', default: 0 })
+  tokenVersion: number;
+
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;
 

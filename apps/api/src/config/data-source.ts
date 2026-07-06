@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { entities } from '../entities';
 import { InitialSchema1720000000000 } from '../migrations/1720000000000-initial-schema';
+import { TokenVersion1720000001000 } from '../migrations/1720000001000-token-version';
 
 export function buildDataSourceOptions(): DataSourceOptions {
   return {
@@ -12,7 +13,7 @@ export function buildDataSourceOptions(): DataSourceOptions {
     password: process.env.POSTGRES_PASSWORD ?? 'bnp_secret',
     database: process.env.POSTGRES_DB ?? 'bnp_decision_guard',
     entities,
-    migrations: [InitialSchema1720000000000],
+    migrations: [InitialSchema1720000000000, TokenVersion1720000001000],
     synchronize: false,
     logging: process.env.TYPEORM_LOGGING === 'true',
   };

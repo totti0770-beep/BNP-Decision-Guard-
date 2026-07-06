@@ -18,6 +18,8 @@ export interface JwtPayload {
   fullName: string;
   roles: string[];
   type: 'access' | 'refresh' | 'mfa';
+  /** Present on refresh tokens; must match the user's current token_version. */
+  tv?: number;
 }
 
 @Injectable()
@@ -51,7 +53,7 @@ export class AuthService {
         { expiresIn: process.env.JWT_EXPIRES_IN ?? '1h' },
       ),
       refreshToken: this.jwt.sign(
-        { ...base, type: 'refresh' },
+        { ...base, type: 'refresh', tv: user.tokenVersion ?? 0 },
         {
           secret: process.env.JWT_REFRESH_SECRET ?? 'change-me-too-in-production',
           expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
@@ -143,7 +145,28 @@ export class AuthService {
       throw new UnauthorizedException('Not a refresh token');
     const user = await this.users.findOne({ where: { id: payload.sub } });
     if (!user || !user.isActive) throw new UnauthorizedException('User disabled');
+    // Reject tokens issued before the latest logout / credential change.
+    if ((payload.tv ?? 0) !== (user.tokenVersion ?? 0))
+      throw new UnauthorizedException('Refresh token has been revoked');
     return this.issueTokens(user);
+  }
+
+  /**
+   * Revokes all outstanding refresh tokens for a user by bumping token_version.
+   * Access tokens remain valid until their short expiry; refresh is blocked
+   * immediately, so the session cannot be silently extended.
+   */
+  async logout(userId: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) return { revoked: false };
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await this.users.save(user);
+    this.audit.record({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'AUTH:LOGOUT',
+    });
+    return { revoked: true };
   }
 
   /** Self-registration always lands in the least-privileged NURSE_USER role. */
