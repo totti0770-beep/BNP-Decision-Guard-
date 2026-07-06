@@ -7,6 +7,26 @@ on:
     branches: ['**']
 
 jobs:
+  security:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Hard gate: a new critical vulnerability fails the build immediately.
+      - name: Fail on critical vulnerabilities
+        run: npm audit --audit-level=critical
+      # Soft gate: high/moderate findings are surfaced but do not block merges,
+      # since some remaining items (see docs/production-readiness.md) are only
+      # fixable by a NestJS 11 / Next.js 15 major-version migration.
+      - name: Report high/moderate vulnerabilities (non-blocking)
+        if: always()
+        run: npm audit --audit-level=high || true
+
   api:
     name: API — build & test
     runs-on: ubuntu-latest
