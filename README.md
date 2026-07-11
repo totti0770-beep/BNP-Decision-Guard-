@@ -22,7 +22,7 @@ calculator, role-based access control, and a complete audit trail.
 ```
 apps/
   api/        NestJS + TypeScript — REST API, RAG pipeline, RBAC, audit
-  web/        Next.js 14 + Tailwind — 13 governance screens
+  web/        Next.js 14 + Tailwind — 14 governance screens
   mobile/     Expo React Native — nurse-focused companion app
 packages/
   shared/     RBAC matrix, clinical safety strings, lifecycle enums, DTO types
@@ -210,8 +210,10 @@ for the pilot/production launch checklist. Highlights:
 - **Copy protection**: `documents:download` is withheld from nurses and
   auditors; downloads are short-lived presigned URLs, and every download is
   audited.
-- **Answer review**: `POST /chat/answers/:id/review` lets the scientific
-  committee (pharmacist/quality/knowledge manager) approve or flag AI answers.
+- **Answer review**: the **AI Answer Review** screen (`GET /chat/answers`,
+  `POST /chat/answers/:id/review`) lets the scientific committee
+  (pharmacist/quality/knowledge manager) see every nurse's AI answers and
+  approve or flag them — nurses cannot access either endpoint.
 - **MFA-ready**: TOTP flow (`/auth/mfa/verify`) is implemented; enable per-user
   by setting `mfa_enabled` + secret.
 - **HTTPS-ready**: the API and web containers sit behind whatever TLS
@@ -219,6 +221,9 @@ for the pilot/production launch checklist. Highlights:
 - **Encryption at rest**: object storage is S3-compatible — enable SSE/KMS on
   MinIO or your cloud bucket; Postgres supports TDE/disk encryption at the
   infrastructure layer.
+- **Dependency vulnerability scanning**: CI fails on any critical `npm audit`
+  finding; 0 critical / 0 unpatchable-high remain (see SECURITY.md — the
+  residual moderate/high findings require a NestJS 11 / Next.js 15 migration).
 
 ## Deployment notes
 

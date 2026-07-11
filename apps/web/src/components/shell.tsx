@@ -15,6 +15,7 @@ const NAV: { href: string; label: string; permission?: string; icon: string }[] 
   { href: '/policies', label: 'Policies Library', permission: 'documents:read', icon: '▤' },
   { href: '/upload', label: 'Upload Document', permission: 'documents:upload', icon: '↥' },
   { href: '/approvals', label: 'Approval Workflow', permission: 'documents:read', icon: '⇄' },
+  { href: '/answer-review', label: 'AI Answer Review', permission: 'ai:review-answers', icon: '✔' },
   { href: '/users', label: 'Users & Roles', permission: 'users:read', icon: '☺' },
   { href: '/audit', label: 'Audit Logs', permission: 'audit:read', icon: '≡' },
   { href: '/analytics', label: 'Analytics', permission: 'analytics:read', icon: '∿' },

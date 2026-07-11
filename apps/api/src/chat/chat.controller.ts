@@ -46,6 +46,20 @@ export class ChatController {
     return this.chat.history(actor, limit ? parseInt(limit, 10) : undefined);
   }
 
+  @Get('answers')
+  @Permissions(Permission.AI_REVIEW_ANSWERS)
+  listAnswersForReview(
+    @Query('reviewStatus') reviewStatus?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.chat.listAnswersForReview({
+      reviewStatus,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
+  }
+
   @Post('answers/:id/review')
   @Permissions(Permission.AI_REVIEW_ANSWERS)
   review(

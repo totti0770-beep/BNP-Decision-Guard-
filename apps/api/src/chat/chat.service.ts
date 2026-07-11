@@ -140,6 +140,51 @@ export class ChatService {
     return { items: withAnswers };
   }
 
+  /**
+   * Scientific-committee review queue: answers across ALL nurses (not just
+   * the caller), so a reviewer can see what needs sign-off. Refusals carry
+   * nothing to review, so they are excluded by default.
+   */
+  async listAnswersForReview(query: { reviewStatus?: string; limit?: number; offset?: number }) {
+    const qb = this.answers
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.question', 'q')
+      .leftJoinAndSelect('q.user', 'u')
+      .leftJoinAndSelect('a.citations', 'c')
+      .where('a.refused = false')
+      .orderBy('a.createdAt', 'DESC');
+
+    qb.andWhere('a.reviewStatus = :rs', { rs: query.reviewStatus ?? 'UNREVIEWED' });
+    qb.take(Math.min(query.limit ?? 20, 100)).skip(query.offset ?? 0);
+
+    const [items, total] = await qb.getManyAndCount();
+    return {
+      total,
+      items: items.map((a) => ({
+        answerId: a.id,
+        questionId: a.questionId,
+        question: a.question?.question ?? '',
+        assistantType: a.question?.assistantType,
+        askedBy: a.question?.user
+          ? { fullName: a.question.user.fullName, email: a.question.user.email }
+          : null,
+        shortAnswer: a.shortAnswer,
+        steps: a.steps,
+        warnings: a.warnings,
+        confidence: a.confidence,
+        reviewStatus: a.reviewStatus,
+        citations: a.citations?.map((c) => ({
+          documentId: c.documentId,
+          documentTitle: c.documentTitle,
+          pageNumber: c.pageNumber,
+          approvalDate: c.approvalDate,
+          similarity: c.similarity,
+        })),
+        createdAt: a.createdAt,
+      })),
+    };
+  }
+
   /** Scientific-committee review of AI answers (governance requirement). */
   async reviewAnswer(
     answerId: string,

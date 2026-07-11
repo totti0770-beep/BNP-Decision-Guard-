@@ -22,6 +22,8 @@ trail are non-negotiable.
 | **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. |
 | **Full audit trail** | global `AuditInterceptor` + `AuditService` | Every login, question, answer (incl. refusals), document action, dose calculation, permission change and error is recorded with actor, IP and metadata. |
 | **MFA-ready** | `otplib` TOTP, `/auth/mfa/verify` | Per-user TOTP challenge flow implemented. |
+| **Answer governance review** | `GET /chat/answers`, `POST /chat/answers/:id/review`, `/answer-review` web screen | Pharmacist/quality/knowledge-manager roles review AI answers across all nurses (not just their own) and approve or flag them. Verified end-to-end incl. RBAC (nurse: 403 on both endpoints). |
+| **Dependency vulnerability scanning** | `.github/workflows/ci.yml` (`security` job) | `npm audit --audit-level=critical` fails CI on any critical finding (hard gate); `--audit-level=high` reports the rest without blocking, since some remaining findings require a NestJS 11 / Next.js 15 migration (tracked in `docs/production-readiness.md`). |
 
 ## Operational requirements before a real deployment
 
@@ -48,7 +50,12 @@ production sign-off — see `docs/production-readiness.md`.
 - Centralised secret management (Vault/KMS) instead of env vars.
 - Observability: structured logs shipping, metrics, error tracking, alerting.
 - Formal penetration test and CBAHI/HIPAA compliance review.
-- Automated dependency/vulnerability scanning in CI (e.g. `npm audit`, SCA).
+- **NestJS 10→11 / Next.js 14→15 migration** to close the remaining 12
+  `npm audit` findings (1 high, 11 moderate — see
+  `docs/production-readiness.md`). The critical Next.js middleware
+  auth-bypass CVE (CVE-2025-29927) and the exploitable multer/lodash CVEs
+  were already patched without a major-version bump; what remains is only
+  fixable by the framework migrations.
 
 ## Reporting
 
