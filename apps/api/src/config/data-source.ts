@@ -4,6 +4,7 @@ import { entities } from '../entities';
 import { InitialSchema1720000000000 } from '../migrations/1720000000000-initial-schema';
 import { TokenVersion1720000001000 } from '../migrations/1720000001000-token-version';
 import { AccountSecurity1720000002000 } from '../migrations/1720000002000-account-security';
+import { EmbeddingProvider1720000003000 } from '../migrations/1720000003000-embedding-provider';
 
 export function buildDataSourceOptions(): DataSourceOptions {
   return {
@@ -18,6 +19,7 @@ export function buildDataSourceOptions(): DataSourceOptions {
       InitialSchema1720000000000,
       TokenVersion1720000001000,
       AccountSecurity1720000002000,
+      EmbeddingProvider1720000003000,
     ],
     synchronize: false,
     logging: process.env.TYPEORM_LOGGING === 'true',

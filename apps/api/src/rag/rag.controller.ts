@@ -1,10 +1,16 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { Permission } from '@bnp/shared';
-import { Permissions } from '../common/decorators';
+import {
+  AuthenticatedUser,
+  CurrentUser,
+  Permissions,
+} from '../common/decorators';
+import { AuditService } from '../audit/audit.service';
 import { RagQueryService } from './rag-query.service';
 import { RetrievalService } from './retrieval.service';
 import { RerankService } from './rerank.service';
+import { IndexingService } from './indexing.service';
 
 class RagQueryDto {
   @IsString() @IsNotEmpty() question: string;
@@ -17,7 +23,33 @@ export class RagController {
     private readonly ragQuery: RagQueryService,
     private readonly retrieval: RetrievalService,
     private readonly rerank: RerankService,
+    private readonly indexing: IndexingService,
+    private readonly audit: AuditService,
   ) {}
+
+  /**
+   * Re-embeds every ACTIVE document with the currently configured embedding
+   * provider. Run this once after changing EMBEDDING_PROVIDER — until then,
+   * chunks from the old provider are excluded from retrieval and the
+   * assistant refuses.
+   */
+  @Post('reindex')
+  @Permissions(Permission.DOCUMENTS_INDEX)
+  async reindex(@CurrentUser() actor: AuthenticatedUser) {
+    const outcome = await this.indexing.reindexAll();
+    this.audit.record({
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      action: 'RAG:REINDEX',
+      resourceType: 'rag_index',
+      metadata: {
+        provider: outcome.provider,
+        reindexed: outcome.results.filter((r) => r.status === 'REINDEXED').length,
+        failed: outcome.results.filter((r) => r.status === 'FAILED').length,
+      },
+    });
+    return outcome;
+  }
 
   /** Raw governed RAG answer (no persistence). Chat /ask persists + audits. */
   @Post('query')

@@ -26,8 +26,12 @@ export class RetrievalService {
   /**
    * Vector search over pgvector, hard-restricted to governed content:
    * only ACTIVE (approved + indexed) documents whose expiry date has not
-   * passed, and only chunks of the document's current version. Expired,
-   * rejected, draft and deactivated documents can never be retrieved.
+   * passed, only chunks of the document's current version, and only chunks
+   * embedded by the CURRENTLY configured provider — vectors from a different
+   * provider live in an incompatible space, so comparing them would produce
+   * junk similarities; excluding them makes a provider switch refuse safely
+   * until POST /rag/reindex re-embeds the corpus. Expired, rejected, draft
+   * and deactivated documents can never be retrieved.
    */
   async search(
     query: string,
@@ -37,7 +41,11 @@ export class RetrievalService {
     const queryVector = await this.embeddings.embedOne(query);
     const vectorLiteral = `[${queryVector.join(',')}]`;
 
-    const params: unknown[] = [vectorLiteral, DocumentStatus.ACTIVE];
+    const params: unknown[] = [
+      vectorLiteral,
+      DocumentStatus.ACTIVE,
+      this.embeddings.name,
+    ];
     let categoryFilter = '';
     if (opts.category) {
       params.push(opts.category);
@@ -59,6 +67,7 @@ export class RetrievalService {
         WHERE d.status = $2
           AND (d.expiry_date IS NULL OR d.expiry_date > now())
           AND c.version_number = d.version_number
+          AND c.embedding_provider = $3
           ${categoryFilter}
         ORDER BY c.embedding <=> $1::vector
         LIMIT $${params.length}`,

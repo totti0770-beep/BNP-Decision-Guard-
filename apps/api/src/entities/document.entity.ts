@@ -121,6 +121,10 @@ export class DocumentChunk {
   @Column({ type: 'text' })
   content: string;
 
+  /** Name of the embedding provider that produced this chunk's vector. */
+  @Column({ name: 'embedding_provider', default: 'mock-hash-embedding' })
+  embeddingProvider: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { openAiPost } from './openai-http';
 
 export const EMBEDDING_DIM = parseInt(process.env.EMBEDDING_DIM ?? '384', 10);
 
@@ -75,29 +76,17 @@ export class MockEmbeddingProvider implements EmbeddingProvider {
 /** OpenAI-compatible embeddings (works with any /v1/embeddings endpoint). */
 export class OpenAiEmbeddingProvider implements EmbeddingProvider {
   readonly name = 'openai-embedding';
-  private readonly logger = new Logger(OpenAiEmbeddingProvider.name);
 
   async embed(texts: string[]): Promise<number[][]> {
-    const res = await fetch(
-      `${process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'}/embeddings`,
+    const data = await openAiPost<{ data: { embedding: number[] }[] }>(
+      '/embeddings',
       {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_EMBEDDING_MODEL ?? 'text-embedding-3-small',
-          input: texts,
-          dimensions: EMBEDDING_DIM,
-        }),
+        model: process.env.OPENAI_EMBEDDING_MODEL ?? 'text-embedding-3-small',
+        input: texts,
+        // Must match the pgvector column dimension (vector(384) in the schema).
+        dimensions: EMBEDDING_DIM,
       },
     );
-    if (!res.ok) {
-      this.logger.error(`Embedding API error ${res.status}`);
-      throw new Error(`Embedding API returned ${res.status}`);
-    }
-    const data = (await res.json()) as { data: { embedding: number[] }[] };
     return data.data.map((d) => d.embedding);
   }
 }

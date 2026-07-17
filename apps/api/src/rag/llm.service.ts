@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { tokenize } from './embedding.service';
+import { openAiPost } from './openai-http';
 import { RetrievedChunk } from './retrieval.service';
 
 export interface LlmAnswer {
@@ -74,47 +75,31 @@ export class MockLlmProvider implements LlmProvider {
  */
 export class OpenAiLlmProvider implements LlmProvider {
   readonly name = `openai:${process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini'}`;
-  private readonly logger = new Logger(OpenAiLlmProvider.name);
 
   async answer(question: string, context: RetrievedChunk[]): Promise<LlmAnswer> {
     const contextBlock = context
       .map((c, i) => `[Source ${i + 1}: "${c.documentTitle}", page ${c.pageNumber}]\n${c.content}`)
       .join('\n\n---\n\n');
-    const res = await fetch(
-      `${process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'}/chat/completions`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini',
-          temperature: 0,
-          response_format: { type: 'json_object' },
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are a clinical knowledge assistant for nurses. Answer ONLY from the provided approved document excerpts. ' +
-                'Never use outside knowledge, never guess. If the excerpts do not contain the answer, return an empty shortAnswer. ' +
-                'Respond as JSON: {"shortAnswer": string, "steps": string[], "warnings": string[]}.',
-            },
-            {
-              role: 'user',
-              content: `Approved document excerpts:\n\n${contextBlock}\n\nQuestion: ${question}`,
-            },
-          ],
-        }),
-      },
-    );
-    if (!res.ok) {
-      this.logger.error(`LLM API error ${res.status}`);
-      throw new Error(`LLM API returned ${res.status}`);
-    }
-    const data = (await res.json()) as {
+    const data = await openAiPost<{
       choices: { message: { content: string } }[];
-    };
+    }>('/chat/completions', {
+      model: process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini',
+      temperature: 0,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a clinical knowledge assistant for nurses. Answer ONLY from the provided approved document excerpts. ' +
+            'Never use outside knowledge, never guess. If the excerpts do not contain the answer, return an empty shortAnswer. ' +
+            'Respond as JSON: {"shortAnswer": string, "steps": string[], "warnings": string[]}.',
+        },
+        {
+          role: 'user',
+          content: `Approved document excerpts:\n\n${contextBlock}\n\nQuestion: ${question}`,
+        },
+      ],
+    });
     try {
       const parsed = JSON.parse(data.choices[0].message.content);
       return {
