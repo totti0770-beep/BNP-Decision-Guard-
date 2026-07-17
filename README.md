@@ -48,6 +48,27 @@ approved documents — the entire system works offline. Set
 any OpenAI-compatible endpoint (the context-only prompt and refusal gate still
 apply).
 
+### Switching to real AI (turn-key)
+
+1. Set `LLM_PROVIDER=openai`, `EMBEDDING_PROVIDER=openai`, `OPENAI_API_KEY=…`
+   (optionally `OPENAI_BASE_URL` for any OpenAI-compatible endpoint) and
+   restart the API.
+2. Every chunk is stamped with the provider that embedded it, and retrieval
+   only compares vectors from the **currently configured** provider — vectors
+   from different providers live in incompatible spaces. So immediately after
+   the switch the assistant **refuses everything** (safe) and the API logs a
+   startup warning naming the stale chunks.
+3. Re-embed the corpus: sign in as a knowledge manager and call
+   `POST /rag/reindex` — it re-extracts, re-chunks and re-embeds every ACTIVE
+   document with the new provider and reports per-document results. A document
+   that fails keeps its previous chunks (each rewrite is transactional).
+4. Ask a question — answers now use real semantic retrieval; citations,
+   thresholds and the exact refusal contract are unchanged.
+
+Provider calls carry a hard timeout (`OPENAI_TIMEOUT_MS`, default 30 s) with
+one retry on 429/5xx; a provider outage surfaces as a safe error, never a
+fabricated answer.
+
 **Document lifecycle**:
 `DRAFT → IN_REVIEW → APPROVED → INDEXED → ACTIVE` (+ `REJECTED`, `EXPIRED`,
 `INACTIVE`). Only **ACTIVE** documents are retrievable by the AI. Re-uploading
@@ -96,6 +117,21 @@ cd apps/mobile && npm install && npm start
 # Android emulator: EXPO_PUBLIC_API_URL=http://10.0.2.2:4000 npm start
 # Physical device:  EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4000 npm start
 ```
+
+Store builds (EAS — requires an Expo account; production signing additionally
+needs Apple/Google developer credentials):
+
+```bash
+cd apps/mobile
+npm install -g eas-cli
+eas login
+eas init                                   # links the project (writes extra.eas.projectId)
+eas build --profile preview --platform android   # internal APK
+eas build --profile production --platform all    # store builds
+```
+
+Profiles live in `apps/mobile/eas.json` — edit each profile's
+`EXPO_PUBLIC_API_URL` to point at your deployed API before building.
 
 ## Demo users
 

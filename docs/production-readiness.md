@@ -12,7 +12,8 @@ production. Use this as the launch checklist.
 | Dependency vulnerability posture (0 critical, 0 unpatchable high) | ✅ | ✅ | 🟡 (12 findings gated on a NestJS 11 / Next.js 15 migration — see below) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
-| Real semantic AI (OpenAI-compatible provider) | 🟡 config-gated | ✅ (key + eval) | ✅ |
+| Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
+| Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
 | Approved clinical content corpus | 🔴 synthetic | ✅ real, governed | ✅ |
 | High availability (HA Postgres, replicas, HPA, Ingress+TLS) | ➖ | 🟡 | ✅ required |
 | Observability (logs/metrics/traces/alerts) | ➖ | 🟡 | ✅ required |
@@ -45,15 +46,20 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
 
 ## Fastest path to FULLY FUNCTIONAL (real clinical use)
 
-1. **Wire a real LLM/embeddings provider** — set `LLM_PROVIDER=openai`,
-   `EMBEDDING_PROVIDER=openai`, `OPENAI_API_KEY`. Re-index documents so
-   embeddings are regenerated at the provider's dimension. Run an answer-quality
-   eval against a gold set of nurse questions.
+1. ~~**Wire a real LLM/embeddings provider**~~ — ✅ turn-key: set
+   `LLM_PROVIDER=openai`, `EMBEDDING_PROVIDER=openai`, `OPENAI_API_KEY`,
+   restart, then `POST /rag/reindex`. Chunks are provider-stamped and
+   retrieval filters on the active provider, so a switch refuses safely until
+   the corpus is re-embedded; provider calls have timeouts + retry.
+   Remaining: supply the actual API key and run an answer-quality eval
+   against a gold set of nurse questions.
 2. **Ingest the real approved corpus** — upload actual hospital PDFs and run
    them through the governed `DRAFT → … → ACTIVE` workflow with real reviewers.
-3. **Mobile build** — add `eas.json`, produce signed Android/iOS builds, point
-   `EXPO_PUBLIC_API_URL` at the deployed API. Requires an Apple/Google
-   developer account and signing credentials this session does not have.
+3. ~~**Mobile build config**~~ — ✅ `apps/mobile/eas.json` (development /
+   preview / production profiles with per-profile `EXPO_PUBLIC_API_URL`) and
+   iOS/Android identifiers are in place. Remaining: `eas login && eas init`
+   with your Expo account, then `eas build`; production signing needs
+   Apple/Google developer credentials.
 4. **Email delivery for password reset** — wire an email provider in
    `forgotPassword()` (currently returns the token directly outside production
    for demo purposes).

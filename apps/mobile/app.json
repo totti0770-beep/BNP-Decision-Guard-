@@ -2,6 +2,7 @@
   "expo": {
     "name": "BNP Decision Guard",
     "slug": "bnp-decision-guard",
+    "scheme": "bnpguard",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -9,7 +10,8 @@
       "backgroundColor": "#0f766e"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "health.bnp.decisionguard"
     },
     "android": {
       "package": "health.bnp.decisionguard"
