@@ -1,0 +1,105 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+**BNP Decision Guard** — a clinical knowledge-governance platform. Nurses get AI answers drawn **only** from hospital PDFs that have passed a governed approval workflow. When no approved source sufficiently supports an answer, the assistant **refuses** rather than guessing.
+
+## Commands
+
+```bash
+npm install
+npm run build:shared          # ALWAYS first after a clean install (see gotchas)
+
+npm test                      # API unit tests (36), the only test suite
+npm run build:api             # builds shared + api
+npm run build:web             # builds shared + web
+npm run dev:api               # API on :4000
+npm run dev:web               # web on :3000
+npm run seed                  # migrations + idempotent demo data
+```
+
+Single test (run from repo root):
+
+```bash
+npm test -w @bnp/api -- --testPathPattern=dose   # one spec file
+npm test -w @bnp/api -- -t "refus"               # tests matching a name
+```
+
+Mobile (separate install, not an npm workspace):
+
+```bash
+cd apps/mobile && npm install && npx tsc --noEmit && npm start
+```
+
+Full stack via Docker (`docker compose up --build`) → web :3000, API :4000, MinIO console :9001. Infra only: `docker compose up -d postgres minio minio-init`.
+
+Migrations run automatically on API container boot; standalone: `node apps/api/dist/scripts/migrate.js`.
+
+## Architecture
+
+npm workspaces monorepo: `apps/api` (NestJS 10), `apps/web` (Next.js 14 App Router), `apps/mobile` (Expo, **not** a workspace), `packages/shared`.
+
+### The clinical safety contract
+
+`packages/shared/src/constants.ts` holds two Arabic strings returned **verbatim** — tests assert exact string equality. Never reword, translate, or reformat them:
+- `REFUSAL_MESSAGE_AR` — returned whenever no approved source qualifies
+- `DOSE_SAFETY_WARNING_AR` — attached to every dose calculation result
+
+### Refusal-first RAG chain (`apps/api/src/rag/`)
+
+`RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **three** independent points: no candidates, nothing above `RAG_MIN_SIMILARITY`, or the LLM produced an empty answer. Non-refused answers always carry citations (document, page, approval date, confidence).
+
+`RetrievalService.search()` applies four hard SQL filters — all four are load-bearing safety constraints, don't relax them:
+1. `status = ACTIVE` (only fully approved+indexed docs)
+2. not expired
+3. chunk version matches the document's current version
+4. `embedding_provider` equals the **currently configured** provider
+
+### Embedding-provider consistency (non-obvious, important)
+
+Vectors from different embedding providers occupy incompatible spaces. Every chunk is stamped with the provider that embedded it, and retrieval filters on the active one. So switching `EMBEDDING_PROVIDER` makes the assistant **refuse everything** (safe) rather than return junk-similarity answers, until `POST /rag/reindex` (permission `documents:index`) re-embeds the corpus. A startup check in `IndexingService.onApplicationBootstrap` warns when stored chunks are stale.
+
+Both LLM and embeddings are pluggable via `LLM_PROVIDER` / `EMBEDDING_PROVIDER` (`mock` | `openai`). The **mock LLM is extractive** — it composes answers only from retrieved chunk text and structurally cannot hallucinate, which is why the whole system works offline with no API key. OpenAI-compatible calls share `openai-http.ts` (timeout + one retry on 429/5xx).
+
+### Document lifecycle (`apps/api/src/approval/approval.service.ts`)
+
+`DRAFT → IN_REVIEW → APPROVED → INDEXED → ACTIVE`, plus `REJECTED`, `EXPIRED`, `INACTIVE`. A `TRANSITIONS` map rejects illegal moves. Notes:
+- The `index` action performs INDEX **and** ACTIVATE in one call — one click takes an approved doc live.
+- Re-uploading bumps `versionNumber` and resets status to `DRAFT`; a new version must be re-approved before the AI can cite it.
+- A daily cron (`notifications.service.ts`) expires stale documents, removing them from retrieval immediately.
+
+### RBAC
+
+`packages/shared/src/rbac.ts` is the single source of truth: 7 roles × permission matrix, seeded into the DB *and* enforced by `PermissionsGuard`. Change permissions there, not in controllers. Guard order is deliberate — Throttler → JwtAuth → Permissions — so unauthenticated floods are throttled before hitting auth. Use `@Public()` to opt out of auth and `@Permissions(...)` to require capabilities (both from `common/decorators.ts`).
+
+`DOCUMENTS_DOWNLOAD` is deliberately withheld from `NURSE_USER` and `AUDITOR`: nurses read cited answers, they don't copy source PDFs.
+
+### Auth
+
+JWT access + refresh. `users.token_version` makes stateless refresh tokens revocable — `POST /auth/logout` and any password change increment it, invalidating every outstanding refresh token. Password-reset tokens are bound to the same counter, making them single-use. Per-account lockout (`locked_until`) blocks even a correct password and complements the per-IP rate limiter.
+
+### Audit
+
+Two layers: a global `AuditInterceptor` logging every mutating HTTP request (it skips `/auth`, whose service audits itself to avoid recording credentials), plus richer semantic events emitted by domain services (`AI:ANSWER_REFUSED`, `DOSE:CALCULATE`, `RAG:REINDEX`, …).
+
+### Web app
+
+Session lives in `localStorage`; `apps/web/src/lib/api.ts` wraps fetch with automatic refresh-on-401 then redirect to login. Navigation is permission-filtered in `components/shell.tsx`.
+
+## Gotchas
+
+- **`npm run build:shared` before anything else.** API and web import `@bnp/shared` from its compiled `dist/`, so on a fresh clone `npm test` fails with `Cannot find module '@bnp/shared'` until shared is built. The `build:api` / `dev:api` scripts chain it for you; bare `npm test` does not.
+- **Migrations are registered explicitly** in `apps/api/src/config/data-source.ts` (no glob). A new migration file is silently ignored until you import it and add it to the `migrations` array.
+- **The `embedding` column is raw SQL, not TypeORM-managed.** pgvector inserts/queries in `indexing.service.ts` and `retrieval.service.ts` use parameterized raw SQL with a `[...]::vector` literal.
+- **TypeORM QueryBuilder takes entity property names, not DB column names** — `a.createdAt`, not `a.created_at`. Using the column name throws a confusing `Cannot read properties of undefined (reading 'databaseName')` at runtime, not compile time.
+- **Production fail-fast**: with `NODE_ENV=production`, `config/env.ts` refuses to boot if `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, or `S3_SECRET_KEY` is missing or left at its shipped default. This is intended — supply real secrets.
+- **`CORS_ORIGINS` must be set in production.** Empty means block all cross-origin browser calls, so the web app silently fails against the API.
+- **`NEXT_PUBLIC_API_URL` is baked in at Docker build time** (an `ARG` in `Dockerfile.web`), not read at runtime. Changing it requires a rebuild.
+
+## Docs
+
+`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`.
+
+CI (`.github/workflows/ci.yml`) runs a dependency-audit gate (hard-fails on critical), API build+test+migrations against a real pgvector service, web build, and mobile typecheck.
