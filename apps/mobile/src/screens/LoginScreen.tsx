@@ -1,87 +1,207 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { API_URL, setSession, type Session } from '../api';
-import { colors, s } from '../theme';
+import {
+  api,
+  DEFAULT_API_URL,
+  loadApiUrl,
+  setApiUrl,
+  setSession,
+  type Session,
+} from '../api';
+import { align, row, t, type Lang } from '../i18n';
+import { colors, radius, s, space } from '../theme';
 
-export function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
-  const [email, setEmail] = useState('nurse@bnp.health');
+/**
+ * Figma 01 — تسجيل الدخول / Login.
+ *
+ * The server-URL field is part of the design and genuinely load-bearing here:
+ * EXPO_PUBLIC_API_URL is frozen inside a built binary, so without it one build
+ * cannot be pointed at staging vs production.
+ *
+ * The design's offline "دخول تجريبي" (demo login without a server) is
+ * deliberately not implemented — it would surface fabricated clinical content.
+ */
+export function LoginScreen({
+  onLogin,
+  lang,
+  onToggleLang,
+}: {
+  onLogin: (session: Session) => void;
+  lang: Lang;
+  onToggleLang: () => void;
+}) {
+  const [server, setServer] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void loadApiUrl().then(setServer);
+  }, []);
 
   async function submit() {
-    setBusy(true);
     setError('');
+    setBusy(true);
     try {
-      const res = await fetch(`${API_URL}/auth/login`, {
+      // Persist the origin first — `api` resolves it at call time.
+      await setApiUrl(server);
+      const res = await api<Session & { mfaRequired?: boolean }>('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Login failed');
-      if (data.mfaRequired) {
-        throw new Error('MFA-enabled accounts: use the web app for this MVP.');
+      if (!res.accessToken) {
+        setError(lang === 'ar' ? 'تعذّر إتمام تسجيل الدخول.' : 'Could not complete sign-in.');
+        return;
       }
-      await setSession(data);
-      onLogin(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      await setSession(res);
+      onLogin(res);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Login failed');
     } finally {
       setBusy(false);
     }
   }
 
+  const textAlign = align(lang);
+
   return (
-    <View style={[s.screen, { justifyContent: 'center', padding: 24 }]}>
-      <View style={{ alignItems: 'center', marginBottom: 28 }}>
+    <KeyboardAvoidingView
+      style={s.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 64 }}>
+        {/* Logo */}
         <View
           style={{
             width: 56,
             height: 56,
-            borderRadius: 16,
+            borderRadius: radius.lg,
             backgroundColor: colors.brand,
+            alignSelf: 'center',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 12,
           }}
         >
-          <Text style={{ color: 'white', fontSize: 24, fontWeight: '800' }}>B</Text>
+          <Text style={{ color: 'white', fontWeight: '800', fontSize: 16 }}>BNP</Text>
         </View>
-        <Text style={s.h1}>BNP Decision Guard</Text>
-        <Text style={s.muted}>Trusted answers for nursing teams</Text>
-      </View>
-      <Text style={s.label}>Email</Text>
-      <TextInput
-        style={s.input}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <Text style={s.label}>Password</Text>
-      <TextInput
-        style={s.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      {error ? (
-        <Text style={{ color: colors.danger, marginBottom: 12 }}>{error}</Text>
-      ) : null}
-      <TouchableOpacity style={s.btn} onPress={submit} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text style={s.btnText}>Sign in</Text>
-        )}
-      </TouchableOpacity>
-    </View>
+
+        {/* Title block */}
+        <View style={{ marginTop: space.xl }}>
+          <Text style={{ textAlign: 'center', color: colors.muted, fontSize: 14 }}>
+            {t(lang, 'welcomeTo')}
+          </Text>
+          <Text
+            style={{
+              textAlign: 'center',
+              fontSize: 30,
+              fontWeight: '800',
+              color: colors.text,
+              marginTop: 2,
+            }}
+          >
+            DecisionGuard
+          </Text>
+          <Text
+            style={{
+              textAlign: 'center',
+              color: colors.muted,
+              fontSize: 13,
+              marginTop: 4,
+            }}
+          >
+            {t(lang, 'tagline')}
+          </Text>
+        </View>
+
+        {/* Login card */}
+        <View style={[s.card, { marginTop: space.xl, padding: space.lg }]}>
+          <Text style={[s.label, { textAlign }]}>{t(lang, 'serverUrl')}</Text>
+          <TextInput
+            style={[s.input, { textAlign }]}
+            value={server}
+            onChangeText={setServer}
+            placeholder={DEFAULT_API_URL}
+            placeholderTextColor={colors.faint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+
+          <View style={[s.divider, { marginVertical: space.lg }]} />
+
+          <Text style={[s.label, { textAlign }]}>{t(lang, 'email')}</Text>
+          <TextInput
+            style={[s.input, { textAlign, marginBottom: space.md }]}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="nurse@bnp.health"
+            placeholderTextColor={colors.faint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+          />
+
+          <Text style={[s.label, { textAlign }]}>{t(lang, 'password')}</Text>
+          <TextInput
+            style={[s.input, { textAlign }]}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="••••••••"
+            placeholderTextColor={colors.faint}
+            secureTextEntry
+            onSubmitEditing={submit}
+          />
+
+          {error ? (
+            <Text
+              style={{
+                color: colors.danger,
+                fontSize: 13,
+                marginTop: space.md,
+                textAlign,
+              }}
+            >
+              {error}
+            </Text>
+          ) : null}
+
+          <TouchableOpacity
+            style={[s.btn, { marginTop: space.lg }, busy && { opacity: 0.6 }]}
+            onPress={submit}
+            disabled={busy || !email || !password}
+          >
+            {busy ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={s.btnText}>{t(lang, 'signIn')}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Chips */}
+        <View
+          style={{
+            flexDirection: row(lang),
+            justifyContent: 'center',
+            gap: space.sm,
+            marginTop: space.lg,
+          }}
+        >
+          <TouchableOpacity style={s.chip} onPress={onToggleLang}>
+            <Text style={s.chipText}>{lang === 'ar' ? 'EN / عربي' : 'عربي / EN'}</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

@@ -1,137 +1,144 @@
 import { useEffect, useState } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { getSession, setSession, type Session } from './src/api';
-import { colors, s } from './src/theme';
+import { SafeAreaView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { getSession, loadApiUrl, setSession, type Session } from './src/api';
+import { row, t, type Lang } from './src/i18n';
+import { colors, s, space } from './src/theme';
+import { BottomNav, TABS, type Tab } from './src/components/BottomNav';
 import { LoginScreen } from './src/screens/LoginScreen';
-import { AssistantScreen } from './src/screens/AssistantScreen';
+import { HomeScreen, type Category } from './src/screens/HomeScreen';
+import { ChatScreen } from './src/screens/ChatScreen';
+import { AuditScreen } from './src/screens/AuditScreen';
 import { DoseCalculatorScreen } from './src/screens/DoseCalculatorScreen';
 import { PoliciesScreen } from './src/screens/PoliciesScreen';
 
-type Screen =
-  | 'home'
-  | 'assistant'
-  | 'drug-prep'
-  | 'dose-calculator'
-  | 'policies'
-  | 'profile';
+/** A chat opened from a Home category tile keeps its category scope. */
+interface ChatScope {
+  assistantType: 'NURSING' | 'DRUG_PREPARATION' | 'CBAHI';
+  category?: Category;
+  title: string;
+}
 
-const MENU: { key: Screen; title: string; desc: string }[] = [
-  { key: 'assistant', title: 'AI Nursing Assistant', desc: 'Cited answers from approved documents' },
-  { key: 'drug-prep', title: 'Drug Preparation Assistant', desc: 'Medication-scoped answers' },
-  { key: 'dose-calculator', title: 'Dose Calculator', desc: 'Pharmacist-approved formulas only' },
-  { key: 'policies', title: 'Policies Library', desc: 'Browse the active knowledge base' },
-  { key: 'profile', title: 'Profile & Settings', desc: 'Account and session' },
-];
-
-const TITLES: Record<Screen, string> = {
-  home: 'BNP Decision Guard',
-  assistant: 'AI Nursing Assistant',
-  'drug-prep': 'Drug Preparation',
-  'dose-calculator': 'Dose Calculator',
-  policies: 'Policies Library',
-  profile: 'Profile',
+const CATEGORY_ASSISTANT: Record<Category, ChatScope['assistantType']> = {
+  MEDICATIONS: 'DRUG_PREPARATION',
+  NURSING_POLICIES: 'NURSING',
+  CBAHI: 'CBAHI',
 };
 
 export default function App() {
   const [session, setState] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [screen, setScreen] = useState<Screen>('home');
+  const [tab, setTab] = useState<Tab>('home');
+  const [lang, setLang] = useState<Lang>('ar');
+  const [chatScope, setChatScope] = useState<ChatScope | null>(null);
 
   useEffect(() => {
-    getSession().then((stored) => {
-      setState(stored);
-      setReady(true);
-    });
+    // Restore the API-origin override before any request is issued.
+    loadApiUrl()
+      .then(getSession)
+      .then((stored) => {
+        setState(stored);
+        setReady(true);
+      });
   }, []);
 
+  const toggleLang = () => setLang((l) => (l === 'ar' ? 'en' : 'ar'));
+
   if (!ready) return null;
-  if (!session) return <LoginScreen onLogin={setState} />;
+  if (!session) {
+    return (
+      <LoginScreen onLogin={setState} lang={lang} onToggleLang={toggleLang} />
+    );
+  }
 
   async function logout() {
     await setSession(null);
     setState(null);
-    setScreen('home');
+    setTab('home');
+    setChatScope(null);
   }
+
+  const permissions = session.user.permissions;
+  const visibleTabs = TABS.filter(
+    (x) => !x.permission || permissions.includes(x.permission),
+  );
+  // Guard against a stored tab the current role cannot see.
+  const activeTab = visibleTabs.some((x) => x.key === tab) ? tab : 'home';
+
+  function openCategory(category: Category, title: string) {
+    setChatScope({
+      assistantType: CATEGORY_ASSISTANT[category],
+      category,
+      title,
+    });
+    setTab('chat');
+  }
+
+  const scope: ChatScope = chatScope ?? {
+    assistantType: 'NURSING',
+    title: t(lang, 'chat'),
+  };
 
   return (
     <SafeAreaView style={s.screen}>
       <StatusBar barStyle="dark-content" />
+
+      {/* Header (Figma): role · language · sign out, brand on the trailing side */}
       <View
         style={{
-          flexDirection: 'row',
+          flexDirection: row(lang),
           alignItems: 'center',
-          padding: 14,
+          gap: space.sm,
+          paddingHorizontal: space.md,
+          paddingVertical: space.sm,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
           backgroundColor: colors.card,
-          gap: 12,
         }}
       >
-        {screen !== 'home' && (
-          <TouchableOpacity onPress={() => setScreen('home')}>
-            <Text style={{ color: colors.brand, fontSize: 16, fontWeight: '600' }}>
-              ‹ Back
-            </Text>
-          </TouchableOpacity>
-        )}
-        <Text style={[s.h2, { flex: 1 }]}>{TITLES[screen]}</Text>
+        <View style={s.chip}>
+          <Text style={s.chipText}>
+            {session.user.roles[0]?.replaceAll('_', ' ').toLowerCase() ?? 'user'}
+          </Text>
+        </View>
+        <TouchableOpacity style={s.chip} onPress={toggleLang}>
+          <Text style={s.chipText}>{lang === 'ar' ? 'ع/EN' : 'EN/ع'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.chip} onPress={logout}>
+          <Text style={s.chipText}>{t(lang, 'signOut')}</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }} />
+        <Text style={{ fontWeight: '700', color: colors.text, fontSize: 14 }}>
+          DecisionGuard
+        </Text>
       </View>
 
-      {screen === 'home' && (
-        <ScrollView contentContainerStyle={s.container}>
-          <Text style={[s.h1, { marginBottom: 4 }]}>
-            Welcome, {session.user.fullName.split(' ')[0]}
-          </Text>
-          <Text style={[s.muted, { marginBottom: 16 }]}>
-            Trusted clinical knowledge during your shift.
-          </Text>
-          {MENU.map((item) => (
-            <TouchableOpacity key={item.key} style={s.card} onPress={() => setScreen(item.key)}>
-              <Text style={s.h2}>{item.title}</Text>
-              <Text style={s.muted}>{item.desc}</Text>
-            </TouchableOpacity>
-          ))}
-          <View style={[s.card, { backgroundColor: colors.warnBg, borderColor: '#fde68a' }]}>
-            <Text style={[s.arabic, { color: colors.warn }]}>
-              لا توجد وثيقة معتمدة كافية للإجابة؟ الرجاء الرجوع للمسؤول المختص.
-            </Text>
-            <Text style={[s.muted, { marginTop: 6, fontSize: 12 }]}>
-              The assistant refuses rather than guessing when no approved source
-              exists.
-            </Text>
-          </View>
-        </ScrollView>
-      )}
+      <View style={{ flex: 1 }}>
+        {activeTab === 'home' && (
+          <HomeScreen session={session} lang={lang} onOpenCategory={openCategory} />
+        )}
+        {activeTab === 'chat' && (
+          <ChatScreen
+            key={`${scope.assistantType}-${scope.category ?? 'all'}`}
+            assistantType={scope.assistantType}
+            category={scope.category}
+            title={scope.title}
+            lang={lang}
+          />
+        )}
+        {activeTab === 'doses' && <DoseCalculatorScreen lang={lang} />}
+        {activeTab === 'audit' && <AuditScreen lang={lang} />}
+        {activeTab === 'sources' && <PoliciesScreen lang={lang} />}
+      </View>
 
-      {screen === 'assistant' && (
-        <AssistantScreen assistantType="NURSING" title="AI Nursing Assistant" />
-      )}
-      {screen === 'drug-prep' && (
-        <AssistantScreen assistantType="DRUG_PREPARATION" title="Drug Preparation Assistant" />
-      )}
-      {screen === 'dose-calculator' && <DoseCalculatorScreen />}
-      {screen === 'policies' && <PoliciesScreen />}
-      {screen === 'profile' && (
-        <ScrollView contentContainerStyle={s.container}>
-          <View style={s.card}>
-            <Text style={s.h2}>{session.user.fullName}</Text>
-            <Text style={s.muted}>{session.user.email}</Text>
-            <Text style={[s.muted, { marginTop: 4 }]}>
-              Roles: {session.user.roles.join(', ').replaceAll('_', ' ')}
-            </Text>
-          </View>
-          <TouchableOpacity style={s.btn} onPress={logout}>
-            <Text style={s.btnText}>Sign out</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
+      <BottomNav
+        active={activeTab}
+        onChange={(next) => {
+          if (next === 'chat' && activeTab !== 'chat') setChatScope(null);
+          setTab(next);
+        }}
+        lang={lang}
+        permissions={permissions}
+      />
     </SafeAreaView>
   );
 }

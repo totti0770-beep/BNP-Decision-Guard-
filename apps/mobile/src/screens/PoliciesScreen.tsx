@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 import { api } from '../api';
-import { colors, s } from '../theme';
+import { align, t, type Lang } from '../i18n';
+import { colors, s, space } from '../theme';
 
 interface Doc {
   id: string;
@@ -12,14 +13,20 @@ interface Doc {
   expiryDate: string | null;
 }
 
-export function PoliciesScreen() {
+/**
+ * Figma "المصادر / Sources" tab — the active, approved knowledge base.
+ * Source PDFs are intentionally not downloadable here: `documents:download`
+ * is withheld from nurses by the RBAC matrix.
+ */
+export function PoliciesScreen({ lang }: { lang: Lang }) {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [search, setSearch] = useState('');
+  const textAlign = align(lang);
 
   useEffect(() => {
     const params = new URLSearchParams({ status: 'ACTIVE' });
     if (search) params.set('search', search);
-    api<{ items: Doc[] }>(`/documents?${params}`)
+    api<{ items: Doc[] }>(`/documents?${params.toString()}`)
       .then((r) => setDocs(r.items))
       .catch(() => undefined);
   }, [search]);
@@ -27,32 +34,28 @@ export function PoliciesScreen() {
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.container}>
       <TextInput
-        style={s.input}
-        placeholder="Search approved documents…"
+        style={[s.input, { textAlign, marginBottom: space.md }]}
+        placeholder={t(lang, 'searchDocs')}
+        placeholderTextColor={colors.faint}
         value={search}
         onChangeText={setSearch}
       />
       {docs.map((d) => (
         <View key={d.id} style={s.card}>
-          <Text style={s.h2}>{d.title}</Text>
-          <Text style={s.muted}>
+          <Text style={[s.h2, { textAlign }]}>{d.title}</Text>
+          <Text style={[s.muted, { textAlign, marginTop: 2 }]}>
             {d.category.replaceAll('_', ' ')} · v{d.versionNumber}
-            {d.approvalDate ? ` · approved ${d.approvalDate.slice(0, 10)}` : ''}
+            {d.approvalDate
+              ? ` · ${t(lang, 'approved')} ${d.approvalDate.slice(0, 10)}`
+              : ''}
           </Text>
-          {d.expiryDate ? (
-            <Text style={s.muted}>expires {d.expiryDate.slice(0, 10)}</Text>
-          ) : null}
         </View>
       ))}
       {docs.length === 0 && (
-        <Text style={[s.muted, { textAlign: 'center', marginTop: 24 }]}>
-          No active documents found.
+        <Text style={[s.muted, { textAlign: 'center', marginTop: space.xl }]}>
+          {t(lang, 'noEntries')}
         </Text>
       )}
-      <Text style={[s.muted, { marginTop: 8, fontSize: 12 }]}>
-        Source PDFs are copy-protected on mobile. Ask the AI assistant for cited
-        answers from these documents.
-      </Text>
     </ScrollView>
   );
 }
