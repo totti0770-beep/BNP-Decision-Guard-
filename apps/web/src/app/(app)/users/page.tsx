@@ -115,7 +115,7 @@ export default function UsersPage() {
       />
 
       <div className="grid items-start gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+        <div className="min-w-0 xl:col-span-2">
           {loading ? (
             <SkeletonRows rows={6} label="Loading users" />
           ) : error ? (
