@@ -2,34 +2,204 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-50 text-slate-900;
+/**
+ * Semantic design tokens.
+ *
+ * Colours are declared as ROLES (surface, elevated, border, muted, primary…)
+ * rather than raw palette steps, so dark mode re-maps meaning instead of
+ * inverting greys — an inverted light theme is the tell of a bolted-on dark
+ * mode. Values are RGB triplets so Tailwind can apply opacity modifiers.
+ */
+@layer base {
+  :root {
+    /* Surfaces — three levels of depth, so not everything has to be a card */
+    --bg: 250 250 249;          /* page ground */
+    --surface: 255 255 255;     /* raised content */
+    --elevated: 255 255 255;    /* overlays, popovers */
+    --sunken: 245 245 244;      /* wells, table headers, code */
+
+    /* Lines */
+    --border: 231 229 228;      /* hairlines between content */
+    --border-strong: 214 211 209; /* control outlines */
+
+    /* Text — a real hierarchy, not one grey. Ratios on --surface, measured:
+       text 17.5:1, muted 7.6:1, subtle 4.8:1 — all WCAG AA at any size. */
+    --text: 28 25 23;           /* primary content */
+    --text-muted: 87 83 78;     /* secondary */
+    --text-subtle: 120 113 108; /* tertiary / metadata */
+
+    /* Brand — deep teal reads clinical/trustworthy rather than consumer-blue */
+    --primary: 15 118 110;
+    --primary-hover: 13 101 95;
+    --primary-fg: 255 255 255;
+    --primary-soft: 240 253 250;
+
+    /* Semantic states */
+    --success: 4 120 87;
+    --success-soft: 236 253 245;
+    --warning: 180 83 9;
+    --warning-soft: 255 251 235;
+    --danger: 190 18 60;
+    --danger-soft: 255 241 242;
+    --info: 3 105 161;
+    --info-soft: 240 249 255;
+
+    --focus: 13 148 136;
+
+    /* Elevation — restrained; depth mostly comes from surface + border */
+    --shadow-sm: 0 1px 2px 0 rgb(28 25 23 / 0.05);
+    --shadow-md: 0 4px 12px -2px rgb(28 25 23 / 0.08), 0 2px 4px -2px rgb(28 25 23 / 0.04);
+    --shadow-lg: 0 16px 40px -8px rgb(28 25 23 / 0.16);
+  }
+
+  .dark {
+    /* Not an inversion: surfaces get *lighter* with elevation, borders lose
+       contrast, and accent colours are lifted so they stay legible on dark. */
+    --bg: 12 12 14;
+    --surface: 24 24 27;
+    --elevated: 32 32 36;
+    --sunken: 18 18 21;
+
+    --border: 42 42 47;
+    --border-strong: 63 63 70;
+
+    --text: 250 250 249;
+    --text-muted: 168 162 158;
+    /* 142/137/132 clears AA (>=4.5:1) on surface, bg and sunken alike; the
+       more obvious 130/125/120 measured 4.35 and failed at our text sizes. */
+    --text-subtle: 142 137 132;
+
+    --primary: 45 212 191;
+    --primary-hover: 94 234 212;
+    --primary-fg: 4 47 46;
+    --primary-soft: 19 45 43;
+
+    --success: 52 211 153;
+    --success-soft: 6 46 37;
+    --warning: 251 191 36;
+    --warning-soft: 56 40 8;
+    --danger: 251 113 133;
+    --danger-soft: 65 18 32;
+    --info: 56 189 248;
+    --info-soft: 8 40 58;
+
+    --focus: 45 212 191;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg text-text antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Tabular numerals everywhere numbers are compared or scanned. */
+  .tnum,
+  table td,
+  table th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* One consistent, always-visible focus treatment. Keyboard users get a ring;
+     mouse users do not, because :focus-visible excludes pointer focus. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--focus));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Motion is opt-out at the source, so no component has to remember. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-.card {
-  @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm;
+@layer components {
+  /* Skip link — first tab stop, visible only when focused. */
+  .skip-link {
+    @apply sr-only rounded-md bg-surface px-4 py-2 text-sm font-medium shadow-lg;
+  }
+  .skip-link:focus {
+    @apply not-sr-only fixed left-4 top-4 z-50;
+  }
+
+  /**
+   * Legacy utility classes, re-pointed at the new semantic tokens.
+   *
+   * 86 call sites across the 16 routes still use these. Re-mapping rather than
+   * deleting keeps this change non-breaking and means every screen inherits
+   * the new palette, dark mode and focus treatment immediately; screens then
+   * migrate to the `components/ui` primitives progressively.
+   */
+  .card {
+    @apply rounded-card border border-border bg-surface p-4 shadow-sm;
+  }
+
+  .btn {
+    @apply inline-flex h-9 select-none items-center justify-center gap-2 rounded-control px-3.5
+           text-sm font-medium transition-colors duration-150
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-primary-fg shadow-sm hover:bg-primary-hover;
+  }
+
+  .btn-secondary {
+    @apply btn border border-border-strong bg-surface text-text hover:bg-sunken;
+  }
+
+  .input {
+    @apply h-9 w-full rounded-control border border-border-strong bg-surface px-3 text-sm
+           text-text transition-colors duration-150 placeholder:text-subtle
+           hover:border-subtle disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-medium text-muted;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium
+           ring-1 ring-inset ring-border;
+  }
+
+  .shimmer {
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--sunken)) 0%,
+      rgb(var(--border)) 50%,
+      rgb(var(--sunken)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
 }
 
-.btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-.btn-primary {
-  @apply btn bg-brand-600 text-white hover:bg-brand-700;
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
 }
 
-.btn-secondary {
-  @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-100;
-}
-
-.input {
-  @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
-}
-
-.label {
-  @apply mb-1 block text-sm font-medium text-slate-700;
-}
-
-.badge {
-  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
 }
