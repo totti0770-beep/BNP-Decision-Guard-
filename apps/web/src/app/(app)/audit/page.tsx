@@ -1,8 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
-import { PageHeader } from '@/components/shell';
+import { useAsyncData, useDebounced } from '@/lib/async';
+import {
+  Badge,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  PageHeader,
+  Pagination,
+  Panel,
+  SkeletonRows,
+  Table,
+  Td,
+  Th,
+} from '@/components/ui';
 
 interface AuditRow {
   id: string;
@@ -15,26 +29,43 @@ interface AuditRow {
   createdAt: string;
 }
 
+const LIMIT = 25;
+
+/** Refusals and rejections are the events an auditor is usually hunting for. */
+function actionTone(action: string) {
+  if (action.includes('REFUSED') || action.includes('REJECT') || action.includes('FAIL'))
+    return 'warning' as const;
+  if (action.startsWith('AUTH:')) return 'info' as const;
+  return 'neutral' as const;
+}
+
 export default function AuditPage() {
-  const [items, setItems] = useState<AuditRow[]>([]);
-  const [total, setTotal] = useState(0);
   const [action, setAction] = useState('');
   const [actorEmail, setActorEmail] = useState('');
   const [offset, setOffset] = useState(0);
-  const limit = 25;
 
-  const load = useCallback(async () => {
-    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    if (action) params.set('action', action);
-    if (actorEmail) params.set('actorEmail', actorEmail);
-    const res = await api<{ items: AuditRow[]; total: number }>(`/audit-logs?${params}`);
-    setItems(res.items);
-    setTotal(res.total);
-  }, [action, actorEmail, offset]);
+  const debouncedAction = useDebounced(action);
+  const debouncedActor = useDebounced(actorEmail);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const fetchLogs = useCallback(() => {
+    const params = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) });
+    if (debouncedAction) params.set('action', debouncedAction);
+    if (debouncedActor) params.set('actorEmail', debouncedActor);
+    return api<{ items: AuditRow[]; total: number }>(`/audit-logs?${params}`);
+  }, [debouncedAction, debouncedActor, offset]);
+
+  const { data, error, loading, refreshing, reload } = useAsyncData(fetchLogs, [
+    debouncedAction,
+    debouncedActor,
+    offset,
+  ]);
+
+  const filtered = Boolean(debouncedAction || debouncedActor);
+
+  function setFilter(setter: (v: string) => void, v: string) {
+    setOffset(0);
+    setter(v);
+  }
 
   return (
     <>
@@ -42,66 +73,101 @@ export default function AuditPage() {
         title="Audit Logs"
         subtitle="Every login, question, answer, document action and permission change."
       />
-      <div className="mb-4 flex flex-wrap gap-2">
-        <input
-          className="input max-w-64"
-          placeholder="Filter by action (e.g. AI:ANSWER_REFUSED)"
-          value={action}
-          onChange={(e) => { setOffset(0); setAction(e.target.value); }}
-        />
-        <input
-          className="input max-w-64"
-          placeholder="Filter by actor email"
-          value={actorEmail}
-          onChange={(e) => { setOffset(0); setActorEmail(e.target.value); }}
-        />
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Field label="Action" hint="e.g. AI:ANSWER_REFUSED" className="w-full sm:w-72">
+          <Input
+            value={action}
+            onChange={(e) => setFilter(setAction, e.target.value)}
+            placeholder="Filter by action"
+          />
+        </Field>
+        <Field label="Actor" hint="Email address" className="w-full sm:w-64">
+          <Input
+            type="search"
+            value={actorEmail}
+            onChange={(e) => setFilter(setActorEmail, e.target.value)}
+            placeholder="Filter by actor"
+          />
+        </Field>
       </div>
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-            <tr>
-              <th className="px-4 py-3">Time</th>
-              <th className="px-4 py-3">Actor</th>
-              <th className="px-4 py-3">Action</th>
-              <th className="px-4 py-3">Resource</th>
-              <th className="px-4 py-3">Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((row) => (
-              <tr key={row.id} className="border-b border-slate-50 align-top">
-                <td className="whitespace-nowrap px-4 py-2.5 text-xs text-slate-500">
-                  {new Date(row.createdAt).toLocaleString()}
-                </td>
-                <td className="px-4 py-2.5 text-xs">{row.actorEmail ?? 'system'}</td>
-                <td className="px-4 py-2.5">
-                  <span className="badge bg-slate-100 text-slate-700">{row.action}</span>
-                </td>
-                <td className="px-4 py-2.5 text-xs text-slate-500">
-                  {row.resourceType}
-                  {row.resourceId ? ` · ${row.resourceId.slice(0, 8)}…` : ''}
-                </td>
-                <td className="max-w-md px-4 py-2.5 text-xs text-slate-400">
-                  {row.metadata ? JSON.stringify(row.metadata).slice(0, 120) : ''}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
-        <span>
-          {total} events · showing {offset + 1}–{Math.min(offset + limit, total)}
-        </span>
-        <div className="flex gap-2">
-          <button className="btn-secondary text-xs" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>
-            Previous
-          </button>
-          <button className="btn-secondary text-xs" disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)}>
-            Next
-          </button>
-        </div>
-      </div>
+
+      {loading ? (
+        <SkeletonRows rows={6} label="Loading audit events" />
+      ) : error ? (
+        /* A compliance surface that renders blank on failure is worse than
+           useless — an empty table reads as "no events occurred". */
+        <ErrorState message={error} onRetry={reload} />
+      ) : !data || data.items.length === 0 ? (
+        <Panel>
+          <EmptyState
+            title={filtered ? 'No events match these filters' : 'No audit events yet'}
+            description={
+              filtered
+                ? 'Try a broader action prefix such as AI: or DOC:, or clear the actor filter.'
+                : 'Events appear here as soon as users sign in, ask questions or act on documents.'
+            }
+          />
+        </Panel>
+      ) : (
+        <>
+          <Panel className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Time</Th>
+                  <Th>Actor</Th>
+                  <Th>Action</Th>
+                  <Th className="hidden md:table-cell">Resource</Th>
+                  <Th className="hidden lg:table-cell">Details</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((row) => (
+                  <tr key={row.id} className="align-top">
+                    <Td className="whitespace-nowrap text-xs text-subtle">
+                      {new Date(row.createdAt).toLocaleString()}
+                    </Td>
+                    <Td className="text-xs text-muted">{row.actorEmail ?? 'system'}</Td>
+                    <Td>
+                      <Badge tone={actionTone(row.action)}>{row.action}</Badge>
+                      {/* Resource moves inline once its column is hidden, so
+                          nothing is silently lost on a phone. */}
+                      {row.resourceType && (
+                        <span className="mt-1 block text-2xs text-subtle md:hidden">
+                          {row.resourceType}
+                        </span>
+                      )}
+                    </Td>
+                    <Td className="hidden text-xs text-subtle md:table-cell">
+                      {row.resourceType}
+                      {row.resourceId ? ` · ${row.resourceId.slice(0, 8)}…` : ''}
+                    </Td>
+                    <Td className="hidden max-w-md lg:table-cell">
+                      {row.metadata && (
+                        <span
+                          className="block truncate font-mono text-2xs text-subtle"
+                          title={JSON.stringify(row.metadata)}
+                        >
+                          {JSON.stringify(row.metadata)}
+                        </span>
+                      )}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </Panel>
+
+          <Pagination
+            offset={offset}
+            limit={LIMIT}
+            total={data.total}
+            onChange={setOffset}
+            noun="events"
+          />
+        </>
+      )}
     </>
   );
 }

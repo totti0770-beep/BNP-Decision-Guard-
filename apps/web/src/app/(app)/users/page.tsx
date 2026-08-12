@@ -1,9 +1,26 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { PageHeader } from '@/components/shell';
+import { useAsyncData } from '@/lib/async';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  PageHeader,
+  Panel,
+  Section,
+  Select,
+  SkeletonRows,
+  Table,
+  Td,
+  Th,
+} from '@/components/ui';
 
 interface UserRow {
   id: string;
@@ -21,26 +38,39 @@ interface RoleRow {
   permissions: string[];
 }
 
+const humanise = (s: string) => s.replaceAll('_', ' ');
+
 export default function UsersPage() {
   const { hasPermission } = useAuth();
   const canManage = hasPermission('users:manage');
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [roles, setRoles] = useState<RoleRow[]>([]);
-  const [error, setError] = useState('');
-  const [form, setForm] = useState({ email: '', fullName: '', password: '', role: 'NURSE_USER' });
+  const canReadRoles = hasPermission('roles:read');
 
-  const load = useCallback(async () => {
-    setUsers(await api<UserRow[]>('/users'));
-    if (hasPermission('roles:read')) setRoles(await api<RoleRow[]>('/roles'));
-  }, [hasPermission]);
+  const fetchAll = useCallback(async () => {
+    const [users, roles] = await Promise.all([
+      api<UserRow[]>('/users'),
+      canReadRoles ? api<RoleRow[]>('/roles') : Promise.resolve([] as RoleRow[]),
+    ]);
+    return { users, roles };
+  }, [canReadRoles]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { data, error, loading, reload } = useAsyncData(fetchAll, [canReadRoles]);
+
+  const [form, setForm] = useState({
+    email: '',
+    fullName: '',
+    password: '',
+    role: 'NURSE_USER',
+  });
+  const [formError, setFormError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const passwordTooShort = form.password !== '' && form.password.length < 8;
 
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setFormError('');
+    setCreating(true);
     try {
       await api('/users', {
         method: 'POST',
@@ -52,99 +82,209 @@ export default function UsersPage() {
         }),
       });
       setForm({ email: '', fullName: '', password: '', role: 'NURSE_USER' });
-      await load();
+      reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed');
+      setFormError(err instanceof Error ? err.message : 'Could not create the user');
+    } finally {
+      setCreating(false);
     }
   }
 
   async function toggleActive(u: UserRow) {
-    await api(`/users/${u.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ isActive: !u.isActive }),
-    });
-    await load();
+    setTogglingId(u.id);
+    try {
+      await api(`/users/${u.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: !u.isActive }),
+      });
+      reload();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Could not update the user');
+    } finally {
+      setTogglingId(null);
+    }
   }
+
+  const roles = data?.roles ?? [];
 
   return (
     <>
-      <PageHeader title="Users & Roles" subtitle="Role changes are fully audited." />
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="card overflow-x-auto p-0 xl:col-span-2">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Roles</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Last login</th>
-                {canManage && <th className="px-4 py-3" />}
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-b border-slate-50">
-                  <td className="px-4 py-3 font-medium">{u.fullName}</td>
-                  <td className="px-4 py-3 text-slate-500">{u.email}</td>
-                  <td className="px-4 py-3">
-                    {u.roles.map((r) => (
-                      <span key={r} className="badge mr-1 bg-brand-50 text-brand-700">
-                        {r.replaceAll('_', ' ')}
-                      </span>
-                    ))}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`badge ${u.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
-                      {u.isActive ? 'Active' : 'Disabled'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : '—'}
-                  </td>
-                  {canManage && (
-                    <td className="px-4 py-3 text-right">
-                      <button className="btn-secondary text-xs" onClick={() => toggleActive(u)}>
-                        {u.isActive ? 'Disable' : 'Enable'}
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <PageHeader
+        title="Users & Roles"
+        subtitle="Role changes are fully audited. Disabling a user revokes their outstanding sessions."
+      />
+
+      <div className="grid items-start gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          {loading ? (
+            <SkeletonRows rows={6} label="Loading users" />
+          ) : error ? (
+            <ErrorState message={error} onRetry={reload} />
+          ) : !data || data.users.length === 0 ? (
+            <Panel>
+              <EmptyState
+                title="No users yet"
+                description="Seed the demo data or create the first account with the form beside this list."
+              />
+            </Panel>
+          ) : (
+            <Panel>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Name</Th>
+                    <Th className="hidden md:table-cell">Email</Th>
+                    <Th>Roles</Th>
+                    <Th>Status</Th>
+                    <Th className="hidden lg:table-cell">Last login</Th>
+                    {canManage && <Th />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.users.map((u) => (
+                    <tr key={u.id}>
+                      <Td className="font-medium text-text">
+                        {u.fullName}
+                        <span className="mt-0.5 block text-2xs text-subtle md:hidden">
+                          {u.email}
+                        </span>
+                      </Td>
+                      <Td className="hidden text-muted md:table-cell">{u.email}</Td>
+                      <Td>
+                        <div className="flex flex-wrap gap-1">
+                          {u.roles.map((r) => (
+                            <Badge key={r} tone="primary">
+                              {humanise(r)}
+                            </Badge>
+                          ))}
+                        </div>
+                      </Td>
+                      <Td>
+                        <Badge tone={u.isActive ? 'success' : 'neutral'}>
+                          {u.isActive ? 'Active' : 'Disabled'}
+                        </Badge>
+                      </Td>
+                      <Td className="tnum hidden text-subtle lg:table-cell">
+                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : '—'}
+                      </Td>
+                      {canManage && (
+                        <Td className="text-right">
+                          <Button
+                            size="sm"
+                            loading={togglingId === u.id}
+                            onClick={() => toggleActive(u)}
+                          >
+                            {u.isActive ? 'Disable' : 'Enable'}
+                          </Button>
+                        </Td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Panel>
+          )}
         </div>
+
         <div className="space-y-6">
           {canManage && (
-            <form onSubmit={createUser} className="card space-y-3">
-              <h3 className="font-semibold">Add user</h3>
-              <input className="input" placeholder="Full name" required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-              <input className="input" type="email" placeholder="Email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <input className="input" type="password" placeholder="Password (min 8 chars)" minLength={8} required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.name}>
-                    {r.name.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </select>
-              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
-              <button className="btn-primary w-full">Create user</button>
-            </form>
+            <Card>
+              <form onSubmit={createUser} className="space-y-3">
+                <h2 className="text-lg font-semibold tracking-tight">Add user</h2>
+
+                <Field label="Full name" required>
+                  <Input
+                    required
+                    autoComplete="off"
+                    value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                  />
+                </Field>
+
+                <Field label="Email" required>
+                  <Input
+                    type="email"
+                    required
+                    autoComplete="off"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </Field>
+
+                <Field
+                  label="Password"
+                  required
+                  hint="At least 8 characters"
+                  error={passwordTooShort ? 'Too short — use 8 characters or more' : undefined}
+                >
+                  <Input
+                    type="password"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  />
+                </Field>
+
+                <Field label="Role" required hint="Determines which screens and actions they get">
+                  <Select
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  >
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.name}>
+                        {humanise(r.name)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+
+                {formError && (
+                  <p
+                    role="alert"
+                    className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger"
+                  >
+                    {formError}
+                  </p>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  loading={creating}
+                  disabled={
+                    !form.fullName || !form.email || form.password.length < 8 || !roles.length
+                  }
+                >
+                  Create user
+                </Button>
+              </form>
+            </Card>
           )}
-          <div className="card">
-            <h3 className="mb-3 font-semibold">Roles</h3>
-            <ul className="space-y-2 text-sm">
-              {roles.map((r) => (
-                <li key={r.id}>
-                  <div className="font-medium">{r.name.replaceAll('_', ' ')}</div>
-                  <div className="text-xs text-slate-400">
-                    {r.description} · {r.permissions.length} permissions
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+
+          {canReadRoles && (
+            <Section title="Roles" description="Permission sets defined by the platform">
+              {loading ? (
+                <SkeletonRows rows={3} label="Loading roles" />
+              ) : (
+                <Panel className="divide-y divide-border">
+                  {roles.map((r) => (
+                    <div key={r.id} className="p-3">
+                      <div className="text-sm font-medium text-text">{humanise(r.name)}</div>
+                      {r.description && (
+                        <p className="mt-0.5 text-xs text-subtle">{r.description}</p>
+                      )}
+                      <p className="tnum mt-1 text-2xs text-subtle">
+                        {r.permissions.length} permissions
+                      </p>
+                    </div>
+                  ))}
+                </Panel>
+              )}
+            </Section>
+          )}
         </div>
       </div>
     </>

@@ -426,6 +426,104 @@ export function Td({ children, className }: { children?: ReactNode; className?: 
   );
 }
 
+/* -------------------------------------------------------- Segmented filter */
+
+/**
+ * A small set of mutually-exclusive filters. Rendered as buttons with
+ * `aria-pressed` rather than styled links, so keyboard and screen-reader users
+ * get the selected state that the previous colour-only treatment never
+ * conveyed.
+ */
+export function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T;
+  options: { value: T; label: string; count?: number }[];
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex rounded-control border border-border bg-sunken p-0.5"
+    >
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(o.value)}
+            className={cx(
+              'rounded-[4px] px-3 py-1 text-xs font-medium transition-colors',
+              active
+                ? 'bg-surface text-text shadow-sm'
+                : 'text-muted hover:text-text',
+            )}
+          >
+            {o.label}
+            {o.count != null && (
+              <span className="tnum ml-1.5 text-subtle">{o.count}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- Pagination */
+
+/**
+ * The range is announced via `aria-live`, because previously the only feedback
+ * that Next/Previous did anything was rows silently changing.
+ */
+export function Pagination({
+  offset,
+  limit,
+  total,
+  onChange,
+  noun = 'results',
+}: {
+  offset: number;
+  limit: number;
+  total: number;
+  onChange: (next: number) => void;
+  noun?: string;
+}) {
+  const from = total === 0 ? 0 : offset + 1;
+  const to = Math.min(offset + limit, total);
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <p aria-live="polite" className="tnum text-xs text-subtle">
+        {total === 0 ? `No ${noun}` : `${from}–${to} of ${total} ${noun}`}
+      </p>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          disabled={offset === 0}
+          onClick={() => onChange(Math.max(0, offset - limit))}
+        >
+          Previous
+        </Button>
+        <Button
+          size="sm"
+          disabled={offset + limit >= total}
+          onClick={() => onChange(offset + limit)}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /* --------------------------------------------------------------- Page head */
 
 export function PageHeader({

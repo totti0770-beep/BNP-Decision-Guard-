@@ -1,8 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { api } from '@/lib/api';
-import { PageHeader } from '@/components/shell';
+import { useAsyncData } from '@/lib/async';
+import {
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  Panel,
+  Section,
+  Skeleton,
+  SkeletonRows,
+} from '@/components/ui';
 
 interface Overview {
   counters: Record<string, number>;
@@ -11,92 +20,186 @@ interface Overview {
   documentsByCategory: { category: string; count: number }[];
 }
 
-const COUNTER_LABELS: [string, string][] = [
-  ['active_users', 'Active users'],
-  ['total_documents', 'Documents (all)'],
-  ['active_documents', 'Active documents'],
-  ['documents_in_review', 'In review'],
-  ['expired_documents', 'Expired'],
-  ['near_expiry_documents', 'Near expiry (30d)'],
-  ['total_questions', 'Questions asked'],
-  ['answered_questions', 'Answered'],
-  ['refused_answers', 'Refused (no source)'],
-  ['dose_calculations', 'Dose calculations'],
-  ['approved_formulas', 'Approved formulas'],
-  ['audit_events', 'Audit events'],
+/**
+ * Counters grouped by the question they answer, rather than thirteen identical
+ * cards. A wall of equal-weight KPI tiles is decoration: it tells you nothing
+ * about which number matters.
+ */
+const GROUPS: { title: string; description: string; keys: [string, string][] }[] = [
+  {
+    title: 'Knowledge base',
+    description: 'How much approved material the assistant can draw on',
+    keys: [
+      ['active_documents', 'Active'],
+      ['total_documents', 'Total uploaded'],
+      ['documents_in_review', 'In review'],
+      ['near_expiry_documents', 'Near expiry (30d)'],
+      ['expired_documents', 'Expired'],
+      ['approved_formulas', 'Approved formulas'],
+    ],
+  },
+  {
+    title: 'Assistant usage',
+    description: 'What nurses asked and what came back',
+    keys: [
+      ['total_questions', 'Questions asked'],
+      ['answered_questions', 'Answered'],
+      ['refused_answers', 'Refused (no source)'],
+      ['dose_calculations', 'Dose calculations'],
+    ],
+  },
+  {
+    title: 'Governance',
+    description: 'Accounts and the audit trail',
+    keys: [
+      ['active_users', 'Active users'],
+      ['audit_events', 'Audit events'],
+    ],
+  },
 ];
 
+function Bars({
+  rows,
+  emptyLabel,
+}: {
+  rows: { label: string; value: number }[];
+  emptyLabel: string;
+}) {
+  if (rows.length === 0) return <p className="text-sm text-subtle">{emptyLabel}</p>;
+  const max = Math.max(...rows.map((r) => r.value), 1);
+
+  return (
+    <ul className="space-y-2">
+      {rows.map((r) => (
+        <li key={r.label} className="flex items-center gap-3 text-sm">
+          <span className="w-32 shrink-0 truncate text-muted" title={r.label}>
+            {r.label}
+          </span>
+          {/* The bar is decorative; the number beside it carries the value, so
+              screen readers get the figure without a chart to interpret. */}
+          <div className="h-1.5 flex-1 rounded-full bg-sunken" aria-hidden="true">
+            <div
+              className="h-1.5 rounded-full bg-primary"
+              style={{ width: `${Math.max((r.value / max) * 100, r.value > 0 ? 3 : 0)}%` }}
+            />
+          </div>
+          <span className="tnum w-8 shrink-0 text-right font-medium text-text">{r.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function AnalyticsPage() {
-  const [data, setData] = useState<Overview | null>(null);
+  const fetchOverview = useCallback(() => api<Overview>('/analytics/overview'), []);
+  const { data, error, loading, reload } = useAsyncData(fetchOverview, []);
 
-  useEffect(() => {
-    api<Overview>('/analytics/overview').then(setData);
-  }, []);
+  if (loading) {
+    return (
+      <>
+        <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+        <div className="space-y-6">
+          <Skeleton className="h-24 w-full" />
+          <SkeletonRows rows={3} label="Loading analytics" />
+        </div>
+      </>
+    );
+  }
 
-  if (!data) return <p className="text-slate-400">Loading…</p>;
+  if (error) {
+    return (
+      <>
+        <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+        <ErrorState message={error} onRetry={reload} />
+      </>
+    );
+  }
+
+  if (!data) {
+    return (
+      <>
+        <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+        <Panel>
+          <EmptyState
+            title="No analytics available"
+            description="The overview endpoint returned nothing. This usually means the database has not been seeded yet."
+          />
+        </Panel>
+      </>
+    );
+  }
+
+  const totalQuestions = data.counters.total_questions ?? 0;
 
   return (
     <>
-      <PageHeader
-        title="Analytics"
-        subtitle="Knowledge-base health and assistant usage."
-      />
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-        {COUNTER_LABELS.map(([key, label]) => (
-          <div key={key} className="card">
-            <div className="text-2xl font-bold">{data.counters[key] ?? 0}</div>
-            <div className="mt-1 text-xs text-slate-500">{label}</div>
+      <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+
+      <div className="space-y-8">
+        {/* Refusal rate is the one number that describes whether governance is
+            working, so it gets its own treatment rather than a tile among 12. */}
+        <Panel className="p-5">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <span className="tnum text-3xl font-semibold text-primary">
+              {data.refusalRate}%
+            </span>
+            <div>
+              <p className="text-sm font-medium text-text">Refusal rate</p>
+              <p className="text-xs text-subtle">
+                Share of questions with no approved source behind them
+              </p>
+            </div>
           </div>
-        ))}
-        <div className="card border-brand-100 bg-brand-50">
-          <div className="text-2xl font-bold text-brand-700">{data.refusalRate}%</div>
-          <div className="mt-1 text-xs text-brand-700">
-            Refusal rate (governance signal)
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="card">
-          <h3 className="mb-3 font-semibold">Documents by category</h3>
-          <ul className="space-y-2">
-            {data.documentsByCategory.map((row) => (
-              <li key={row.category} className="flex items-center gap-3 text-sm">
-                <span className="w-40 text-slate-500">{row.category.replaceAll('_', ' ')}</span>
-                <div className="h-2 flex-1 rounded bg-slate-100">
-                  <div
-                    className="h-2 rounded bg-brand-500"
-                    style={{
-                      width: `${(row.count / Math.max(...data.documentsByCategory.map((r) => r.count), 1)) * 100}%`,
-                    }}
-                  />
+          <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
+            A refusal is a correct outcome, not a failure — it means the assistant
+            declined to answer rather than guessing. A rising rate points at gaps in
+            the approved library, not at a broken assistant.
+          </p>
+        </Panel>
+
+        {GROUPS.map((g) => (
+          <Section key={g.title} title={g.title} description={g.description}>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+              {g.keys.map(([key, label]) => (
+                <div key={key}>
+                  <dt className="text-2xs uppercase tracking-wide text-subtle">{label}</dt>
+                  <dd className="tnum mt-0.5 text-xl font-semibold text-text">
+                    {data.counters[key] ?? 0}
+                  </dd>
                 </div>
-                <span className="w-6 text-right font-medium">{row.count}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="card">
-          <h3 className="mb-3 font-semibold">Questions (last 14 days)</h3>
-          {data.questionsByDay.length === 0 ? (
-            <p className="text-sm text-slate-400">No questions yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {data.questionsByDay.map((row) => (
-                <li key={row.day} className="flex items-center gap-3 text-sm">
-                  <span className="w-28 text-slate-500">{String(row.day).slice(0, 10)}</span>
-                  <div className="h-2 flex-1 rounded bg-slate-100">
-                    <div
-                      className="h-2 rounded bg-brand-500"
-                      style={{
-                        width: `${(Number(row.questions) / Math.max(...data.questionsByDay.map((r) => Number(r.questions)), 1)) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="w-6 text-right font-medium">{row.questions}</span>
-                </li>
               ))}
-            </ul>
-          )}
+            </dl>
+          </Section>
+        ))}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Section title="Documents by category">
+            <Panel className="p-4">
+              <Bars
+                rows={data.documentsByCategory.map((r) => ({
+                  label: r.category.replaceAll('_', ' '),
+                  value: r.count,
+                }))}
+                emptyLabel="No documents have been uploaded yet."
+              />
+            </Panel>
+          </Section>
+
+          <Section title="Questions (last 14 days)">
+            <Panel className="p-4">
+              <Bars
+                rows={data.questionsByDay.map((r) => ({
+                  label: String(r.day).slice(0, 10),
+                  value: Number(r.questions),
+                }))}
+                emptyLabel={
+                  totalQuestions > 0
+                    ? 'No questions in the last 14 days.'
+                    : 'No questions asked yet.'
+                }
+              />
+            </Panel>
+          </Section>
         </div>
       </div>
     </>
