@@ -22,9 +22,24 @@ interface Setting {
   updatedAt: string;
 }
 
+interface ReindexOutcome {
+  provider: string;
+  results: {
+    documentId: string;
+    title: string;
+    status: 'REINDEXED' | 'FAILED';
+    chunkCount?: number;
+    error?: string;
+  }[];
+}
+
 export default function SettingsPage() {
   const { hasPermission } = useAuth();
   const canManage = hasPermission('settings:manage');
+  // Deliberately independent of canManage: /rag/reindex is guarded by
+  // documents:index server-side, and the two capabilities don't imply
+  // each other in the role matrix.
+  const canReindex = hasPermission('documents:index');
 
   const fetchSettings = useCallback(() => api<Setting[]>('/settings'), []);
   const { data, error, loading, reload } = useAsyncData(fetchSettings, []);
@@ -33,6 +48,30 @@ export default function SettingsPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [saveError, setSaveError] = useState('');
+
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexOutcome, setReindexOutcome] = useState<ReindexOutcome | null>(null);
+
+  async function reindex() {
+    if (
+      !window.confirm(
+        'Re-embed every active document with the currently configured embedding provider? This rebuilds all chunks and may consume external API quota.',
+      )
+    ) {
+      return;
+    }
+    setSaveError('');
+    setReindexOutcome(null);
+    setReindexing(true);
+    try {
+      const outcome = await api<ReindexOutcome>('/rag/reindex', { method: 'POST' });
+      setReindexOutcome(outcome);
+    } catch (err) {
+      setSaveError(err instanceof Error ? `Reindex: ${err.message}` : 'Reindex failed');
+    } finally {
+      setReindexing(false);
+    }
+  }
 
   useEffect(() => {
     if (data) {
@@ -95,6 +134,51 @@ export default function SettingsPage() {
         >
           {saveError}
         </p>
+      )}
+
+      {canReindex && (
+        <Panel className="mb-6 max-w-3xl p-4">
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:flex-nowrap">
+            <div className="min-w-0 flex-1">
+              <span className="text-sm font-medium text-text">Reindex knowledge library</span>
+              <p className="mt-0.5 text-xs text-subtle">
+                Re-embeds every active document with the current embedding provider.
+                Required after switching EMBEDDING_PROVIDER — until then the assistant
+                refuses all questions because stored chunks no longer match.
+              </p>
+            </div>
+            <Button size="sm" loading={reindexing} onClick={reindex}>
+              Reindex
+            </Button>
+          </div>
+
+          {reindexOutcome && (
+            <div className="mt-3 border-t border-border pt-3">
+              <p className="text-xs text-subtle">
+                Provider: <span className="font-mono text-text">{reindexOutcome.provider}</span>
+              </p>
+              {reindexOutcome.results.length === 0 ? (
+                <p className="mt-1 text-xs text-subtle">
+                  No active documents to reindex.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1.5">
+                  {reindexOutcome.results.map((r) => (
+                    <li key={r.documentId} className="flex items-start gap-2 text-xs">
+                      <Badge tone={r.status === 'REINDEXED' ? 'success' : 'danger'}>
+                        {r.status === 'REINDEXED' ? `${r.chunkCount} chunks` : 'Failed'}
+                      </Badge>
+                      <span className="min-w-0">
+                        <span className="text-text">{r.title}</span>
+                        {r.error && <span className="block text-danger">{r.error}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </Panel>
       )}
 
       {loading ? (
