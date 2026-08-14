@@ -42,6 +42,8 @@ export function LoginScreen({
   const [server, setServer] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,10 +57,19 @@ export function LoginScreen({
     try {
       // Persist the origin first — `api` resolves it at call time.
       await setApiUrl(server);
-      const res = await api<Session & { mfaRequired?: boolean }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      const endpoint = mfaToken ? '/auth/mfa/verify' : '/auth/login';
+      const body = mfaToken
+        ? { mfaToken, code: mfaCode }
+        : { email: email.trim(), password };
+      const res = await api<
+        Session & { mfaRequired?: boolean; mfaToken?: string }
+      >(endpoint, { method: 'POST', body: JSON.stringify(body) });
+      if (res.mfaRequired && res.mfaToken) {
+        // Step up: same screen, second factor. Parity with the web login.
+        setMfaToken(res.mfaToken);
+        setMfaCode('');
+        return;
+      }
       if (!res.accessToken) {
         setError(lang === 'ar' ? 'تعذّر إتمام تسجيل الدخول.' : 'Could not complete sign-in.');
         return;
@@ -125,42 +136,75 @@ export function LoginScreen({
 
         {/* Login card */}
         <View style={[s.card, { marginTop: space.xl, padding: space.lg }]}>
-          <Text style={[s.label, { textAlign }]}>{t(lang, 'serverUrl')}</Text>
-          <TextInput
-            style={[s.input, { textAlign }]}
-            value={server}
-            onChangeText={setServer}
-            placeholder={DEFAULT_API_URL}
-            placeholderTextColor={colors.faint}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-          />
+          {mfaToken ? (
+            <>
+              <Text style={[s.label, { textAlign }]}>{t(lang, 'mfaCode')}</Text>
+              <TextInput
+                style={[s.input, { textAlign: 'center', letterSpacing: 6 }]}
+                value={mfaCode}
+                onChangeText={(v) => setMfaCode(v.replace(/\D/g, ''))}
+                placeholder="123456"
+                placeholderTextColor={colors.faint}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                accessibilityLabel={t(lang, 'mfaCode')}
+                onSubmitEditing={submit}
+              />
+              <Text
+                style={{
+                  color: colors.muted,
+                  fontSize: 12,
+                  marginTop: space.sm,
+                  textAlign,
+                }}
+              >
+                {t(lang, 'mfaHint')}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={[s.label, { textAlign }]}>{t(lang, 'serverUrl')}</Text>
+              <TextInput
+                style={[s.input, { textAlign }]}
+                value={server}
+                onChangeText={setServer}
+                placeholder={DEFAULT_API_URL}
+                placeholderTextColor={colors.faint}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                accessibilityLabel={t(lang, 'serverUrl')}
+              />
 
-          <View style={[s.divider, { marginVertical: space.lg }]} />
+              <View style={[s.divider, { marginVertical: space.lg }]} />
 
-          <Text style={[s.label, { textAlign }]}>{t(lang, 'email')}</Text>
-          <TextInput
-            style={[s.input, { textAlign, marginBottom: space.md }]}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="nurse@bnp.health"
-            placeholderTextColor={colors.faint}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-          />
+              <Text style={[s.label, { textAlign }]}>{t(lang, 'email')}</Text>
+              <TextInput
+                style={[s.input, { textAlign, marginBottom: space.md }]}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="nurse@bnp.health"
+                placeholderTextColor={colors.faint}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                accessibilityLabel={t(lang, 'email')}
+              />
 
-          <Text style={[s.label, { textAlign }]}>{t(lang, 'password')}</Text>
-          <TextInput
-            style={[s.input, { textAlign }]}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={colors.faint}
-            secureTextEntry
-            onSubmitEditing={submit}
-          />
+              <Text style={[s.label, { textAlign }]}>{t(lang, 'password')}</Text>
+              <TextInput
+                style={[s.input, { textAlign }]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                placeholderTextColor={colors.faint}
+                secureTextEntry
+                accessibilityLabel={t(lang, 'password')}
+                onSubmitEditing={submit}
+              />
+            </>
+          )}
 
           {error ? (
             <Text
@@ -178,14 +222,35 @@ export function LoginScreen({
           <TouchableOpacity
             style={[s.btn, { marginTop: space.lg }, busy && { opacity: 0.6 }]}
             onPress={submit}
-            disabled={busy || !email || !password}
+            accessibilityRole="button"
+            disabled={
+              busy || (mfaToken ? mfaCode.length < 6 : !email || !password)
+            }
           >
             {busy ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={s.btnText}>{t(lang, 'signIn')}</Text>
+              <Text style={s.btnText}>
+                {t(lang, mfaToken ? 'verifyCode' : 'signIn')}
+              </Text>
             )}
           </TouchableOpacity>
+
+          {mfaToken && (
+            <TouchableOpacity
+              style={{ marginTop: space.md, alignSelf: 'center' }}
+              accessibilityRole="button"
+              onPress={() => {
+                setMfaToken(null);
+                setMfaCode('');
+                setError('');
+              }}
+            >
+              <Text style={{ color: colors.muted, fontSize: 13 }}>
+                {t(lang, 'back')}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Chips */}

@@ -1,7 +1,13 @@
+import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const shots = '/tmp/claude-0/-home-user-Nursing-AI-Assistant/ebbf067b-6ad5-5307-880c-da21e87b8c35/scratchpad';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+// Screenshots land next to the script by default; override with E2E_SHOTS.
+const shots = process.env.E2E_SHOTS ?? new URL('./e2e-shots', import.meta.url).pathname;
+mkdirSync(shots, { recursive: true });
+const browser = await chromium.launch({
+  // CHROMIUM_PATH lets CI/sandboxes point at a preinstalled browser.
+  executablePath: process.env.CHROMIUM_PATH || undefined,
+});
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
 // 1. Login as nurse
@@ -20,7 +26,7 @@ await page.click('text=AI Nursing Assistant');
 await page.waitForURL('**/assistant');
 await page.fill('input[placeholder*="alcohol"]', 'What is the IV paracetamol dose for a patient under 50 kg?');
 await page.click('button:has-text("Ask")');
-await page.waitForSelector('text=Sources (approved documents)', { timeout: 20000 });
+await page.waitForSelector('text=Approved sources', { timeout: 20000 });
 await page.screenshot({ path: `${shots}/03-assistant-answer.png` });
 console.log('assistant cited answer OK');
 
