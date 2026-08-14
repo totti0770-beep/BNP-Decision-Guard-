@@ -16,7 +16,12 @@ interface Diagnostics {
   candidateCount: number;
   bestScore: number | null;
   threshold: number;
-  refusedAt: 'NO_CANDIDATES' | 'BELOW_THRESHOLD' | 'MODEL_FOUND_NOTHING' | null;
+  refusedAt:
+    | 'NO_CANDIDATES'
+    | 'BELOW_THRESHOLD'
+    | 'MODEL_FOUND_NOTHING'
+    | 'MODEL_ERROR'
+    | null;
 }
 
 interface Answer {
@@ -66,6 +71,8 @@ function RefusalReason({ d }: { d: Diagnostics }) {
       return `${d.candidateCount} approved chunk(s) were retrieved but the best scored ${d.bestScore} against a ${d.threshold} threshold — the topic is close but not close enough. Add a more specific document, or revisit RAG_MIN_SIMILARITY.`;
     if (d.refusedAt === 'MODEL_FOUND_NOTHING')
       return `${d.candidateCount} chunk(s) passed the ${d.threshold} threshold (best ${d.bestScore}), but the model found nothing in them that answers this question — the retrieved sources are related yet do not cover it.`;
+    if (d.refusedAt === 'MODEL_ERROR')
+      return `${d.candidateCount} chunk(s) passed the ${d.threshold} threshold (best ${d.bestScore}), but the answer model failed to respond. This is a technical fault, not a corpus gap — the library may well cover this question. Check the API logs and the AI provider's status, then retry.`;
     return null;
   };
   const text = explain();
@@ -119,17 +126,33 @@ function AnswerBody({ answer }: { answer: Answer }) {
 
   return (
     <div className="rounded-card border border-border bg-surface p-4 shadow-sm">
-      {/* The answer itself is the dominant element on the screen. */}
-      <p className="text-base leading-relaxed text-text">{answer.shortAnswer}</p>
+      {/* The answer itself is the dominant element on the screen. The model
+          replies in the question's language, so direction is per-content:
+          an Arabic answer must not be laid out left-to-right. A procedural
+          answer can legitimately arrive as steps with no summary, so the
+          paragraph and its spacing are conditional. */}
+      {answer.shortAnswer.trim().length > 0 && (
+        <p dir="auto" className="text-base leading-relaxed text-text">
+          {answer.shortAnswer}
+        </p>
+      )}
 
       {answer.steps.length > 0 && (
-        <ol className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm text-muted">
+        <ol
+          className={`space-y-1.5 text-sm text-muted ${
+            answer.shortAnswer.trim().length > 0
+              ? 'mt-4 border-t border-border pt-3'
+              : ''
+          }`}
+        >
           {answer.steps.map((s, i) => (
             <li key={i} className="flex gap-2.5">
               <span className="tnum mt-px shrink-0 text-2xs font-medium text-subtle">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <span className="text-text">{s}</span>
+              <span dir="auto" className="text-text">
+                {s}
+              </span>
             </li>
           ))}
         </ol>
@@ -140,7 +163,9 @@ function AnswerBody({ answer }: { answer: Answer }) {
           <p className="text-2xs font-medium uppercase tracking-wide text-danger">Warnings</p>
           <ul className="mt-1 space-y-1 text-sm text-text">
             {answer.warnings.map((w, i) => (
-              <li key={i}>{w}</li>
+              <li key={i} dir="auto">
+                {w}
+              </li>
             ))}
           </ul>
         </div>

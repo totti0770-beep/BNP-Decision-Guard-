@@ -28,7 +28,12 @@ export interface RagDiagnostics {
   /** Effective RAG_MIN_SIMILARITY the score was compared against. */
   threshold: number;
   /** Which gate produced a refusal, or null when the question was answered. */
-  refusedAt: 'NO_CANDIDATES' | 'BELOW_THRESHOLD' | 'MODEL_FOUND_NOTHING' | null;
+  refusedAt:
+    | 'NO_CANDIDATES'
+    | 'BELOW_THRESHOLD'
+    | 'MODEL_FOUND_NOTHING'
+    | 'MODEL_ERROR'
+    | null;
 }
 
 export interface RagResult {
@@ -115,8 +120,25 @@ export class RagQueryService {
     if (top.length === 0) return this.refusal(diagnostics('BELOW_THRESHOLD'));
 
     const llmAnswer = await this.llm.answer(question, top);
-    if (!llmAnswer.shortAnswer || llmAnswer.shortAnswer.trim().length === 0) {
-      // The model found nothing in context that answers the question.
+
+    // A provider outage is not a governed refusal. Both still refuse — never
+    // guess — but only one of them means "the corpus does not cover this",
+    // and operators must be able to tell them apart.
+    if (llmAnswer.failed) {
+      this.logger.error(
+        `LLM provider ${this.llm.name} failed on a question with ${top.length} qualifying chunks; refusing.`,
+      );
+      return this.refusal(diagnostics('MODEL_ERROR'));
+    }
+
+    // Refuse only when the model produced nothing at all. Checking shortAnswer
+    // alone discarded complete, cited answers to procedural questions, where
+    // the model naturally puts the substance in steps.
+    const hasContent =
+      llmAnswer.shortAnswer.trim().length > 0 ||
+      llmAnswer.steps.length > 0 ||
+      llmAnswer.warnings.length > 0;
+    if (!hasContent) {
       return this.refusal(diagnostics('MODEL_FOUND_NOTHING'));
     }
 

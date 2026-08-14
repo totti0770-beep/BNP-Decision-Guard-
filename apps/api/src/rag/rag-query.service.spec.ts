@@ -80,6 +80,53 @@ describe('RagQueryService refusal logic (clinical safety contract)', () => {
     expect(result.citations.length).toBeGreaterThan(0);
   });
 
+  describe('LLM answer gate', () => {
+    function withLlm(answer: Partial<import('./llm.service').LlmAnswer>) {
+      const retrieval = { search: jest.fn().mockResolvedValue([chunk()]) };
+      return new RagQueryService(
+        retrieval as never,
+        new RerankService(),
+        {
+          name: 'test-llm',
+          answer: jest.fn().mockResolvedValue({
+            shortAnswer: '',
+            steps: [],
+            warnings: [],
+            ...answer,
+          }),
+        } as never,
+      );
+    }
+
+    it('accepts a steps-only answer — a procedural reply is still an answer', async () => {
+      const svc = withLlm({ steps: ['Reconstitute with 10 mL sterile water.'] });
+      const result = await svc.ask('How is it diluted?');
+      expect(result.refused).toBe(false);
+      expect(result.steps).toHaveLength(1);
+      expect(result.citations.length).toBeGreaterThan(0);
+    });
+
+    it('accepts a warnings-only answer', async () => {
+      const svc = withLlm({ warnings: ['Do not administer as a bolus.'] });
+      expect((await svc.ask('Any cautions?')).refused).toBe(false);
+    });
+
+    it('refuses with the exact Arabic string when every field is empty', async () => {
+      const result = await withLlm({}).ask('Something uncovered');
+      expect(result.refused).toBe(true);
+      expect(result.shortAnswer).toBe(REFUSAL_MESSAGE_AR);
+      expect(result.diagnostics.refusedAt).toBe('MODEL_FOUND_NOTHING');
+    });
+
+    it('reports MODEL_ERROR — a provider outage is not a corpus gap', async () => {
+      const result = await withLlm({ failed: true }).ask('Anything');
+      expect(result.refused).toBe(true);
+      expect(result.shortAnswer).toBe(REFUSAL_MESSAGE_AR);
+      // The distinction operators need: the library may well cover this.
+      expect(result.diagnostics.refusedAt).toBe('MODEL_ERROR');
+    });
+  });
+
   describe('refusal diagnostics (governance visibility)', () => {
     it('reports NO_CANDIDATES when retrieval returns nothing', async () => {
       const result = await makeService([]).ask('anything');
