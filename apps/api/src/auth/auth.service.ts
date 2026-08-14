@@ -11,6 +11,7 @@ import { authenticator } from 'otplib';
 import { permissionsForRoles, RoleName } from '@bnp/shared';
 import { Role, User } from '../entities';
 import { AuditService } from '../audit/audit.service';
+import { MailService } from '../mail/mail.service';
 import { loadEnv } from '../config/env';
 
 export interface JwtPayload {
@@ -30,6 +31,7 @@ export class AuthService {
     @InjectRepository(Role) private readonly roles: Repository<Role>,
     private readonly jwt: JwtService,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {}
 
   private async validateUser(
@@ -226,9 +228,9 @@ export class AuthService {
    * Starts a password reset. Always returns the same shape regardless of
    * whether the email exists (no account enumeration). When the account does
    * exist, a short-lived reset token bound to the current token_version is
-   * signed; outside production it is returned directly so the flow works
-   * without an email provider. In production, wire an email sender here and
-   * never return the token to the caller.
+   * signed and emailed as a link. Outside production the token is also
+   * returned directly so the flow works without a mail server; production
+   * never exposes it in the response.
    */
   async forgotPassword(email: string, ip?: string) {
     const user = await this.users.findOne({
@@ -245,7 +247,22 @@ export class AuthService {
         action: 'AUTH:PASSWORD_RESET_REQUESTED',
         ip,
       });
-      // TODO(prod): email the reset link instead of returning the token.
+      const env = loadEnv();
+      const link = `${env.appBaseUrl}/login/forgot?token=${encodeURIComponent(resetToken)}`;
+      // Awaited but never allowed to throw: a mail-relay outage must not turn
+      // this endpoint's timing or status into an account-existence oracle.
+      await this.mail.sendQuietly({
+        to: user.email,
+        subject: 'Reset your BNP Decision Guard password',
+        text:
+          `A password reset was requested for your BNP Decision Guard account.\n\n` +
+          `Open this link to choose a new password:\n${link}\n\n` +
+          `The link expires in ${env.passwordResetTokenMinutes} minutes and can be used once.\n` +
+          `If you did not request this, you can ignore this message — your password stays unchanged.`,
+      });
+
+      // Outside production the token is also returned so the flow is testable
+      // without a mail server. Production never exposes it in the response.
       const includeToken = process.env.NODE_ENV !== 'production';
       return { requested: true, ...(includeToken ? { resetToken } : {}) };
     }

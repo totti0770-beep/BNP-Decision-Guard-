@@ -36,13 +36,15 @@ function makeService(user: User | null) {
     verify: jest.fn(),
   };
   const audit = { record: jest.fn() };
+  const mail = { sendQuietly: jest.fn().mockResolvedValue(undefined) };
   const service = new AuthService(
     users as never,
     roles as never,
     jwt as never,
     audit as never,
+    mail as never,
   );
-  return { service, users, jwt, audit };
+  return { service, users, jwt, audit, mail };
 }
 
 describe('Account lockout', () => {
@@ -94,6 +96,21 @@ describe('Password reset', () => {
     const { service } = makeService(null);
     const res = await service.forgotPassword('ghost@bnp.health');
     expect(res).toEqual({ requested: true });
+  });
+
+  it('emails a reset link containing the token when the account exists', async () => {
+    const { service, mail } = makeService(makeUser());
+    await service.forgotPassword('nurse@bnp.health');
+    expect(mail.sendQuietly).toHaveBeenCalledTimes(1);
+    const sent = mail.sendQuietly.mock.calls[0][0];
+    expect(sent.to).toBe('nurse@bnp.health');
+    expect(sent.text).toContain('/login/forgot?token=signed.jwt.token');
+  });
+
+  it('sends no mail for an unknown account (no enumeration side channel)', async () => {
+    const { service, mail } = makeService(null);
+    await service.forgotPassword('ghost@bnp.health');
+    expect(mail.sendQuietly).not.toHaveBeenCalled();
   });
 
   it('reset-password rejects a token whose token_version is stale', async () => {

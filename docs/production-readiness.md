@@ -8,9 +8,10 @@ production. Use this as the launch checklist.
 > server-side logout on web **and** mobile, upload refresh-on-401,
 > password-reset UI, `SEED_PASSWORD_<ROLE>` overrides, document-list
 > pagination, mobile secure token storage + refresh + MFA step, and a
-> reindex button in Settings (`documents:index`). Still open, in impact
-> order: **email delivery** (password reset is dead in production without
-> it), **OCR for scanned PDFs** (pdf-parse reads the text layer only — a
+> reindex button in Settings (`documents:index`), and **email delivery**
+> (pluggable `MAIL_PROVIDER=log|smtp` — code complete, needs `MAIL_HOST` to
+> actually deliver). Still open, in impact order:
+> **OCR for scanned PDFs** (pdf-parse reads the text layer only — a
 > scanned Arabic PDF indexes zero chunks), **observability**, **backup +
 > tested restore**, the **Next 15 / NestJS 11 majors**, and **compliance
 > sign-off**. The web UI is English-only while mobile is Arabic-first —
@@ -21,7 +22,7 @@ production. Use this as the launch checklist.
 | Dimension | MVP | Pilot | Production |
 | --- | --- | --- | --- |
 | Core features (RAG, RBAC, audit, dose, workflow) | ✅ | ✅ | ✅ |
-| Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr, email delivery) |
+| Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr; set `MAIL_PROVIDER=smtp`) |
 | Dependency vulnerability posture (0 critical, 0 unpatchable high) | ✅ | ✅ | 🟡 (12 findings gated on a NestJS 11 / Next.js 15 migration — see below) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
@@ -73,9 +74,15 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    iOS/Android identifiers are in place. Remaining: `eas login && eas init`
    with your Expo account, then `eas build`; production signing needs
    Apple/Google developer credentials.
-4. **Email delivery for password reset** — wire an email provider in
-   `forgotPassword()` (currently returns the token directly outside production
-   for demo purposes).
+4. **Email delivery** — ✅ code complete, ⚙️ needs operator config. A
+   pluggable `MailService` (`MAIL_PROVIDER=log|smtp`) mirrors the LLM and
+   embedding provider pattern. `forgotPassword()` now emails the reset link,
+   and expiry notifications additionally reach knowledge managers by mail.
+   The default `log` provider only writes messages to the application log, so
+   **set `MAIL_PROVIDER=smtp` + `MAIL_HOST` before onboarding real users** —
+   production boots either way (mail is a degraded feature, not a security
+   hole) but logs a warning while log-only. Reset links resolve against
+   `APP_BASE_URL`, which falls back to the first `CORS_ORIGINS` entry.
 
 ## Fastest path to PRODUCTION
 

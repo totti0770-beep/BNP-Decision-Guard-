@@ -13,7 +13,7 @@ trail are non-negotiable.
 | **Security headers** | `helmet` in `apps/api/src/main.ts` | HSTS, `X-Content-Type-Options`, `X-Frame-Options`, COOP/CORP, etc. |
 | **Rate limiting** | `@nestjs/throttler`, `app.module.ts` | Global per-IP limit; a stricter limit on all `/auth/*` endpoints (`AUTH_RATE_LIMIT_MAX`) blunts credential brute-force. Verified: 6th rapid login returns HTTP 429. |
 | **Per-account lockout** | `users.locked_until` + `auth.service.ts` | After `AUTH_MAX_FAILED_ATTEMPTS` consecutive failed logins the account is locked for `AUTH_LOCKOUT_MINUTES` — blocking even a correct password, so an attacker rotating IPs past the rate limiter is still stopped. Cleared on success or password reset. Verified end-to-end. |
-| **Self-service password reset** | `/auth/forgot-password`, `/auth/reset-password` | Reset token is bound to `token_version` (single-use; voided by logout/prior reset) and expires after `PASSWORD_RESET_TOKEN_MINUTES`. `forgot-password` never reveals whether an email exists. Completing a reset rotates the hash, bumps `token_version` (invalidating all sessions) and clears lockout. Verified end-to-end. |
+| **Self-service password reset** | `/auth/forgot-password`, `/auth/reset-password`, `mail/mail.service.ts` | Reset token is bound to `token_version` (single-use; voided by logout/prior reset) and expires after `PASSWORD_RESET_TOKEN_MINUTES`. The link is emailed; `forgot-password` never reveals whether an email exists, and delivery failures are swallowed so response timing cannot become an enumeration oracle. Completing a reset rotates the hash, bumps `token_version` (invalidating all sessions) and clears lockout. Verified end-to-end. |
 | **CORS allowlist** | `main.ts` + `CORS_ORIGINS` | Explicit origin allowlist; production with an empty list blocks all cross-origin browser calls instead of allowing `*`. |
 | **Request body cap** | `express.json({ limit })` | `REQUEST_BODY_LIMIT` caps JSON payloads; PDF uploads go through multipart/multer. |
 | **Refresh-token revocation** | `users.token_version` + `auth.service.ts` | `POST /auth/logout` and any password change bump `token_version`, immediately invalidating every outstanding refresh token. Verified end-to-end. |
@@ -44,9 +44,14 @@ trail are non-negotiable.
 These are deliberately out of MVP scope and must be addressed before pilot /
 production sign-off — see `docs/production-readiness.md`.
 
-- Email/SMS delivery for the password-reset token (the flow exists; in
-  production wire an email provider where the token is signed and return a
-  generic response — currently the token is only returned outside production).
+- **Email delivery is built but must be configured.** `MailService`
+  (`MAIL_PROVIDER=log|smtp`) emails the reset link and the response stays
+  generic. The default `log` provider writes messages to the application
+  log — anyone with log access can then read reset links, so a deployment
+  serving real users **must** set `MAIL_PROVIDER=smtp` with `MAIL_HOST`.
+  Production boots either way and logs a warning while log-only, because
+  taking the clinical assistant offline over mail config is the worse
+  failure. SMS is still unimplemented.
 - Centralised secret management (Vault/KMS) instead of env vars.
 - Observability: structured logs shipping, metrics, error tracking, alerting.
 - Formal penetration test and CBAHI/HIPAA compliance review.
