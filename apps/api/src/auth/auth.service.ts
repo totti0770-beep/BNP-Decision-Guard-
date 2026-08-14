@@ -11,7 +11,7 @@ import { authenticator } from 'otplib';
 import { permissionsForRoles, RoleName } from '@bnp/shared';
 import { Role, User } from '../entities';
 import { AuditService } from '../audit/audit.service';
-import { loadEnv } from '../config/env';
+import { isProduction, loadEnv } from '../config/env';
 
 export interface JwtPayload {
   sub: string;
@@ -226,9 +226,17 @@ export class AuthService {
    * Starts a password reset. Always returns the same shape regardless of
    * whether the email exists (no account enumeration). When the account does
    * exist, a short-lived reset token bound to the current token_version is
-   * signed; outside production it is returned directly so the flow works
-   * without an email provider. In production, wire an email sender here and
-   * never return the token to the caller.
+   * signed.
+   *
+   * The token is NEVER returned to the caller unless an operator explicitly
+   * opts in with AUTH_DEV_RETURN_RESET_TOKEN=true. This endpoint is public, so
+   * returning the token by default would let anyone who knows an email address
+   * take over that account. It previously keyed off `NODE_ENV !== 'production'`
+   * — which fails open: NODE_ENV is unset in the shipped k8s manifests, so a
+   * real deployment handed out reset tokens to unauthenticated callers.
+   *
+   * TODO(prod): email the reset link here; the opt-in flag is a local-demo
+   * affordance only and must stay off everywhere else.
    */
   async forgotPassword(email: string, ip?: string) {
     const user = await this.users.findOne({
@@ -245,8 +253,8 @@ export class AuthService {
         action: 'AUTH:PASSWORD_RESET_REQUESTED',
         ip,
       });
-      // TODO(prod): email the reset link instead of returning the token.
-      const includeToken = process.env.NODE_ENV !== 'production';
+      const includeToken =
+        process.env.AUTH_DEV_RETURN_RESET_TOKEN === 'true' && !isProduction;
       return { requested: true, ...(includeToken ? { resetToken } : {}) };
     }
     return { requested: true };

@@ -18,7 +18,13 @@ spec:
           envFrom:
             - secretRef: { name: bnp-secrets }
           env:
+            # Required. Without it the API runs in development mode: the secret
+            # fail-fast never engages and 5xx internals leak to clients.
+            - { name: NODE_ENV, value: "production" }
             - { name: API_PORT, value: "4000" }
+            # Required. An empty allowlist blocks every cross-origin browser
+            # call, so the web app cannot reach the API. Set your real origin.
+            - { name: CORS_ORIGINS, value: "https://your-web-origin.example" }
             - { name: LLM_PROVIDER, value: "mock" }
             - { name: EMBEDDING_PROVIDER, value: "mock" }
             - { name: S3_FORCE_PATH_STYLE, value: "true" }

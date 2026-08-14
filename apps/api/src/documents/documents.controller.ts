@@ -49,8 +49,11 @@ export class DocumentsController {
 
   @Post('upload')
   @Permissions(Permission.DOCUMENTS_UPLOAD)
+  // 25 MB matches the cap the web upload screen enforces and advertises; the
+  // two used to disagree (client 25 MB, server 50 MB), so a 40 MB file was
+  // rejected by the browser but would have been accepted by the API.
   @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }),
+    FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
   upload(
     @UploadedFile() file: Express.Multer.File,

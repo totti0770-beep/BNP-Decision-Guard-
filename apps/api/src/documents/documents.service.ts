@@ -12,6 +12,15 @@ import { StorageService } from '../storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../common/decorators';
 
+/**
+ * Every PDF begins with the %PDF- signature. Some producers emit a few junk
+ * bytes first, which readers tolerate, so scan a short prefix rather than
+ * demanding offset 0 exactly.
+ */
+export function isPdf(buffer: Buffer): boolean {
+  return !!buffer && buffer.subarray(0, 1024).includes('%PDF-');
+}
+
 export interface UploadDocumentInput {
   title: string;
   description?: string;
@@ -59,7 +68,11 @@ export class DocumentsService {
     actor: AuthenticatedUser,
     existingDocumentId?: string,
   ) {
-    if (file.mimetype !== 'application/pdf') {
+    // `file.mimetype` is taken from the multipart part's Content-Type header,
+    // which the client controls — so it is a usability check, not a security
+    // one. The magic-number check below is what actually constrains the bytes
+    // we store and later hand to the PDF extractor.
+    if (file.mimetype !== 'application/pdf' || !isPdf(file.buffer)) {
       throw new BadRequestException('Only PDF documents are accepted');
     }
     if (!Object.values(DocumentCategory).includes(input.category)) {

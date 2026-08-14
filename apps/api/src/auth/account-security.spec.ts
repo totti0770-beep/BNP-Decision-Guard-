@@ -1,7 +1,8 @@
 // Pin lockout threshold before AuthService first calls loadEnv().
 process.env.AUTH_MAX_FAILED_ATTEMPTS = '3';
 process.env.AUTH_LOCKOUT_MINUTES = '15';
-delete process.env.NODE_ENV; // ensure non-production (reset token returned)
+delete process.env.NODE_ENV;
+delete process.env.AUTH_DEV_RETURN_RESET_TOKEN;
 
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
@@ -82,12 +83,60 @@ describe('Account lockout', () => {
 });
 
 describe('Password reset', () => {
-  it('forgot-password returns a reset token outside production (no enumeration otherwise)', async () => {
+  it('forgot-password NEVER returns the reset token by default', async () => {
+    // Regression: the token used to be returned whenever NODE_ENV !== 'production'.
+    // NODE_ENV is unset here — exactly the shipped-k8s case — and the public
+    // endpoint must still disclose nothing, or knowing an email is enough to
+    // take over the account.
     const user = makeUser();
     const { service } = makeService(user);
     const res = await service.forgotPassword('nurse@bnp.health');
-    expect(res.requested).toBe(true);
-    expect((res as any).resetToken).toBe('signed.jwt.token');
+    expect(res).toEqual({ requested: true });
+    expect((res as any).resetToken).toBeUndefined();
+  });
+
+  it('returns the token only under the explicit local-demo opt-in', async () => {
+    process.env.AUTH_DEV_RETURN_RESET_TOKEN = 'true';
+    try {
+      const { service } = makeService(makeUser());
+      const res = await service.forgotPassword('nurse@bnp.health');
+      expect((res as any).resetToken).toBe('signed.jwt.token');
+    } finally {
+      delete process.env.AUTH_DEV_RETURN_RESET_TOKEN;
+    }
+  });
+
+  it('refuses the opt-in in production even when the flag is set', async () => {
+    // `isProduction` is bound at module load, so reload the module graph with
+    // NODE_ENV=production to exercise the second half of the guard.
+    process.env.AUTH_DEV_RETURN_RESET_TOKEN = 'true';
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'test-non-default-secret';
+    process.env.JWT_REFRESH_SECRET = 'test-non-default-refresh';
+    process.env.POSTGRES_PASSWORD = 'test-non-default-db';
+    process.env.S3_SECRET_KEY = 'test-non-default-s3';
+    try {
+      let res: unknown;
+      await jest.isolateModulesAsync(async () => {
+        const { AuthService: ProdAuthService } = require('./auth.service');
+        const user = makeUser();
+        const service = new ProdAuthService(
+          { findOne: jest.fn().mockResolvedValue(user), save: jest.fn(async (u: User) => u) },
+          { findOne: jest.fn() },
+          { sign: jest.fn(() => 'signed.jwt.token'), verify: jest.fn() },
+          { record: jest.fn() },
+        );
+        res = await service.forgotPassword('nurse@bnp.health');
+      });
+      expect(res).toEqual({ requested: true });
+    } finally {
+      delete process.env.AUTH_DEV_RETURN_RESET_TOKEN;
+      delete process.env.NODE_ENV;
+      delete process.env.JWT_SECRET;
+      delete process.env.JWT_REFRESH_SECRET;
+      delete process.env.POSTGRES_PASSWORD;
+      delete process.env.S3_SECRET_KEY;
+    }
   });
 
   it('forgot-password on an unknown email still returns requested:true with no token', async () => {

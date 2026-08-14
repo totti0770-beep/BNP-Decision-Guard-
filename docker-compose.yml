@@ -63,8 +63,16 @@ services:
       minio:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      # This file is the local demo stack, and it ships the shipped-default
+      # secrets below. NODE_ENV=production here made the API's secret
+      # fail-fast refuse to boot, so `docker compose up --build` — the
+      # documented quickstart — never started. Point a real deployment at the
+      # k8s manifests (or override every secret) rather than flipping this.
+      NODE_ENV: ${NODE_ENV:-development}
       API_PORT: 4000
+      # Without this the API allows no browser origin and the web app on :3000
+      # is silently blocked from calling it.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-bnp}
