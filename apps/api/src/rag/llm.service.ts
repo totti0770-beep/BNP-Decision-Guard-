@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { tokenize } from './embedding.service';
 import { openAiPost } from './openai-http';
 import { RetrievedChunk } from './retrieval.service';
@@ -7,6 +7,14 @@ export interface LlmAnswer {
   shortAnswer: string;
   steps: string[];
   warnings: string[];
+  /**
+   * True when the provider failed technically (network, malformed response)
+   * rather than deciding the context does not answer the question. Without
+   * this the two are indistinguishable, and an outage would masquerade as a
+   * governed clinical refusal — the most misleading failure this system can
+   * produce.
+   */
+  failed?: boolean;
 }
 
 export interface LlmProvider {
@@ -75,40 +83,63 @@ export class MockLlmProvider implements LlmProvider {
  */
 export class OpenAiLlmProvider implements LlmProvider {
   readonly name = `openai:${process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini'}`;
+  private readonly logger = new Logger('OpenAiLlm');
 
   async answer(question: string, context: RetrievedChunk[]): Promise<LlmAnswer> {
     const contextBlock = context
       .map((c, i) => `[Source ${i + 1}: "${c.documentTitle}", page ${c.pageNumber}]\n${c.content}`)
       .join('\n\n---\n\n');
-    const data = await openAiPost<{
-      choices: { message: { content: string } }[];
-    }>('/chat/completions', {
-      model: process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini',
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a clinical knowledge assistant for nurses. Answer ONLY from the provided approved document excerpts. ' +
-            'Never use outside knowledge, never guess. If the excerpts do not contain the answer, return an empty shortAnswer. ' +
-            'Respond as JSON: {"shortAnswer": string, "steps": string[], "warnings": string[]}.',
-        },
-        {
-          role: 'user',
-          content: `Approved document excerpts:\n\n${contextBlock}\n\nQuestion: ${question}`,
-        },
-      ],
-    });
     try {
-      const parsed = JSON.parse(data.choices[0].message.content);
+      const data = await openAiPost<{
+        choices: { message: { content: string } }[];
+      }>('/chat/completions', {
+        model: process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini',
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a clinical knowledge assistant for nurses. Answer ONLY from the provided approved document excerpts. ' +
+              'Never use outside knowledge, never guess. ' +
+              // The excerpts are usually English while the platform is
+              // Arabic-first; without this a nurse asking in Arabic gets an
+              // answer she cannot read.
+              'Reply in the SAME language as the question. ' +
+              // Procedural questions ("how do I dilute…") tempt the model to
+              // put everything in steps and leave shortAnswer empty, which the
+              // caller reads as "nothing found".
+              'Whenever the excerpts DO answer the question, shortAnswer MUST be a non-empty one-paragraph summary, ' +
+              'even if the detail belongs in steps. Return an empty shortAnswer ONLY when the excerpts genuinely do not answer it. ' +
+              'Respond as JSON: {"shortAnswer": string, "steps": string[], "warnings": string[]}.',
+          },
+          {
+            role: 'user',
+            content: `Approved document excerpts:\n\n${contextBlock}\n\nQuestion: ${question}`,
+          },
+        ],
+      });
+
+      const content = data?.choices?.[0]?.message?.content;
+      if (typeof content !== 'string') {
+        this.logger.error(
+          `Unexpected chat response shape: ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { shortAnswer: '', steps: [], warnings: [], failed: true };
+      }
+
+      const parsed = JSON.parse(content);
       return {
         shortAnswer: String(parsed.shortAnswer ?? ''),
         steps: Array.isArray(parsed.steps) ? parsed.steps.map(String) : [],
         warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(String) : [],
       };
-    } catch {
-      return { shortAnswer: '', steps: [], warnings: [] };
+    } catch (err) {
+      // Never silently: a swallowed failure here surfaces to the nurse as the
+      // contractual "no approved source" message, which is a lie about the
+      // corpus and hides an outage from operators.
+      this.logger.error(`Chat completion failed: ${err}`);
+      return { shortAnswer: '', steps: [], warnings: [], failed: true };
     }
   }
 }
