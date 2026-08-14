@@ -21,8 +21,18 @@ export interface RagCitation {
  * Governance roles see this; nurses do not (see ChatService).
  */
 export interface RagDiagnostics {
-  /** Chunks passing the four SQL safety filters, before scoring. */
+  /**
+   * Chunks returned by the SQL search, bounded by RAG_TOP_K. This is the whole
+   * net cast over the library — if the right passage is not in here, no amount
+   * of scoring downstream can recover it.
+   */
   candidateCount: number;
+  /**
+   * Of those, how many actually reached the model: reranked, cut to
+   * RAG_FINAL_K, and above the threshold. The gap between this and
+   * candidateCount is where a relevant passage silently drops out.
+   */
+  qualifiedCount: number;
   /** Best rerank score among candidates, or null when there were none. */
   bestScore: number | null;
   /** Effective RAG_MIN_SIMILARITY the score was compared against. */
@@ -108,6 +118,7 @@ export class RagQueryService {
     if (candidates.length === 0) {
       return this.refusal({
         candidateCount: 0,
+        qualifiedCount: 0,
         bestScore: null,
         consideredSources: [],
         threshold: minScore,
@@ -123,8 +134,10 @@ export class RagQueryService {
       : null;
     const diagnostics = (
       refusedAt: RagDiagnostics['refusedAt'],
+      qualifiedCount: number,
     ): RagDiagnostics => ({
       candidateCount: candidates.length,
+      qualifiedCount,
       bestScore: best,
       consideredSources: ranked.slice(0, 3).map((c) => {
         const cite = this.toCitation(c);
@@ -140,7 +153,7 @@ export class RagQueryService {
     });
 
     const top = ranked.filter((c) => (c.rerankScore ?? c.similarity) >= minScore);
-    if (top.length === 0) return this.refusal(diagnostics('BELOW_THRESHOLD'));
+    if (top.length === 0) return this.refusal(diagnostics('BELOW_THRESHOLD', 0));
 
     const llmAnswer = await this.llm.answer(question, top);
 
@@ -151,7 +164,7 @@ export class RagQueryService {
       this.logger.error(
         `LLM provider ${this.llm.name} failed on a question with ${top.length} qualifying chunks; refusing.`,
       );
-      return this.refusal(diagnostics('MODEL_ERROR'));
+      return this.refusal(diagnostics('MODEL_ERROR', top.length));
     }
 
     // Refuse only when the model produced nothing at all. Checking shortAnswer
@@ -162,7 +175,7 @@ export class RagQueryService {
       llmAnswer.steps.length > 0 ||
       llmAnswer.warnings.length > 0;
     if (!hasContent) {
-      return this.refusal(diagnostics('MODEL_FOUND_NOTHING'));
+      return this.refusal(diagnostics('MODEL_FOUND_NOTHING', top.length));
     }
 
     const bestScore = top[0].rerankScore ?? top[0].similarity;
@@ -174,7 +187,7 @@ export class RagQueryService {
       confidence: this.confidenceFor(bestScore),
       citations: top.map((c) => this.toCitation(c)),
       model: this.llm.name,
-      diagnostics: diagnostics(null),
+      diagnostics: diagnostics(null, top.length),
     };
   }
 

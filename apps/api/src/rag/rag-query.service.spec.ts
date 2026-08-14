@@ -132,11 +132,26 @@ describe('RagQueryService refusal logic (clinical safety contract)', () => {
       const result = await makeService([]).ask('anything');
       expect(result.diagnostics).toEqual({
         candidateCount: 0,
+        qualifiedCount: 0,
         bestScore: null,
         consideredSources: [],
         threshold: 0.25,
         refusedAt: 'NO_CANDIDATES',
       });
+    });
+
+    it('separates the retrieved pool from what actually reached the model', async () => {
+      // One chunk is retrieved but scores below the threshold, so nothing
+      // qualifies. Reporting the pool size as the qualifying count would tell
+      // a manager the model saw evidence it never received.
+      const svc = makeService([
+        chunk({ similarity: 0.05, content: 'unrelated cafeteria menu text' }),
+      ]);
+      const { candidateCount, qualifiedCount } = (
+        await svc.ask('paracetamol dose for a child')
+      ).diagnostics;
+      expect(candidateCount).toBe(1);
+      expect(qualifiedCount).toBe(0);
     });
 
     it('carries the considered chunk text so the cause is readable, not inferred', async () => {
