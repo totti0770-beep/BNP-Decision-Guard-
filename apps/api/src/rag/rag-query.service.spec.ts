@@ -133,9 +133,21 @@ describe('RagQueryService refusal logic (clinical safety contract)', () => {
       expect(result.diagnostics).toEqual({
         candidateCount: 0,
         bestScore: null,
+        consideredSources: [],
         threshold: 0.25,
         refusedAt: 'NO_CANDIDATES',
       });
+    });
+
+    it('carries the considered chunk text so the cause is readable, not inferred', async () => {
+      const svc = makeService([
+        chunk({ similarity: 0.05, content: 'Table of contents .... 14' }),
+      ]);
+      const { consideredSources } = (await svc.ask('paracetamol dose')).diagnostics;
+      expect(consideredSources).toHaveLength(1);
+      expect(consideredSources[0].documentTitle).toBe('IV Paracetamol Guide');
+      expect(consideredSources[0].pageNumber).toBe(2);
+      expect(consideredSources[0].snippet).toContain('Table of contents');
     });
 
     it('reports BELOW_THRESHOLD with the real best score, not the cut-off list', async () => {
