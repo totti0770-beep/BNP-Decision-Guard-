@@ -18,6 +18,7 @@ import { RagModule } from './rag/rag.module';
 import { ChatModule } from './chat/chat.module';
 import { DoseCalculatorModule } from './dose/dose.module';
 import { AuditLogModule } from './audit/audit.module';
+import { MailModule } from './mail/mail.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -33,6 +34,7 @@ import { NotificationsModule } from './notifications/notifications.module';
       },
     ]),
     AuditLogModule,
+    MailModule,
     StorageModule,
     AuthModule,
     UsersModule,

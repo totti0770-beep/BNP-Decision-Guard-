@@ -5,6 +5,7 @@ import { LessThan, Repository } from 'typeorm';
 import { DocumentStatus, RoleName } from '@bnp/shared';
 import { Document, Notification, User } from '../entities';
 import { AuditService } from '../audit/audit.service';
+import { MailService } from '../mail/mail.service';
 
 const NEAR_EXPIRY_DAYS = 30;
 
@@ -18,6 +19,7 @@ export class NotificationsService {
     @InjectRepository(Document) private readonly documents: Repository<Document>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {}
 
   listForUser(userId: string) {
@@ -116,6 +118,13 @@ export class NotificationsService {
       await this.notifications.save(
         this.notifications.create({ userId: m.id, type, title, message, metadata }),
       );
+      // The in-app row stays the record of truth; email is an additive nudge,
+      // so a mail outage never costs a governance notification.
+      await this.mail.sendQuietly({
+        to: m.email,
+        subject: `BNP Decision Guard — ${title}`,
+        text: `${message}\n\nReview it in the Approval Workflow screen.`,
+      });
     }
   }
 }
