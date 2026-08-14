@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { API_URL, setSession } from '@/lib/api';
-import { Button, Field, Input } from '@/components/ui';
+import {
+  Alert, Button, Field, Input } from '@/components/ui';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('nurse@bnp.health');
@@ -109,14 +110,7 @@ export default function LoginPage() {
             </Field>
           )}
 
-          {error && (
-            <p
-              role="alert"
-              className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-            >
-              {error}
-            </p>
-          )}
+          {error && <Alert>{error}</Alert>}
 
           <Button
             type="submit"

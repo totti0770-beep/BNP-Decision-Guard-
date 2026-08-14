@@ -1,17 +1,19 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData, useDebounced } from '@/lib/async';
 import { StatusBadge } from '@/components/shell';
 import {
+  Alert,
   Button,
   EmptyState,
   ErrorState,
   Field,
   Input,
   PageHeader,
+  Pagination,
   Panel,
   Select,
   SkeletonRows,
@@ -19,6 +21,8 @@ import {
   Td,
   Th,
 } from '@/components/ui';
+
+const LIMIT = 50;
 
 interface Doc {
   id: string;
@@ -48,19 +52,29 @@ export default function PoliciesPage() {
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounced(search);
+  const [offset, setOffset] = useState(0);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState('');
 
+  // A filter change re-queries from the first page; a stale offset past the
+  // filtered total would render an empty page with no way back.
+  useEffect(() => setOffset(0), [category, debouncedSearch]);
+
   const fetchDocs = useCallback(() => {
-    const params = new URLSearchParams({ status: 'ACTIVE' });
+    const params = new URLSearchParams({
+      status: 'ACTIVE',
+      limit: String(LIMIT),
+      offset: String(offset),
+    });
     if (category) params.set('category', category);
     if (debouncedSearch) params.set('search', debouncedSearch);
-    return api<{ items: Doc[] }>(`/documents?${params}`);
-  }, [category, debouncedSearch]);
+    return api<{ items: Doc[]; total: number }>(`/documents?${params}`);
+  }, [category, debouncedSearch, offset]);
 
   const { data, error, loading, refreshing, reload } = useAsyncData(fetchDocs, [
     category,
     debouncedSearch,
+    offset,
   ]);
 
   async function download(id: string) {
@@ -105,14 +119,7 @@ export default function PoliciesPage() {
         </Field>
       </div>
 
-      {downloadError && (
-        <p
-          role="alert"
-          className="mb-4 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-        >
-          {downloadError}
-        </p>
-      )}
+      {downloadError && <Alert className="mb-4">{downloadError}</Alert>}
 
       {loading ? (
         <SkeletonRows rows={5} label="Loading documents" />
@@ -181,6 +188,16 @@ export default function PoliciesPage() {
             </tbody>
           </Table>
         </Panel>
+      )}
+
+      {data && data.items.length > 0 && (
+        <Pagination
+          offset={offset}
+          limit={LIMIT}
+          total={data.total}
+          onChange={setOffset}
+          noun="documents"
+        />
       )}
 
       {!canDownload && (

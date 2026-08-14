@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useAsyncData } from '@/lib/async';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -41,7 +43,13 @@ interface CalcResult {
 const ROUTES = ['IV', 'IM', 'PO', 'SC', 'INHALATION', 'TOPICAL'];
 
 export default function DoseCalculatorPage() {
-  const [formulas, setFormulas] = useState<Formula[] | null>(null);
+  const fetchFormulas = useCallback(() => api<Formula[]>('/dose/formulas'), []);
+  const {
+    data: formulas,
+    error: loadError,
+    reload,
+  } = useAsyncData(fetchFormulas, []);
+
   const [formulaId, setFormulaId] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [ageYears, setAgeYears] = useState('');
@@ -51,17 +59,14 @@ export default function DoseCalculatorPage() {
   const [frequency, setFrequency] = useState('');
   const [result, setResult] = useState<CalcResult | null>(null);
   const [error, setError] = useState('');
-  const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Select the first formula once the list lands (or after a retry).
   useEffect(() => {
-    api<Formula[]>('/dose/formulas')
-      .then((f) => {
-        setFormulas(f);
-        if (f.length) setFormulaId(f[0].id);
-      })
-      .catch((e) => setLoadError(e instanceof Error ? e.message : 'Failed to load formulas'));
-  }, []);
+    if (formulas?.length && !formulas.some((f) => f.id === formulaId)) {
+      setFormulaId(formulas[0].id);
+    }
+  }, [formulas, formulaId]);
 
   const selected = formulas?.find((f) => f.id === formulaId);
   // Weight is the one always-required input; everything else has a safe default
@@ -99,7 +104,7 @@ export default function DoseCalculatorPage() {
     return (
       <>
         <PageHeader title="Dose Calculator" />
-        <ErrorState message={loadError} onRetry={() => location.reload()} />
+        <ErrorState message={loadError} onRetry={reload} />
       </>
     );
   }
@@ -221,11 +226,7 @@ export default function DoseCalculatorPage() {
                 </Field>
               </div>
 
-              {error && (
-                <div role="alert" className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2">
-                  <p className="text-sm text-danger">{error}</p>
-                </div>
-              )}
+              {error && <Alert>{error}</Alert>}
 
               <Button
                 type="submit"

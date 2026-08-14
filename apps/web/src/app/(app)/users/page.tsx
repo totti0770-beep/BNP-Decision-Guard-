@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -240,14 +241,7 @@ export default function UsersPage() {
                   </Select>
                 </Field>
 
-                {formError && (
-                  <p
-                    role="alert"
-                    className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger"
-                  >
-                    {formError}
-                  </p>
-                )}
+                {formError && <Alert className="text-xs">{formError}</Alert>}
 
                 <Button
                   type="submit"

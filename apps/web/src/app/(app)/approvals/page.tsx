@@ -6,15 +6,19 @@ import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
 import { StatusBadge } from '@/components/shell';
 import {
+  Alert,
   Button,
   EmptyState,
   ErrorState,
   PageHeader,
+  Pagination,
   Panel,
   SegmentedControl,
   SkeletonRows,
   Textarea,
 } from '@/components/ui';
+
+const PAGE_LIMIT = 100;
 
 interface Doc {
   id: string;
@@ -62,11 +66,15 @@ function LifecycleTrack({ status }: { status: string }) {
 export default function ApprovalsPage() {
   const { hasPermission } = useAuth();
 
+  const [offset, setOffset] = useState(0);
   const fetchDocs = useCallback(
-    () => api<{ items: Doc[] }>('/documents?limit=100'),
-    [],
+    () =>
+      api<{ items: Doc[]; total: number }>(
+        `/documents?limit=${PAGE_LIMIT}&offset=${offset}`,
+      ),
+    [offset],
   );
-  const { data, error, loading, reload } = useAsyncData(fetchDocs, []);
+  const { data, error, loading, reload } = useAsyncData(fetchDocs, [offset]);
 
   const [filter, setFilter] = useState<Filter>('NEEDS_ACTION');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -140,14 +148,7 @@ export default function ApprovalsPage() {
         />
       </div>
 
-      {actionError && (
-        <p
-          role="alert"
-          className="mb-4 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-        >
-          {actionError}
-        </p>
-      )}
+      {actionError && <Alert className="mb-4">{actionError}</Alert>}
 
       {loading ? (
         <SkeletonRows rows={4} label="Loading documents" />
@@ -331,6 +332,19 @@ export default function ApprovalsPage() {
             );
           })}
         </div>
+      )}
+
+      {data && data.total > PAGE_LIMIT && (
+        // "Needs your action" filters within the current page, so paging
+        // stays visible under both views — nothing is silently unreachable
+        // once the library outgrows one page.
+        <Pagination
+          offset={offset}
+          limit={PAGE_LIMIT}
+          total={data.total}
+          onChange={setOffset}
+          noun="documents"
+        />
       )}
     </>
   );

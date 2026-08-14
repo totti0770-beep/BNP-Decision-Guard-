@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Button, Card, Field, Input, PageHeader, Select, Textarea } from '@/components/ui';
+import {
+  Alert, Button, Card, Field, Input, PageHeader, Select, Textarea } from '@/components/ui';
 
 const CATEGORIES = ['MEDICATIONS', 'NURSING_POLICIES', 'CBAHI', 'PROCEDURES', 'PROTOCOLS'];
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -138,12 +139,7 @@ export default function UploadPage() {
           </div>
 
           {error && (
-            <p
-              role="alert"
-              className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-            >
-              {error}
-            </p>
+            <Alert>{error}</Alert>
           )}
 
           <Button

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { API_URL } from '@/lib/api';
-import { Button, Field, Input } from '@/components/ui';
+import {
+  Alert, Button, Field, Input } from '@/components/ui';
 
 async function post(path: string, body: unknown) {
   const res = await fetch(`${API_URL}${path}`, {
@@ -143,14 +144,7 @@ export default function ForgotPasswordPage() {
                 />
               </Field>
 
-              {error && (
-                <p
-                  role="alert"
-                  className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-                >
-                  {error}
-                </p>
-              )}
+              {error && <Alert>{error}</Alert>}
 
               <Button
                 type="submit"
