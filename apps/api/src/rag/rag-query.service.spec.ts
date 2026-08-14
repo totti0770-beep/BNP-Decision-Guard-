@@ -80,6 +80,41 @@ describe('RagQueryService refusal logic (clinical safety contract)', () => {
     expect(result.citations.length).toBeGreaterThan(0);
   });
 
+  describe('refusal diagnostics (governance visibility)', () => {
+    it('reports NO_CANDIDATES when retrieval returns nothing', async () => {
+      const result = await makeService([]).ask('anything');
+      expect(result.diagnostics).toEqual({
+        candidateCount: 0,
+        bestScore: null,
+        threshold: 0.25,
+        refusedAt: 'NO_CANDIDATES',
+      });
+    });
+
+    it('reports BELOW_THRESHOLD with the real best score, not the cut-off list', async () => {
+      const svc = makeService([
+        chunk({ similarity: 0.05, content: 'unrelated text about cafeteria menus' }),
+      ]);
+      const result = await svc.ask('paracetamol dose for a child');
+      expect(result.diagnostics.refusedAt).toBe('BELOW_THRESHOLD');
+      expect(result.diagnostics.candidateCount).toBe(1);
+      // The score must survive the threshold filter so a manager can see how
+      // near the miss was.
+      expect(result.diagnostics.bestScore).toBeGreaterThan(0);
+      expect(result.diagnostics.bestScore).toBeLessThan(0.25);
+    });
+
+    it('leaves refusedAt null on an answered question', async () => {
+      const svc = makeService([chunk()]);
+      const result = await svc.ask(
+        'What is the paracetamol dose per kg for patients weighing 50 kg or less?',
+      );
+      expect(result.refused).toBe(false);
+      expect(result.diagnostics.refusedAt).toBeNull();
+      expect(result.diagnostics.candidateCount).toBe(1);
+    });
+  });
+
   it('extracts practical steps from numbered lines in the source', async () => {
     const svc = makeService([chunk()]);
     const result = await svc.ask('paracetamol dose per kg administer');

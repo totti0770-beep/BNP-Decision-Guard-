@@ -12,6 +12,13 @@ interface Citation {
   snippet?: string;
 }
 
+interface Diagnostics {
+  candidateCount: number;
+  bestScore: number | null;
+  threshold: number;
+  refusedAt: 'NO_CANDIDATES' | 'BELOW_THRESHOLD' | 'MODEL_FOUND_NOTHING' | null;
+}
+
 interface Answer {
   refused: boolean;
   shortAnswer: string;
@@ -19,6 +26,8 @@ interface Answer {
   warnings: string[];
   confidence: string;
   citations: Citation[];
+  /** Present only for roles with analytics:read — absent for nurses. */
+  diagnostics?: Diagnostics;
 }
 
 interface Turn {
@@ -43,7 +52,42 @@ const CONFIDENCE: Record<string, { tone: 'success' | 'warning' | 'danger' | 'neu
  * guidance. The message itself is rendered verbatim RTL: the API returns the
  * contractual Arabic string and it must not be reworded or wrapped.
  */
-function RefusalAnswer({ message }: { message: string }) {
+/**
+ * Governance-only explanation of *which* gate refused, so a knowledge manager
+ * can tell a corpus gap from an over-tight threshold — those need opposite
+ * fixes and the refusal alone cannot distinguish them. The API omits this
+ * field entirely for roles without analytics:read.
+ */
+function RefusalReason({ d }: { d: Diagnostics }) {
+  const explain = () => {
+    if (d.refusedAt === 'NO_CANDIDATES')
+      return 'No approved, indexed, in-version chunk matched this category at all — the library is missing this topic, or the documents were indexed under a different embedding provider.';
+    if (d.refusedAt === 'BELOW_THRESHOLD')
+      return `${d.candidateCount} approved chunk(s) were retrieved but the best scored ${d.bestScore} against a ${d.threshold} threshold — the topic is close but not close enough. Add a more specific document, or revisit RAG_MIN_SIMILARITY.`;
+    if (d.refusedAt === 'MODEL_FOUND_NOTHING')
+      return `${d.candidateCount} chunk(s) passed the ${d.threshold} threshold (best ${d.bestScore}), but the model found nothing in them that answers this question — the retrieved sources are related yet do not cover it.`;
+    return null;
+  };
+  const text = explain();
+  if (!text) return null;
+
+  return (
+    <details className="mt-3 border-t border-warning/20 pt-2">
+      <summary className="cursor-pointer text-xs font-medium text-muted hover:text-text">
+        Why was this refused?
+      </summary>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted">{text}</p>
+    </details>
+  );
+}
+
+function RefusalAnswer({
+  message,
+  diagnostics,
+}: {
+  message: string;
+  diagnostics?: Diagnostics;
+}) {
   return (
     <div className="rounded-card border border-warning/30 bg-warning-soft p-4">
       <div className="mb-2 flex items-center gap-2">
@@ -57,12 +101,19 @@ function RefusalAnswer({ message }: { message: string }) {
         assistant refuses rather than guessing — escalate to the responsible
         supervisor.
       </p>
+      {diagnostics && <RefusalReason d={diagnostics} />}
     </div>
   );
 }
 
 function AnswerBody({ answer }: { answer: Answer }) {
-  if (answer.refused) return <RefusalAnswer message={answer.shortAnswer} />;
+  if (answer.refused)
+    return (
+      <RefusalAnswer
+        message={answer.shortAnswer}
+        diagnostics={answer.diagnostics}
+      />
+    );
 
   const conf = CONFIDENCE[answer.confidence] ?? CONFIDENCE.NONE;
 
