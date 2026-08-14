@@ -21,6 +21,7 @@ interface ConsideredSource {
 
 interface Diagnostics {
   candidateCount: number;
+  qualifiedCount: number;
   bestScore: number | null;
   consideredSources: ConsideredSource[];
   threshold: number;
@@ -76,11 +77,11 @@ function RefusalReason({ d }: { d: Diagnostics }) {
     if (d.refusedAt === 'NO_CANDIDATES')
       return 'No approved, indexed, in-version chunk matched this category at all — the library is missing this topic, or the documents were indexed under a different embedding provider.';
     if (d.refusedAt === 'BELOW_THRESHOLD')
-      return `${d.candidateCount} approved chunk(s) were retrieved but the best scored ${d.bestScore} against a ${d.threshold} threshold — the topic is close but not close enough. Add a more specific document, or revisit RAG_MIN_SIMILARITY.`;
+      return `${d.candidateCount} chunk(s) were retrieved but the best scored ${d.bestScore} against a ${d.threshold} threshold — the topic is close but not close enough. Add a more specific document, or revisit RAG_MIN_SIMILARITY.`;
     if (d.refusedAt === 'MODEL_FOUND_NOTHING')
-      return `${d.candidateCount} chunk(s) passed the ${d.threshold} threshold (best ${d.bestScore}), but the model found nothing in them that answers this question — the retrieved sources are related yet do not cover it.`;
+      return `${d.candidateCount} chunk(s) were retrieved (RAG_TOP_K) and ${d.qualifiedCount} reached the model after reranking and the ${d.threshold} threshold, best ${d.bestScore} — but none of them answered this question. If the library does cover it, the right passage never made the shortlist: raise RAG_TOP_K / RAG_FINAL_K, or check the text below for chunking damage.`;
     if (d.refusedAt === 'MODEL_ERROR')
-      return `${d.candidateCount} chunk(s) passed the ${d.threshold} threshold (best ${d.bestScore}), but the answer model failed to respond. This is a technical fault, not a corpus gap — the library may well cover this question. Check the API logs and the AI provider's status, then retry.`;
+      return `${d.qualifiedCount} chunk(s) reached the model (best ${d.bestScore}), but it failed to respond. This is a technical fault, not a corpus gap — the library may well cover this question. Check the API logs and the AI provider's status, then retry.`;
     return null;
   };
   const text = explain();
