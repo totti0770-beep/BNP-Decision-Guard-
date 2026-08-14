@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import Link from 'next/link';
+import { REFUSAL_MESSAGE_AR } from '@bnp/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useAsyncData } from '@/lib/async';
 import {
   Badge,
   Card,
@@ -49,21 +51,21 @@ const ACTIONS = [
 
 export default function DashboardPage() {
   const { session, hasPermission } = useAuth();
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
   const canSeeAnalytics = hasPermission('analytics:read');
 
-  useEffect(() => {
-    if (!canSeeAnalytics) {
-      setLoading(false);
-      return;
-    }
-    api<Overview>('/analytics/overview')
-      .then(setOverview)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
-      .finally(() => setLoading(false));
-  }, [canSeeAnalytics]);
+  const fetchOverview = useCallback(
+    () =>
+      canSeeAnalytics
+        ? api<Overview>('/analytics/overview')
+        : Promise.resolve(null),
+    [canSeeAnalytics],
+  );
+  const {
+    data: overview,
+    error,
+    loading,
+    reload,
+  } = useAsyncData(fetchOverview, [canSeeAnalytics]);
 
   const first = session?.user.fullName.split(' ')[0] ?? '';
 
@@ -92,7 +94,7 @@ export default function DashboardPage() {
                 ))}
               </Panel>
             ) : error ? (
-              <ErrorState message={error} onRetry={() => location.reload()} />
+              <ErrorState message={error} onRetry={reload} />
             ) : overview ? (
               <Panel className="divide-y divide-border">
                 <AttentionRow
@@ -171,7 +173,7 @@ export default function DashboardPage() {
             lang="ar"
             className="mt-2 text-right text-base font-medium text-warning"
           >
-            لا توجد وثيقة معتمدة كافية للإجابة. الرجاء الرجوع للمسؤول المختص.
+            {REFUSAL_MESSAGE_AR}
           </p>
         </Card>
       </div>

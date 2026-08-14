@@ -52,7 +52,11 @@ export function DoseCalculatorScreen({ lang }: { lang: Lang }) {
         setFormulas(f);
         if (f.length) setFormulaId(f[0].id);
       })
-      .catch(() => undefined);
+      // Surface the failure in the existing error slot — an empty formula
+      // list must not be indistinguishable from "no approved formulas".
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : 'Failed to load formulas'),
+      );
   }, []);
 
   async function calculate() {

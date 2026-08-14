@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAsyncData } from '@/lib/async';
 import {
+  Alert,
   Badge,
   Button,
   EmptyState,
@@ -115,14 +116,7 @@ export default function AnswerReviewPage() {
         />
       </div>
 
-      {error && (
-        <p
-          role="alert"
-          className="mb-4 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-        >
-          {error}
-        </p>
-      )}
+      {error && <Alert className="mb-4">{error}</Alert>}
 
       {loading ? (
         <SkeletonRows rows={3} label="Loading answers" />

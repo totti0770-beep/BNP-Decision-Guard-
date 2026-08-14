@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
 import {
+  Alert,
   Badge,
   Button,
   EmptyState,
@@ -127,14 +128,7 @@ export default function SettingsPage() {
         subtitle="Platform configuration. Values are JSON and every change is audited."
       />
 
-      {saveError && (
-        <p
-          role="alert"
-          className="mb-4 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-        >
-          {saveError}
-        </p>
-      )}
+      {saveError && <Alert className="mb-4">{saveError}</Alert>}
 
       {canReindex && (
         <Panel className="mb-6 max-w-3xl p-4">

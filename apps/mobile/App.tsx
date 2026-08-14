@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { SafeAreaView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { getSession, loadApiUrl, setSession, type Session } from './src/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  getSession,
+  loadApiUrl,
+  logoutEverywhere,
+  setOnSessionExpired,
+  type Session,
+} from './src/api';
 import { row, t, type Lang } from './src/i18n';
 import { colors, s, space } from './src/theme';
 import { BottomNav, TABS, type Tab } from './src/components/BottomNav';
@@ -24,6 +31,8 @@ const CATEGORY_ASSISTANT: Record<Category, ChatScope['assistantType']> = {
   CBAHI: 'CBAHI',
 };
 
+const LANG_KEY = 'bnp.lang';
+
 export default function App() {
   const [session, setState] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
@@ -32,16 +41,35 @@ export default function App() {
   const [chatScope, setChatScope] = useState<ChatScope | null>(null);
 
   useEffect(() => {
-    // Restore the API-origin override before any request is issued.
-    loadApiUrl()
-      .then(getSession)
-      .then((stored) => {
-        setState(stored);
-        setReady(true);
-      });
+    // Restore the API-origin override before any request is issued, then the
+    // persisted language choice alongside the stored session.
+    Promise.all([
+      loadApiUrl().then(getSession),
+      AsyncStorage.getItem(LANG_KEY),
+    ]).then(([stored, savedLang]) => {
+      setState(stored);
+      if (savedLang === 'ar' || savedLang === 'en') setLang(savedLang);
+      setReady(true);
+    });
   }, []);
 
-  const toggleLang = () => setLang((l) => (l === 'ar' ? 'en' : 'ar'));
+  // An unrecoverable 401 anywhere (refresh failed / tokens revoked) drops
+  // straight back to login instead of stranding the nurse on error strings.
+  useEffect(() => {
+    setOnSessionExpired(() => {
+      setState(null);
+      setTab('home');
+      setChatScope(null);
+    });
+    return () => setOnSessionExpired(null);
+  }, []);
+
+  const toggleLang = () =>
+    setLang((l) => {
+      const next = l === 'ar' ? 'en' : 'ar';
+      void AsyncStorage.setItem(LANG_KEY, next);
+      return next;
+    });
 
   if (!ready) return null;
   if (!session) {
@@ -51,7 +79,8 @@ export default function App() {
   }
 
   async function logout() {
-    await setSession(null);
+    // Server-side revocation first (bumps token_version), then local cleanup.
+    await logoutEverywhere();
     setState(null);
     setTab('home');
     setChatScope(null);

@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { api } from '../api';
 import { align, t, type Lang } from '../i18n';
 import { colors, s, space } from '../theme';
@@ -21,15 +28,29 @@ interface Doc {
 export function PoliciesScreen({ lang }: { lang: Lang }) {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const textAlign = align(lang);
 
+  // One request per pause in typing, not one per keystroke.
   useEffect(() => {
+    const handle = setTimeout(() => setDebounced(search), 300);
+    return () => clearTimeout(handle);
+  }, [search]);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
     const params = new URLSearchParams({ status: 'ACTIVE' });
-    if (search) params.set('search', search);
+    if (debounced) params.set('search', debounced);
     api<{ items: Doc[] }>(`/documents?${params.toString()}`)
       .then((r) => setDocs(r.items))
-      .catch(() => undefined);
-  }, [search]);
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  }, [debounced]);
+
+  useEffect(load, [load]);
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.container}>
@@ -39,22 +60,45 @@ export function PoliciesScreen({ lang }: { lang: Lang }) {
         placeholderTextColor={colors.faint}
         value={search}
         onChangeText={setSearch}
+        accessibilityLabel={t(lang, 'searchDocs')}
       />
-      {docs.map((d) => (
-        <View key={d.id} style={s.card}>
-          <Text style={[s.h2, { textAlign }]}>{d.title}</Text>
-          <Text style={[s.muted, { textAlign, marginTop: 2 }]}>
-            {d.category.replaceAll('_', ' ')} · v{d.versionNumber}
-            {d.approvalDate
-              ? ` · ${t(lang, 'approved')} ${d.approvalDate.slice(0, 10)}`
-              : ''}
-          </Text>
+
+      {loading && (
+        <ActivityIndicator style={{ marginTop: space.xl }} color={colors.brand} />
+      )}
+
+      {!loading && error ? (
+        <View style={s.card}>
+          <Text style={{ color: colors.danger, textAlign }}>{error}</Text>
+          <TouchableOpacity
+            style={[s.btnSecondary, { marginTop: space.md }]}
+            accessibilityRole="button"
+            onPress={load}
+          >
+            <Text style={s.btnSecondaryText}>{t(lang, 'retry')}</Text>
+          </TouchableOpacity>
         </View>
-      ))}
-      {docs.length === 0 && (
-        <Text style={[s.muted, { textAlign: 'center', marginTop: space.xl }]}>
-          {t(lang, 'noEntries')}
-        </Text>
+      ) : null}
+
+      {!loading && !error && (
+        <>
+          {docs.map((d) => (
+            <View key={d.id} style={s.card}>
+              <Text style={[s.h2, { textAlign }]}>{d.title}</Text>
+              <Text style={[s.muted, { textAlign, marginTop: 2 }]}>
+                {d.category.replaceAll('_', ' ')} · v{d.versionNumber}
+                {d.approvalDate
+                  ? ` · ${t(lang, 'approved')} ${d.approvalDate.slice(0, 10)}`
+                  : ''}
+              </Text>
+            </View>
+          ))}
+          {docs.length === 0 && (
+            <Text style={[s.muted, { textAlign: 'center', marginTop: space.xl }]}>
+              {t(lang, 'noEntries')}
+            </Text>
+          )}
+        </>
       )}
     </ScrollView>
   );

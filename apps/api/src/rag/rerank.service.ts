@@ -21,7 +21,18 @@ export class RerankService {
         let hits = 0;
         for (const t of qSet) if (cTokens.has(t)) hits++;
         const coverage = hits / qSet.size;
-        return { ...chunk, rerankScore: 0.6 * chunk.similarity + 0.4 * coverage };
+        // Promotion-only: lexical coverage is a ranking bonus and must never
+        // drag the score below the semantic similarity, otherwise questions
+        // with little token overlap against the source language (an Arabic
+        // question over an English document scores coverage = 0) face a far
+        // harsher effective refusal threshold than same-language questions.
+        return {
+          ...chunk,
+          rerankScore: Math.max(
+            chunk.similarity,
+            0.6 * chunk.similarity + 0.4 * coverage,
+          ),
+        };
       })
       .sort((a, b) => (b.rerankScore ?? 0) - (a.rerankScore ?? 0))
       .slice(0, k);

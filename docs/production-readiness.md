@@ -3,6 +3,19 @@
 A CTO-level assessment of what exists today and what remains for pilot and
 production. Use this as the launch checklist.
 
+> **Audit update (Aug 2026).** A full re-audit (API, web, mobile, live
+> Railway deployment) confirmed this scorecard and closed several rows:
+> server-side logout on web **and** mobile, upload refresh-on-401,
+> password-reset UI, `SEED_PASSWORD_<ROLE>` overrides, document-list
+> pagination, mobile secure token storage + refresh + MFA step, and a
+> reindex button in Settings (`documents:index`). Still open, in impact
+> order: **email delivery** (password reset is dead in production without
+> it), **OCR for scanned PDFs** (pdf-parse reads the text layer only — a
+> scanned Arabic PDF indexes zero chunks), **observability**, **backup +
+> tested restore**, the **Next 15 / NestJS 11 majors**, and **compliance
+> sign-off**. The web UI is English-only while mobile is Arabic-first —
+> a deliberate inversion to revisit before a nurse-facing pilot.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |

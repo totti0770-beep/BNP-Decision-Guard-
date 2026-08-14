@@ -69,6 +69,17 @@ describe('RagQueryService refusal logic (clinical safety contract)', () => {
     expect(result.warnings.join(' ')).toContain('Warning');
   });
 
+  it('does not refuse a cross-language question whose semantic similarity clears the threshold', async () => {
+    // Regression: an Arabic question over an English document has zero token
+    // overlap, so the old rerank formula (0.6·sim + 0.4·coverage) collapsed a
+    // similarity of 0.3 to 0.18 and refused despite a sufficient semantic
+    // match. Coverage must stay a bonus, never a penalty.
+    const svc = makeService([chunk({ similarity: 0.3 })]);
+    const result = await svc.ask('ما جرعة الباراسيتامول الوريدي لمن يزن خمسين كيلوغراماً أو أقل؟');
+    expect(result.refused).toBe(false);
+    expect(result.citations.length).toBeGreaterThan(0);
+  });
+
   it('extracts practical steps from numbered lines in the source', async () => {
     const svc = makeService([chunk()]);
     const result = await svc.ask('paracetamol dose per kg administer');

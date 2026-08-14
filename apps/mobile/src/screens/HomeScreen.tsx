@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { api, hasPermission, type Session } from '../api';
 import { align, row, t, type Lang } from '../i18n';
@@ -38,15 +38,23 @@ export function HomeScreen({
   onOpenCategory: (category: Category, title: string) => void;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [overviewError, setOverviewError] = useState('');
   const canSeeAnalytics = hasPermission(session, 'analytics:read');
   const textAlign = align(lang);
 
-  useEffect(() => {
+  const loadOverview = useCallback(() => {
     if (!canSeeAnalytics) return;
+    setOverviewError('');
     api<Overview>('/analytics/overview')
       .then(setOverview)
-      .catch(() => setOverview(null));
+      .catch((e) => {
+        setOverview(null);
+        // A failed load must look different from "no data".
+        setOverviewError(e instanceof Error ? e.message : 'Failed to load');
+      });
   }, [canSeeAnalytics]);
+
+  useEffect(loadOverview, [loadOverview]);
 
   const tiles: { category: Category; label: Parameters<typeof t>[1]; mark: string }[] = [
     { category: 'MEDICATIONS', label: 'pharmaStandards', mark: 'Rx' },
@@ -103,6 +111,19 @@ export function HomeScreen({
           ))}
         </View>
       </View>
+
+      {canSeeAnalytics && overviewError ? (
+        <View style={[s.card, { marginBottom: space.md }]}>
+          <Text style={{ color: colors.danger, textAlign }}>{overviewError}</Text>
+          <TouchableOpacity
+            style={[s.btnSecondary, { marginTop: space.md }]}
+            accessibilityRole="button"
+            onPress={loadOverview}
+          >
+            <Text style={s.btnSecondaryText}>{t(lang, 'retry')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {/* KPI row — only for roles that may read analytics */}
       {canSeeAnalytics && overview && (

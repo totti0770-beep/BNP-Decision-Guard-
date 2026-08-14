@@ -136,47 +136,6 @@
     @apply not-sr-only fixed left-4 top-4 z-50;
   }
 
-  /**
-   * Legacy utility classes, re-pointed at the new semantic tokens.
-   *
-   * 86 call sites across the 16 routes still use these. Re-mapping rather than
-   * deleting keeps this change non-breaking and means every screen inherits
-   * the new palette, dark mode and focus treatment immediately; screens then
-   * migrate to the `components/ui` primitives progressively.
-   */
-  .card {
-    @apply rounded-card border border-border bg-surface p-4 shadow-sm;
-  }
-
-  .btn {
-    @apply inline-flex h-9 select-none items-center justify-center gap-2 rounded-control px-3.5
-           text-sm font-medium transition-colors duration-150
-           disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-primary {
-    @apply btn bg-primary text-primary-fg shadow-sm hover:bg-primary-hover;
-  }
-
-  .btn-secondary {
-    @apply btn border border-border-strong bg-surface text-text hover:bg-sunken;
-  }
-
-  .input {
-    @apply h-9 w-full rounded-control border border-border-strong bg-surface px-3 text-sm
-           text-text transition-colors duration-150 placeholder:text-subtle
-           hover:border-subtle disabled:cursor-not-allowed disabled:opacity-60;
-  }
-
-  .label {
-    @apply mb-1 block text-xs font-medium text-muted;
-  }
-
-  .badge {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium
-           ring-1 ring-inset ring-border;
-  }
-
   .shimmer {
     background-image: linear-gradient(
       90deg,

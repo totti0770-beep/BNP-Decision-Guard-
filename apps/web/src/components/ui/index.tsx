@@ -227,6 +227,30 @@ const TONES: Record<Tone, string> = {
   info: 'bg-info-soft text-info ring-info/20',
 };
 
+/**
+ * Inline alert for action failures (save/submit/download). Load failures
+ * belong in ErrorState, which carries the retry affordance.
+ */
+export function Alert({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <p
+      role="alert"
+      className={cx(
+        'rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger',
+        className,
+      )}
+    >
+      {children}
+    </p>
+  );
+}
+
 export function Badge({
   tone = 'neutral',
   children,

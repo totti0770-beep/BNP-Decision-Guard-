@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { API_URL, getSession } from '@/lib/api';
-import { Button, Card, Field, Input, PageHeader, Select, Textarea } from '@/components/ui';
+import { api } from '@/lib/api';
+import {
+  Alert, Button, Card, Field, Input, PageHeader, Select, Textarea } from '@/components/ui';
 
 const CATEGORIES = ['MEDICATIONS', 'NURSING_POLICIES', 'CBAHI', 'PROCEDURES', 'PROTOCOLS'];
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -56,13 +57,10 @@ export default function UploadPage() {
       form.append('category', category);
       if (description) form.append('description', description);
       if (expiryDate) form.append('expiryDate', new Date(expiryDate).toISOString());
-      const res = await fetch(`${API_URL}/documents/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getSession()?.accessToken}` },
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Upload failed');
+      // api() only forces Content-Type for string bodies, so FormData keeps
+      // its browser-generated multipart boundary — and the upload now gets
+      // the same refresh-on-401 retry as every other call.
+      await api('/documents/upload', { method: 'POST', body: form });
       router.push('/approvals');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -141,12 +139,7 @@ export default function UploadPage() {
           </div>
 
           {error && (
-            <p
-              role="alert"
-              className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
-            >
-              {error}
-            </p>
+            <Alert>{error}</Alert>
           )}
 
           <Button

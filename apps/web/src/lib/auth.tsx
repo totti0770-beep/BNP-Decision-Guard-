@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { getSession, setSession, type Session } from './api';
+import { api, getSession, setSession, type Session } from './api';
 
 interface AuthContextValue {
   session: Session | null;
@@ -38,6 +38,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   const logout = () => {
+    // Revoke server-side first: bumping token_version invalidates every
+    // outstanding refresh token, not just this tab's copy. Local cleanup
+    // must not wait on (or fail with) the network call.
+    api('/auth/logout', { method: 'POST', retryOn401: false }).catch(
+      () => undefined,
+    );
     setSession(null);
     setState(null);
     router.push('/login');
