@@ -141,14 +141,14 @@ export default function AnswerReviewPage() {
                       : 'unknown user'}{' '}
                     · {new Date(item.createdAt).toLocaleString()}
                   </p>
-                  <h2 className="mt-1 text-base font-medium text-text">{item.question}</h2>
+                  <h2 dir="auto" className="mt-1 text-base font-medium text-text">{item.question}</h2>
                 </div>
                 <Badge tone={CONFIDENCE_TONE[item.confidence] ?? 'neutral'}>
                   {item.confidence} confidence
                 </Badge>
               </div>
 
-              <p className="mt-3 text-sm leading-relaxed text-text">{item.shortAnswer}</p>
+              <p dir="auto" className="mt-3 text-sm leading-relaxed text-text">{item.shortAnswer}</p>
 
               {item.steps.length > 0 && (
                 <ol className="mt-3 space-y-1 text-sm">
@@ -157,7 +157,7 @@ export default function AnswerReviewPage() {
                       <span className="tnum mt-px shrink-0 text-2xs text-subtle">
                         {String(i + 1).padStart(2, '0')}
                       </span>
-                      <span className="text-muted">{s}</span>
+                      <span dir="auto" className="text-muted">{s}</span>
                     </li>
                   ))}
                 </ol>
@@ -170,7 +170,9 @@ export default function AnswerReviewPage() {
                   </p>
                   <ul className="mt-1 space-y-1 text-sm text-text">
                     {item.warnings.map((w, i) => (
-                      <li key={i}>{w}</li>
+                      <li key={i} dir="auto">
+                        {w}
+                      </li>
                     ))}
                   </ul>
                 </div>

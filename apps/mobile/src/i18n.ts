@@ -153,3 +153,19 @@ export function row(lang: Lang): 'row' | 'row-reverse' {
 export function align(lang: Lang): 'left' | 'right' {
   return isRtl(lang) ? 'right' : 'left';
 }
+
+/**
+ * Alignment for text whose language is decided by its *content*, not by the
+ * interface language — assistant answers above all: the model replies in the
+ * language of the question, so a nurse can browse an English UI and receive
+ * an Arabic answer. Aligning that by interface language renders clinical text
+ * against its own reading direction.
+ *
+ * Matches on the first strong directional character, mirroring the HTML
+ * `dir="auto"` rule, so leading digits or punctuation do not decide it.
+ */
+export function alignFor(text: string, fallback: Lang): 'left' | 'right' {
+  const strong = text.match(/[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Latin}]/u);
+  if (!strong) return align(fallback);
+  return /[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(strong[0]) ? 'right' : 'left';
+}
