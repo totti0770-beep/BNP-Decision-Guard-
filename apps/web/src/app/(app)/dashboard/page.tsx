@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { REFUSAL_MESSAGE_AR } from '@bnp/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
@@ -171,7 +172,7 @@ export default function DashboardPage() {
             lang="ar"
             className="mt-2 text-right text-base font-medium text-warning"
           >
-            لا توجد وثيقة معتمدة كافية للإجابة. الرجاء الرجوع للمسؤول المختص.
+            {REFUSAL_MESSAGE_AR}
           </p>
         </Card>
       </div>

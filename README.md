@@ -147,6 +147,14 @@ Profiles live in `apps/mobile/eas.json` — edit each profile's
 
 *Demo data only — no real patient data is used anywhere in this MVP.*
 
+> **⚠️ These passwords are public.** They are fine for a local demo, but on
+> any internet-facing deployment you must either set `SEED_PASSWORD_<ROLE>`
+> environment variables (e.g. `SEED_PASSWORD_NURSE_USER`) **before first
+> boot** — seeding is skip-if-present, so overrides never touch an existing
+> database — or sign in as an admin right after deploying and rotate every
+> account from the **Users** screen (`PATCH /users/:id` also revokes that
+> user's outstanding refresh tokens).
+
 ## How to upload and approve a PDF
 
 1. Sign in as **knowledge@bnp.health** → **Upload Document** → choose a PDF,

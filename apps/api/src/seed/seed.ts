@@ -29,19 +29,30 @@ import { AppDataSource } from '../config/data-source';
 import { SAMPLE_DOCS } from './sample-docs';
 import { buildPdf } from './pdf';
 
+/**
+ * Demo passwords are overridable per role via SEED_PASSWORD_<ROLE> (e.g.
+ * SEED_PASSWORD_NURSE_USER). The shipped defaults are published in README,
+ * so any internet-facing install must either set these overrides before
+ * first boot or rotate every account from the /users screen right after —
+ * seeding is skip-if-present, so env changes never touch an existing DB.
+ */
+function seedPassword(role: RoleName, fallback: string): string {
+  return process.env[`SEED_PASSWORD_${role}`] || fallback;
+}
+
 export const DEMO_USERS: {
   email: string;
   password: string;
   fullName: string;
   role: RoleName;
 }[] = [
-  { email: 'superadmin@bnp.health', password: 'SuperAdmin123!', fullName: 'Sara Al-Otaibi', role: RoleName.SUPER_ADMIN },
-  { email: 'admin@bnp.health', password: 'HospAdmin123!', fullName: 'Mohammed Al-Harbi', role: RoleName.HOSPITAL_ADMIN },
-  { email: 'knowledge@bnp.health', password: 'Knowledge123!', fullName: 'Noura Al-Qahtani', role: RoleName.NURSING_KNOWLEDGE_MANAGER },
-  { email: 'pharmacist@bnp.health', password: 'Pharmacist123!', fullName: 'Khalid Al-Zahrani', role: RoleName.PHARMACIST_REVIEWER },
-  { email: 'quality@bnp.health', password: 'Quality123!', fullName: 'Amal Al-Shehri', role: RoleName.CBAHI_QUALITY_OFFICER },
-  { email: 'nurse@bnp.health', password: 'NurseUser123!', fullName: 'Fatimah Al-Ghamdi', role: RoleName.NURSE_USER },
-  { email: 'auditor@bnp.health', password: 'Auditor123!', fullName: 'Yousef Al-Dossary', role: RoleName.AUDITOR },
+  { email: 'superadmin@bnp.health', password: seedPassword(RoleName.SUPER_ADMIN, 'SuperAdmin123!'), fullName: 'Sara Al-Otaibi', role: RoleName.SUPER_ADMIN },
+  { email: 'admin@bnp.health', password: seedPassword(RoleName.HOSPITAL_ADMIN, 'HospAdmin123!'), fullName: 'Mohammed Al-Harbi', role: RoleName.HOSPITAL_ADMIN },
+  { email: 'knowledge@bnp.health', password: seedPassword(RoleName.NURSING_KNOWLEDGE_MANAGER, 'Knowledge123!'), fullName: 'Noura Al-Qahtani', role: RoleName.NURSING_KNOWLEDGE_MANAGER },
+  { email: 'pharmacist@bnp.health', password: seedPassword(RoleName.PHARMACIST_REVIEWER, 'Pharmacist123!'), fullName: 'Khalid Al-Zahrani', role: RoleName.PHARMACIST_REVIEWER },
+  { email: 'quality@bnp.health', password: seedPassword(RoleName.CBAHI_QUALITY_OFFICER, 'Quality123!'), fullName: 'Amal Al-Shehri', role: RoleName.CBAHI_QUALITY_OFFICER },
+  { email: 'nurse@bnp.health', password: seedPassword(RoleName.NURSE_USER, 'NurseUser123!'), fullName: 'Fatimah Al-Ghamdi', role: RoleName.NURSE_USER },
+  { email: 'auditor@bnp.health', password: seedPassword(RoleName.AUDITOR, 'Auditor123!'), fullName: 'Yousef Al-Dossary', role: RoleName.AUDITOR },
 ];
 
 function asActor(user: User): AuthenticatedUser {

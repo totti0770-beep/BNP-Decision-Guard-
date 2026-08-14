@@ -143,6 +143,14 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-xs text-subtle">
+          <a
+            href="/login/forgot"
+            className="underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </a>
+        </p>
+        <p className="mt-2 text-center text-xs text-subtle">
           Demo: nurse@bnp.health / NurseUser123! — see README for all roles
         </p>
       </div>
