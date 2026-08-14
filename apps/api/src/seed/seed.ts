@@ -133,7 +133,9 @@ async function main() {
   console.log('Seeding settings...');
   const defaultSettings: [string, unknown, string][] = [
     ['platform.name', 'BNP Decision Guard', 'Display name'],
-    ['rag.minSimilarity', 0.25, 'Minimum retrieval score before refusal'],
+    // Informational only: the query path reads env RAG_MIN_SIMILARITY, not
+    // this row. Editing it in the Settings UI does not change refusals.
+    ['rag.minSimilarity', 0.25, 'Informational — governed by env RAG_MIN_SIMILARITY'],
     ['documents.nearExpiryDays', 30, 'Days before expiry to alert knowledge managers'],
     ['ai.requireCommitteeReview', true, 'Flag AI answers for scientific committee review'],
   ];
