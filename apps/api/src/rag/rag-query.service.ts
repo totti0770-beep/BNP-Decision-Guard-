@@ -27,6 +27,19 @@ export interface RagDiagnostics {
   bestScore: number | null;
   /** Effective RAG_MIN_SIMILARITY the score was compared against. */
   threshold: number;
+  /**
+   * The highest-scoring chunks that were actually considered. Counts and
+   * scores say a refusal happened; only the text says why. A manager reading
+   * these can tell "these are contents-page headings", "the PDF extracted as
+   * garbage", and "genuinely off-topic" apart at a glance — three causes with
+   * three different fixes that are otherwise indistinguishable.
+   */
+  consideredSources: {
+    documentTitle: string;
+    pageNumber: number | null;
+    similarity: number;
+    snippet: string;
+  }[];
   /** Which gate produced a refusal, or null when the question was answered. */
   refusedAt:
     | 'NO_CANDIDATES'
@@ -96,6 +109,7 @@ export class RagQueryService {
       return this.refusal({
         candidateCount: 0,
         bestScore: null,
+        consideredSources: [],
         threshold: minScore,
         refusedAt: 'NO_CANDIDATES',
       });
@@ -112,6 +126,15 @@ export class RagQueryService {
     ): RagDiagnostics => ({
       candidateCount: candidates.length,
       bestScore: best,
+      consideredSources: ranked.slice(0, 3).map((c) => {
+        const cite = this.toCitation(c);
+        return {
+          documentTitle: cite.documentTitle,
+          pageNumber: cite.pageNumber,
+          similarity: cite.similarity,
+          snippet: cite.snippet,
+        };
+      }),
       threshold: minScore,
       refusedAt,
     });

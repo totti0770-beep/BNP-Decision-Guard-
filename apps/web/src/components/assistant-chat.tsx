@@ -12,9 +12,17 @@ interface Citation {
   snippet?: string;
 }
 
+interface ConsideredSource {
+  documentTitle: string;
+  pageNumber: number | null;
+  similarity: number;
+  snippet: string;
+}
+
 interface Diagnostics {
   candidateCount: number;
   bestScore: number | null;
+  consideredSources: ConsideredSource[];
   threshold: number;
   refusedAt:
     | 'NO_CANDIDATES'
@@ -84,6 +92,30 @@ function RefusalReason({ d }: { d: Diagnostics }) {
         Why was this refused?
       </summary>
       <p className="mt-1.5 text-xs leading-relaxed text-muted">{text}</p>
+
+      {d.consideredSources.length > 0 && (
+        <div className="mt-3">
+          <p className="text-2xs font-medium uppercase tracking-wide text-subtle">
+            Closest text considered
+          </p>
+          <ul className="mt-1.5 space-y-2">
+            {d.consideredSources.map((s, i) => (
+              <li key={i} className="border-l-2 border-warning/25 pl-2.5">
+                <p className="text-2xs text-subtle">
+                  {s.documentTitle}
+                  {s.pageNumber !== null && ` · p.${s.pageNumber}`} · {s.similarity}
+                </p>
+                {/* The raw extracted text: this is what the model actually
+                    read, so garbled extraction or contents-page headings are
+                    visible immediately instead of being inferred. */}
+                <p dir="auto" className="mt-0.5 font-mono text-2xs leading-relaxed text-muted">
+                  {s.snippet}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </details>
   );
 }
