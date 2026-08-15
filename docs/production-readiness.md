@@ -36,8 +36,14 @@ production. Use this as the launch checklist.
 >   changing nothing. No shipped screen used them, but any API client would
 >   have been misled. `ROLES_MANAGE` was dropped from the matrix with them.
 >
-> Still open, in impact order: **email delivery** (reset is unusable without
-> it), **MFA enrollment** (no endpoint writes `mfa_secret`), **observability**,
+> - **Email delivery is wired.** Reset links are sent over SMTP
+>   (`MAIL_PROVIDER=smtp`), the relay is verified at boot, and production must
+>   choose `smtp` or `none` explicitly rather than inheriting a silent default.
+>   Sending is fire-and-forget so delivery latency cannot be used to enumerate
+>   accounts; outcomes are audited.
+>
+> Still open, in impact order: **MFA enrollment** (no endpoint writes
+> `mfa_secret`), **observability**,
 > **integration/E2E tests** (none exist; no linter either), **backup + tested
 > restore**, **OCR for scanned PDFs**, the **Next 15 / NestJS 11 majors**, and
 > **compliance sign-off**. The web UI is English-only while mobile is
@@ -100,9 +106,10 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    iOS/Android identifiers are in place. Remaining: `eas login && eas init`
    with your Expo account, then `eas build`; production signing needs
    Apple/Google developer credentials.
-4. **Email delivery for password reset** — wire an email provider in
-   `forgotPassword()` (currently returns the token directly outside production
-   for demo purposes).
+4. ~~**Email delivery for password reset**~~ — ✅ done: SMTP delivery via
+   `MAIL_PROVIDER=smtp`, bilingual Arabic/English message, single-use link
+   carrying the token, relay verified at startup. Remaining: point it at the
+   hospital's real relay and confirm deliverability (SPF/DKIM on `MAIL_FROM`).
 
 ## Fastest path to PRODUCTION
 

@@ -11,7 +11,7 @@ require `Authorization: Bearer <accessToken>` and the listed permission.
 | `POST /auth/mfa/verify` | `{mfaToken, code}` | TOTP verification → tokens |
 | `POST /auth/refresh` | `{refreshToken}` | → new token pair |
 | `POST /auth/logout` | — | bumps `token_version`, revoking every outstanding refresh token |
-| `POST /auth/forgot-password` | `{email}` | always `{requested: true}`; never returns the token, and never reveals whether the email exists |
+| `POST /auth/forgot-password` | `{email}` | always `{requested: true}`; emails a reset link, never returns the token, never reveals whether the email exists |
 | `POST /auth/reset-password` | `{token, newPassword}` | single-use, bound to `token_version` |
 
 There is **no public self-registration**. Accounts are provisioned by an

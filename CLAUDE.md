@@ -97,6 +97,7 @@ Session lives in `localStorage`; `apps/web/src/lib/api.ts` wraps fetch with auto
 - **The `embedding` column is raw SQL, not TypeORM-managed.** pgvector inserts/queries in `indexing.service.ts` and `retrieval.service.ts` use parameterized raw SQL with a `[...]::vector` literal.
 - **TypeORM QueryBuilder takes entity property names, not DB column names** — `a.createdAt`, not `a.created_at`. Using the column name throws a confusing `Cannot read properties of undefined (reading 'databaseName')` at runtime, not compile time.
 - **Production fail-fast**: with `NODE_ENV=production`, `config/env.ts` refuses to boot if `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, or `S3_SECRET_KEY` is missing or left at its shipped default. This is intended — supply real secrets.
+- **`MAIL_PROVIDER` is also fail-fast in production.** It must be `smtp` (with `SMTP_HOST`) or `none`; unset or `console` refuses to boot, because `console` writes a working password-reset link into the server log. Locally it defaults to `console`, which logs the email instead of sending it. Any test that loads env with `NODE_ENV=production` must set `MAIL_PROVIDER` or it will throw.
 - **`CORS_ORIGINS` must be set in production.** Empty means block all cross-origin browser calls, so the web app silently fails against the API.
 - **`NEXT_PUBLIC_API_URL` is baked in at Docker build time** (an `ARG` in `Dockerfile.web`), not read at runtime. Changing it requires a rebuild.
 

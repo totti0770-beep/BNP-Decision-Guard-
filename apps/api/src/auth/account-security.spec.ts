@@ -36,9 +36,22 @@ function makeService(user: User | null) {
     verify: jest.fn(),
   };
   const audit = { record: jest.fn() };
-  const service = new AuthService(users as never, jwt as never, audit as never);
-  return { service, users, jwt, audit };
+  const mail = {
+    name: 'smtp',
+    enabled: true,
+    sendPasswordReset: jest.fn().mockResolvedValue(undefined),
+  };
+  const service = new AuthService(
+    users as never,
+    jwt as never,
+    audit as never,
+    mail as never,
+  );
+  return { service, users, jwt, audit, mail };
 }
+
+/** Delivery is fire-and-forget, so let its promise chain settle. */
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('Account lockout', () => {
   it('locks the account after the configured number of failed attempts', async () => {
@@ -109,6 +122,7 @@ describe('Password reset', () => {
     process.env.JWT_REFRESH_SECRET = 'test-non-default-refresh';
     process.env.POSTGRES_PASSWORD = 'test-non-default-db';
     process.env.S3_SECRET_KEY = 'test-non-default-s3';
+    process.env.MAIL_PROVIDER = 'none'; // production must declare one
     try {
       let res: unknown;
       await jest.isolateModulesAsync(async () => {
@@ -118,6 +132,7 @@ describe('Password reset', () => {
           { findOne: jest.fn().mockResolvedValue(user), save: jest.fn(async (u: User) => u) },
           { sign: jest.fn(() => 'signed.jwt.token'), verify: jest.fn() },
           { record: jest.fn() },
+          { name: 'smtp', enabled: true, sendPasswordReset: jest.fn().mockResolvedValue(undefined) },
         );
         res = await service.forgotPassword('nurse@bnp.health');
       });
@@ -129,13 +144,65 @@ describe('Password reset', () => {
       delete process.env.JWT_REFRESH_SECRET;
       delete process.env.POSTGRES_PASSWORD;
       delete process.env.S3_SECRET_KEY;
+      delete process.env.MAIL_PROVIDER;
     }
   });
 
   it('forgot-password on an unknown email still returns requested:true with no token', async () => {
-    const { service } = makeService(null);
+    const { service, mail } = makeService(null);
     const res = await service.forgotPassword('ghost@bnp.health');
     expect(res).toEqual({ requested: true });
+    await flush();
+    expect(mail.sendPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it('emails the reset token to the account holder', async () => {
+    const user = makeUser();
+    const { service, mail, audit } = makeService(user);
+    await service.forgotPassword('nurse@bnp.health');
+    await flush();
+
+    expect(mail.sendPasswordReset).toHaveBeenCalledWith(
+      'nurse@bnp.health',
+      'Nurse',
+      'signed.jwt.token',
+    );
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'AUTH:PASSWORD_RESET_EMAIL_SENT' }),
+    );
+  });
+
+  it('audits a delivery failure without leaking it to the caller', async () => {
+    // The uniform response is what prevents account enumeration, so a bounced
+    // email must not change what the client sees.
+    const user = makeUser();
+    const { service, mail, audit } = makeService(user);
+    mail.sendPasswordReset.mockRejectedValue(new Error('SMTP 550 mailbox unavailable'));
+
+    const res = await service.forgotPassword('nurse@bnp.health');
+    expect(res).toEqual({ requested: true });
+
+    await flush();
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'AUTH:PASSWORD_RESET_EMAIL_FAILED',
+        metadata: expect.objectContaining({ error: 'SMTP 550 mailbox unavailable' }),
+      }),
+    );
+  });
+
+  it('does not await delivery, so a slow relay cannot time the response', async () => {
+    // Awaiting the SMTP round-trip would make a request for a real account
+    // measurably slower than one for an address that does not exist.
+    const user = makeUser();
+    const { service, mail } = makeService(user);
+    let release: () => void = () => undefined;
+    mail.sendPasswordReset.mockReturnValue(new Promise<void>((r) => { release = r; }));
+
+    await expect(service.forgotPassword('nurse@bnp.health')).resolves.toEqual({
+      requested: true,
+    });
+    release();
   });
 
   it('reset-password rejects a token whose token_version is stale', async () => {

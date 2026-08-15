@@ -19,7 +19,9 @@ trail are non-negotiable.
 | **Refresh-token revocation** | `users.token_version` + `auth.service.ts` | `POST /auth/logout` and any password change bump `token_version`, immediately invalidating every outstanding refresh token. Verified end-to-end. |
 | **RBAC** | `packages/shared/src/rbac.ts` + `PermissionsGuard` | 7 roles, central permission matrix, enforced globally. The matrix is the only input to authorization — `role_permissions` is a display projection, so the roles API is read-only and a database-only role grants nothing. Nurses/auditors cannot approve or download source PDFs. |
 | **No public self-registration** | `auth.controller.ts` | Accounts are provisioned by an administrator via `POST /users`. The former public `POST /auth/register` handed any caller a `NURSE_USER` account with `ai:ask`, `ai:search`, `documents:read` and `dose:calculate` over the approved corpus. |
-| **Reset token never disclosed** | `auth.service.ts` | `POST /auth/forgot-password` returns `{requested: true}` and nothing else. Disclosure requires an explicit `AUTH_DEV_RETURN_RESET_TOKEN=true` opt-in that is additionally refused in production. It previously keyed off `NODE_ENV !== 'production'`, which failed open wherever `NODE_ENV` was unset. |
+| **Reset token never disclosed** | `auth.service.ts` | `POST /auth/forgot-password` returns `{requested: true}` and nothing else; the token reaches the user only by email. Disclosure requires an explicit `AUTH_DEV_RETURN_RESET_TOKEN=true` opt-in that is additionally refused in production. It previously keyed off `NODE_ENV !== 'production'`, which failed open wherever `NODE_ENV` was unset. |
+| **Email delivery** | `mail/mail.service.ts`, `MAIL_PROVIDER` | Reset links are delivered over SMTP. Production must choose explicitly: `smtp` (with `SMTP_HOST`) or `none` to disable self-service reset — an unset value, or `console` (which would write a working link into the server log), refuses to boot. The relay is verified at startup and a failure is logged loudly rather than silently swallowed. |
+| **Enumeration-safe delivery** | `auth.service.ts` | Sending is fire-and-forget: awaiting the SMTP round-trip would make a request for a real account measurably slower than one for an address that does not exist, which is exactly the signal the uniform response exists to hide. Delivery outcomes are audited (`AUTH:PASSWORD_RESET_EMAIL_SENT` / `..._FAILED`), never returned. |
 | **Upload content validation** | `documents.service.ts` | Uploads must carry a real `%PDF-` signature, not merely a PDF `Content-Type` header, which the client controls. |
 | **Refusal-first AI** | `apps/api/src/rag/*` | Retrieval hard-filtered to `ACTIVE`, non-expired documents; sub-threshold matches refuse with the exact governed message; the mock LLM is extractive and cannot generate beyond context. |
 | **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. |
@@ -34,24 +36,23 @@ trail are non-negotiable.
    `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, `S3_SECRET_KEY`. The API will
    refuse to start in production otherwise.
 2. **Set `CORS_ORIGINS`** to your exact web origin(s).
-3. **Terminate TLS** in front of the API and web (Ingress/load balancer). All
+3. **Choose an email posture** — `MAIL_PROVIDER=smtp` with `SMTP_HOST`,
+   `MAIL_FROM` and `APP_WEB_URL` (the reset link is built from it), or
+   `MAIL_PROVIDER=none` to disable self-service reset deliberately. The API
+   will not start in production without one of these.
+4. **Terminate TLS** in front of the API and web (Ingress/load balancer). All
    cookies/tokens must travel over HTTPS only.
-4. **Set `SEED_ON_BOOT=false`** in any shared/production environment (the K8s
+5. **Set `SEED_ON_BOOT=false`** in any shared/production environment (the K8s
    manifest already does; Docker Compose defaults to `true` for local demos).
-5. **Enable encryption at rest** — SSE/KMS on the object store and disk/TDE
+6. **Enable encryption at rest** — SSE/KMS on the object store and disk/TDE
    encryption on PostgreSQL.
-6. **Restrict network egress** if using an external LLM/embedding provider.
+7. **Restrict network egress** if using an external LLM/embedding provider.
 
 ## Known gaps (tracked, not yet implemented)
 
 These are deliberately out of MVP scope and must be addressed before pilot /
 production sign-off — see `docs/production-readiness.md`.
 
-- **Email/SMS delivery for the password-reset token.** The flow exists and is
-  safe, but no sender is wired, so in any correctly-configured deployment the
-  token never reaches the user and self-service reset is effectively unusable.
-  Wire an email provider in `forgotPassword()`. This is the highest-impact
-  remaining gap in the auth surface.
 - **MFA cannot be enrolled.** `/auth/mfa/verify` and the login challenge work,
   but no endpoint writes `mfa_secret`, so MFA can only be switched on with
   direct database access. Treat "MFA-ready" as exactly that — not as available.

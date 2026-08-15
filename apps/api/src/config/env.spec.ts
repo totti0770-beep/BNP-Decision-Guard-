@@ -41,6 +41,8 @@ describe('loadEnv production fail-fast', () => {
     process.env.POSTGRES_PASSWORD = 'a-strong-db-password';
     process.env.S3_SECRET_KEY = 'a-strong-s3-secret';
     process.env.CORS_ORIGINS = 'https://bnp.example.health';
+    // Production must also declare an email posture; see mail.service.spec.ts.
+    process.env.MAIL_PROVIDER = 'none';
     const env = freshLoad()();
     expect(env.cors.origins).toEqual(['https://bnp.example.health']);
   });

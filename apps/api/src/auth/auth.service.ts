@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -11,6 +12,7 @@ import { authenticator } from 'otplib';
 import { permissionsForRoles } from '@bnp/shared';
 import { User } from '../entities';
 import { AuditService } from '../audit/audit.service';
+import { MailService } from '../mail/mail.service';
 import { isProduction, loadEnv } from '../config/env';
 
 export interface JwtPayload {
@@ -25,10 +27,13 @@ export interface JwtPayload {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly jwt: JwtService,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {}
 
   private async validateUser(
@@ -227,15 +232,19 @@ export class AuthService {
    * exist, a short-lived reset token bound to the current token_version is
    * signed.
    *
-   * The token is NEVER returned to the caller unless an operator explicitly
-   * opts in with AUTH_DEV_RETURN_RESET_TOKEN=true. This endpoint is public, so
-   * returning the token by default would let anyone who knows an email address
-   * take over that account. It previously keyed off `NODE_ENV !== 'production'`
-   * — which fails open: NODE_ENV is unset in the shipped k8s manifests, so a
-   * real deployment handed out reset tokens to unauthenticated callers.
+   * The token reaches the user by email and is NEVER returned to the caller
+   * unless an operator explicitly opts in with AUTH_DEV_RETURN_RESET_TOKEN=true.
+   * This endpoint is public, so returning the token by default would let anyone
+   * who knows an email address take over that account. It previously keyed off
+   * `NODE_ENV !== 'production'` — which fails open: NODE_ENV is unset in the
+   * shipped k8s manifests, so a real deployment handed out reset tokens to
+   * unauthenticated callers.
    *
-   * TODO(prod): email the reset link here; the opt-in flag is a local-demo
-   * affordance only and must stay off everywhere else.
+   * Delivery is fire-and-forget on purpose. Awaiting the SMTP round-trip would
+   * make a request for a real account measurably slower than one for an
+   * address that does not exist, reintroducing the account enumeration the
+   * uniform response exists to prevent. Failures are logged and audited
+   * instead of surfacing to the caller.
    */
   async forgotPassword(email: string, ip?: string) {
     const user = await this.users.findOne({
@@ -250,8 +259,38 @@ export class AuthService {
         actorId: user.id,
         actorEmail: user.email,
         action: 'AUTH:PASSWORD_RESET_REQUESTED',
+        metadata: { mailProvider: this.mail.name },
         ip,
       });
+
+      void this.mail
+        .sendPasswordReset(user.email, user.fullName, resetToken)
+        .then(() =>
+          this.audit.record({
+            actorId: user.id,
+            actorEmail: user.email,
+            action: 'AUTH:PASSWORD_RESET_EMAIL_SENT',
+            ip,
+          }),
+        )
+        .catch((err) => {
+          // The user is already locked out; a silent failure here is the
+          // difference between "check your inbox" and an unexplained dead end.
+          this.logger.error(
+            `Password-reset email to ${user.email} failed: ${err}`,
+          );
+          this.audit.record({
+            actorId: user.id,
+            actorEmail: user.email,
+            action: 'AUTH:PASSWORD_RESET_EMAIL_FAILED',
+            metadata: {
+              mailProvider: this.mail.name,
+              error: err instanceof Error ? err.message : String(err),
+            },
+            ip,
+          });
+        });
+
       const includeToken =
         process.env.AUTH_DEV_RETURN_RESET_TOKEN === 'true' && !isProduction;
       return { requested: true, ...(includeToken ? { resetToken } : {}) };
