@@ -17,7 +17,10 @@ trail are non-negotiable.
 | **CORS allowlist** | `main.ts` + `CORS_ORIGINS` | Explicit origin allowlist; production with an empty list blocks all cross-origin browser calls instead of allowing `*`. |
 | **Request body cap** | `express.json({ limit })` | `REQUEST_BODY_LIMIT` caps JSON payloads; PDF uploads go through multipart/multer. |
 | **Refresh-token revocation** | `users.token_version` + `auth.service.ts` | `POST /auth/logout` and any password change bump `token_version`, immediately invalidating every outstanding refresh token. Verified end-to-end. |
-| **RBAC** | `packages/shared/src/rbac.ts` + `PermissionsGuard` | 7 roles, central permission matrix, enforced globally. Nurses/auditors cannot approve or download source PDFs. |
+| **RBAC** | `packages/shared/src/rbac.ts` + `PermissionsGuard` | 7 roles, central permission matrix, enforced globally. The matrix is the only input to authorization — `role_permissions` is a display projection, so the roles API is read-only and a database-only role grants nothing. Nurses/auditors cannot approve or download source PDFs. |
+| **No public self-registration** | `auth.controller.ts` | Accounts are provisioned by an administrator via `POST /users`. The former public `POST /auth/register` handed any caller a `NURSE_USER` account with `ai:ask`, `ai:search`, `documents:read` and `dose:calculate` over the approved corpus. |
+| **Reset token never disclosed** | `auth.service.ts` | `POST /auth/forgot-password` returns `{requested: true}` and nothing else. Disclosure requires an explicit `AUTH_DEV_RETURN_RESET_TOKEN=true` opt-in that is additionally refused in production. It previously keyed off `NODE_ENV !== 'production'`, which failed open wherever `NODE_ENV` was unset. |
+| **Upload content validation** | `documents.service.ts` | Uploads must carry a real `%PDF-` signature, not merely a PDF `Content-Type` header, which the client controls. |
 | **Refusal-first AI** | `apps/api/src/rag/*` | Retrieval hard-filtered to `ACTIVE`, non-expired documents; sub-threshold matches refuse with the exact governed message; the mock LLM is extractive and cannot generate beyond context. |
 | **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. |
 | **Full audit trail** | global `AuditInterceptor` + `AuditService` | Every login, question, answer (incl. refusals), document action, dose calculation, permission change and error is recorded with actor, IP and metadata. |
@@ -44,18 +47,26 @@ trail are non-negotiable.
 These are deliberately out of MVP scope and must be addressed before pilot /
 production sign-off — see `docs/production-readiness.md`.
 
-- Email/SMS delivery for the password-reset token (the flow exists; in
-  production wire an email provider where the token is signed and return a
-  generic response — currently the token is only returned outside production).
+- **Email/SMS delivery for the password-reset token.** The flow exists and is
+  safe, but no sender is wired, so in any correctly-configured deployment the
+  token never reaches the user and self-service reset is effectively unusable.
+  Wire an email provider in `forgotPassword()`. This is the highest-impact
+  remaining gap in the auth surface.
+- **MFA cannot be enrolled.** `/auth/mfa/verify` and the login challenge work,
+  but no endpoint writes `mfa_secret`, so MFA can only be switched on with
+  direct database access. Treat "MFA-ready" as exactly that — not as available.
+- **Five high-severity dependency advisories pass CI**, because the gate only
+  hard-fails on critical (0 critical, 5 high, 9 moderate as of Aug 2026).
 - Centralised secret management (Vault/KMS) instead of env vars.
 - Observability: structured logs shipping, metrics, error tracking, alerting.
 - Formal penetration test and CBAHI/HIPAA compliance review.
-- **NestJS 10→11 / Next.js 14→15 migration** to close the remaining 12
-  `npm audit` findings (1 high, 11 moderate — see
-  `docs/production-readiness.md`). The critical Next.js middleware
-  auth-bypass CVE (CVE-2025-29927) and the exploitable multer/lodash CVEs
-  were already patched without a major-version bump; what remains is only
-  fixable by the framework migrations.
+- **NestJS 10→11 / Next.js 14→15 migration.** The critical Next.js middleware
+  auth-bypass CVE (CVE-2025-29927) and the exploitable multer/lodash CVEs were
+  patched without a major-version bump. The current count is **14 findings (5
+  high, 9 moderate, 0 critical)** — higher than the "1 high / 11 moderate"
+  recorded earlier, as new advisories have since landed. Not all of them are
+  gated on the majors; re-run resolution and pin what moves before assuming
+  otherwise. See `docs/production-readiness.md`.
 
 ## Reporting
 

@@ -8,8 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
-import { permissionsForRoles, RoleName } from '@bnp/shared';
-import { Role, User } from '../entities';
+import { permissionsForRoles } from '@bnp/shared';
+import { User } from '../entities';
 import { AuditService } from '../audit/audit.service';
 import { isProduction, loadEnv } from '../config/env';
 
@@ -27,7 +27,6 @@ export interface JwtPayload {
 export class AuthService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(Role) private readonly roles: Repository<Role>,
     private readonly jwt: JwtService,
     private readonly audit: AuditService,
   ) {}
@@ -300,32 +299,4 @@ export class AuthService {
     return { reset: true };
   }
 
-  /** Self-registration always lands in the least-privileged NURSE_USER role. */
-  async register(email: string, password: string, fullName: string, ip?: string) {
-    const existing = await this.users.findOne({
-      where: { email: email.toLowerCase() },
-    });
-    if (existing) throw new BadRequestException('Email already registered');
-    if (password.length < 8)
-      throw new BadRequestException('Password must be at least 8 characters');
-
-    const nurseRole = await this.roles.findOne({
-      where: { name: RoleName.NURSE_USER },
-    });
-    const user = await this.users.save(
-      this.users.create({
-        email: email.toLowerCase(),
-        fullName,
-        passwordHash: await bcrypt.hash(password, 10),
-        roles: nurseRole ? [nurseRole] : [],
-      }),
-    );
-    this.audit.record({
-      actorId: user.id,
-      actorEmail: user.email,
-      action: 'AUTH:REGISTER',
-      ip,
-    });
-    return this.issueTokens(user);
-  }
 }

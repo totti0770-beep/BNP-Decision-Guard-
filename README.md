@@ -190,14 +190,20 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test               # 33 unit tests over the clinical safety + security paths
+npm test               # 51 unit tests over the clinical safety + security paths
 ```
 
 Covered: exact refusal contract, retrieval thresholding, mock-embedding
 determinism, chunk/page integrity, dose math + unapproved-formula rejection +
 max-dose caps, the RBAC permission matrix (nurse cannot approve/download,
-only pharmacists approve formulas, auditor is read-only), and the production
-secret fail-fast.
+only pharmacists approve formulas, auditor is read-only, a database-only role
+grants nothing), upload content validation (a non-PDF cannot be stored by
+spoofing the `Content-Type` header), the password-reset token never being
+returned to the caller, and the production secret fail-fast.
+
+Not covered, and worth knowing before you rely on the suite: there are no HTTP,
+database, web or mobile tests, and no end-to-end run in CI. The browser smoke
+script below is not wired into the pipeline.
 
 Continuous integration (`.github/workflows/ci.yml`) runs the API build +
 tests + migrations (against a real pgvector service), the web production
@@ -243,7 +249,9 @@ for the pilot/production launch checklist. Highlights:
 - **Safe errors**: a global exception filter returns a uniform envelope and
   never leaks internal 5xx details in production.
 - **RBAC**: 7 roles with a central permission matrix (`packages/shared`),
-  enforced by a global guard; roles/permissions are also persisted for admin UI.
+  enforced by a global guard. The matrix is the single source of truth — the
+  persisted `role_permissions` rows exist so the UI can display it and are
+  never consulted when authorizing a request.
 - **Refusal-first AI**: retrieval is hard-filtered to ACTIVE, non-expired
   document versions; sub-threshold matches refuse with the exact Arabic string;
   the mock LLM is extractive (cannot generate beyond context) and the OpenAI
@@ -265,9 +273,14 @@ for the pilot/production launch checklist. Highlights:
 - **Encryption at rest**: object storage is S3-compatible — enable SSE/KMS on
   MinIO or your cloud bucket; Postgres supports TDE/disk encryption at the
   infrastructure layer.
-- **Dependency vulnerability scanning**: CI fails on any critical `npm audit`
-  finding; 0 critical / 0 unpatchable-high remain (see SECURITY.md — the
-  residual moderate/high findings require a NestJS 11 / Next.js 15 migration).
+- **Dependency vulnerability scanning**: CI hard-fails on any **critical**
+  `npm audit` finding. As of the August 2026 audit there are **0 critical, 5
+  high and 9 moderate** findings; because the gate only blocks critical, the
+  five highs currently pass CI. Some are closeable without the NestJS 11 /
+  Next.js 15 majors — see `docs/production-readiness.md`.
+- **No public self-registration**: accounts are provisioned by an administrator
+  via `POST /users`. Roles are read-only over the API — permissions live in
+  `packages/shared/src/rbac.ts`, which is what the guard actually enforces.
 
 ## Deployment notes
 

@@ -31,18 +31,12 @@ function makeService(user: User | null) {
     findOne: jest.fn().mockResolvedValue(user),
     save: jest.fn(async (u: User) => u),
   };
-  const roles = { findOne: jest.fn() };
   const jwt = {
     sign: jest.fn(() => 'signed.jwt.token'),
     verify: jest.fn(),
   };
   const audit = { record: jest.fn() };
-  const service = new AuthService(
-    users as never,
-    roles as never,
-    jwt as never,
-    audit as never,
-  );
+  const service = new AuthService(users as never, jwt as never, audit as never);
   return { service, users, jwt, audit };
 }
 
@@ -122,7 +116,6 @@ describe('Password reset', () => {
         const user = makeUser();
         const service = new ProdAuthService(
           { findOne: jest.fn().mockResolvedValue(user), save: jest.fn(async (u: User) => u) },
-          { findOne: jest.fn() },
           { sign: jest.fn(() => 'signed.jwt.token'), verify: jest.fn() },
           { record: jest.fn() },
         );

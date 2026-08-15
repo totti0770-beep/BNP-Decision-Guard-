@@ -22,12 +22,6 @@ class LoginDto {
   @IsString() @IsNotEmpty() password: string;
 }
 
-class RegisterDto {
-  @IsEmail() email: string;
-  @IsString() @MinLength(8) password: string;
-  @IsString() @IsNotEmpty() fullName: string;
-}
-
 class RefreshDto {
   @IsString() @IsNotEmpty() refreshToken: string;
 }
@@ -57,12 +51,12 @@ export class AuthController {
     return this.auth.login(dto.email, dto.password, ip);
   }
 
-  @Public()
-  @Throttle(AUTH_THROTTLE)
-  @Post('register')
-  register(@Body() dto: RegisterDto, @Ip() ip: string) {
-    return this.auth.register(dto.email, dto.password, dto.fullName, ip);
-  }
+  // There is deliberately no public self-registration. This is a governed
+  // clinical platform: accounts are provisioned by an administrator through
+  // POST /users, which assigns roles explicitly. A public register endpoint
+  // handed anyone who could reach the API a NURSE_USER account, and with it
+  // ai:ask, ai:search, documents:read and dose:calculate over the hospital's
+  // approved corpus.
 
   @Public()
   @Throttle(AUTH_THROTTLE)

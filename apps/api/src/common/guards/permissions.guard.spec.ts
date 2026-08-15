@@ -82,3 +82,39 @@ describe('PermissionsGuard (RBAC)', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 });
+
+describe('rbac.ts is the single source of truth', () => {
+  it('grants nothing to a role that exists only in the database', () => {
+    // A role row inserted straight into the DB has no entry in ROLE_PERMISSIONS,
+    // so it authorizes nothing. This is why the roles API is read-only: editing
+    // role_permissions cannot affect enforcement.
+    expect(permissionsForRoles(['CUSTOM_DB_ONLY_ROLE'])).toEqual([]);
+
+    const { guard, context } = contextFor(
+      {
+        userId: 'u1',
+        email: 'x@bnp.health',
+        roles: ['CUSTOM_DB_ONLY_ROLE'],
+        permissions: permissionsForRoles(['CUSTOM_DB_ONLY_ROLE']),
+      },
+      [Permission.DOCUMENTS_READ],
+    );
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
+
+  it('exposes no permission that authorizes editing role permissions', () => {
+    // Removing the endpoints without removing the permission would leave a
+    // capability in the matrix that grants access to nothing.
+    expect(Object.values(Permission)).not.toContain('roles:manage');
+  });
+
+  it('still lets an admin manage users, which is genuinely enforced', () => {
+    // Assigning users to roles is a different thing from editing what a role
+    // means, and it does take effect — roles travel in the JWT.
+    const { guard, context } = contextFor(
+      userWithRoles([RoleName.HOSPITAL_ADMIN]),
+      [Permission.USERS_MANAGE],
+    );
+    expect(guard.canActivate(context)).toBe(true);
+  });
+});

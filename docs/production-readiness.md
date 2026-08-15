@@ -16,13 +16,40 @@ production. Use this as the launch checklist.
 > sign-off**. The web UI is English-only while mobile is Arabic-first —
 > a deliberate inversion to revisit before a nurse-facing pilot.
 
+> **Audit update (Aug 2026, second pass).** A read-only engineering baseline
+> scored the platform **63/100** overall: MVP ready, pilot blocked, production
+> not ready. It found the engineering sound but the shipped *configuration*
+> unsafe, and the following have since been fixed:
+>
+> - `POST /auth/forgot-password` returned a valid reset token to any
+>   unauthenticated caller whenever `NODE_ENV` was not exactly `production` —
+>   and the k8s manifests never set it. Account takeover from a known email.
+> - `docker compose up --build` could not start the API at all: compose set
+>   `NODE_ENV=production` alongside the shipped default secrets the fail-fast
+>   rejects. Neither compose nor k8s passed `CORS_ORIGINS`.
+> - Upload trusted the client's `Content-Type` with no magic-byte check.
+> - Public self-registration was **removed**; accounts are provisioned via
+>   `POST /users`.
+> - The roles API is now **read-only**. `rbac.ts` is the sole authorization
+>   input, so `POST /roles` and `PATCH /roles/:id` wrote to `role_permissions`,
+>   reported success and emitted a `ROLES:UPDATE_PERMISSIONS` audit entry while
+>   changing nothing. No shipped screen used them, but any API client would
+>   have been misled. `ROLES_MANAGE` was dropped from the matrix with them.
+>
+> Still open, in impact order: **email delivery** (reset is unusable without
+> it), **MFA enrollment** (no endpoint writes `mfa_secret`), **observability**,
+> **integration/E2E tests** (none exist; no linter either), **backup + tested
+> restore**, **OCR for scanned PDFs**, the **Next 15 / NestJS 11 majors**, and
+> **compliance sign-off**. The web UI is English-only while mobile is
+> Arabic-first — revisit before a nurse-facing pilot.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
 | --- | --- | --- | --- |
 | Core features (RAG, RBAC, audit, dose, workflow) | ✅ | ✅ | ✅ |
 | Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr, email delivery) |
-| Dependency vulnerability posture (0 critical, 0 unpatchable high) | ✅ | ✅ | 🟡 (12 findings gated on a NestJS 11 / Next.js 15 migration — see below) |
+| Dependency vulnerability posture | ✅ 0 critical | 🟡 5 high pass CI | 🟡 (14 findings: 5 high, 9 moderate — see below) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
@@ -79,7 +106,12 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
 
 ## Fastest path to PRODUCTION
 
-1. **Framework major-version migration** — 12 remaining npm audit findings (1
+1. **Framework major-version migration** — as of the August 2026 audit the
+   count is **14 findings (5 high, 9 moderate, 0 critical)**, not the 12 below;
+   the highs are in `next`, `js-yaml`, `nanoid`, `postcss` and
+   `brace-expansion`, and all five pass CI because the gate only hard-fails on
+   critical. Verify which are genuinely major-gated before deferring them all.
+   Historical note — 12 remaining npm audit findings (1
    high: residual Next.js 14 DoS/XSS/SSRF advisories only fixed in Next 15.5+;
    11 moderate: NestJS 10→11 transitive advisories in `express`/`body-parser`/
    `qs`/`uuid`) are only closeable by upgrading **Next.js 14→15** and
