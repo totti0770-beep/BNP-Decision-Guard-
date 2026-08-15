@@ -7,11 +7,16 @@ async function loadEnvWith(vars: Record<string, string | undefined>) {
     if (v === undefined) delete process.env[k];
     else process.env[k] = v;
   }
-  // Non-default secrets so the unrelated secret fail-fast never fires first.
-  process.env.JWT_SECRET ??= 'test-secret';
-  process.env.JWT_REFRESH_SECRET ??= 'test-refresh';
-  process.env.POSTGRES_PASSWORD ??= 'test-db';
-  process.env.S3_SECRET_KEY ??= 'test-s3';
+  // Force non-default secrets so the unrelated secret fail-fast never fires
+  // first and masks the mail gate under test. These are assigned
+  // unconditionally on purpose: CI sets POSTGRES_PASSWORD=bnp_secret at the
+  // job level, which is the demo value env.ts rejects, so a `??=` here would
+  // leave it in place and every production case below would fail on the wrong
+  // error.
+  process.env.JWT_SECRET = 'test-secret';
+  process.env.JWT_REFRESH_SECRET = 'test-refresh';
+  process.env.POSTGRES_PASSWORD = 'test-db';
+  process.env.S3_SECRET_KEY = 'test-s3';
 
   try {
     let result: { ok: true; env: any } | { ok: false; message: string };
