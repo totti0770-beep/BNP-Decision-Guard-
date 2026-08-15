@@ -14,6 +14,51 @@ export interface RagCitation {
   snippet: string;
 }
 
+/**
+ * Why a question was answered or refused. A refusal is otherwise a black box:
+ * a knowledge manager cannot tell "the library has nothing on this" from "the
+ * threshold is too tight for this phrasing", and those need opposite fixes.
+ * Governance roles see this; nurses do not (see ChatService).
+ */
+export interface RagDiagnostics {
+  /**
+   * Chunks returned by the SQL search, bounded by RAG_TOP_K. This is the whole
+   * net cast over the library — if the right passage is not in here, no amount
+   * of scoring downstream can recover it.
+   */
+  candidateCount: number;
+  /**
+   * Of those, how many actually reached the model: reranked, cut to
+   * RAG_FINAL_K, and above the threshold. The gap between this and
+   * candidateCount is where a relevant passage silently drops out.
+   */
+  qualifiedCount: number;
+  /** Best rerank score among candidates, or null when there were none. */
+  bestScore: number | null;
+  /** Effective RAG_MIN_SIMILARITY the score was compared against. */
+  threshold: number;
+  /**
+   * The highest-scoring chunks that were actually considered. Counts and
+   * scores say a refusal happened; only the text says why. A manager reading
+   * these can tell "these are contents-page headings", "the PDF extracted as
+   * garbage", and "genuinely off-topic" apart at a glance — three causes with
+   * three different fixes that are otherwise indistinguishable.
+   */
+  consideredSources: {
+    documentTitle: string;
+    pageNumber: number | null;
+    similarity: number;
+    snippet: string;
+  }[];
+  /** Which gate produced a refusal, or null when the question was answered. */
+  refusedAt:
+    | 'NO_CANDIDATES'
+    | 'BELOW_THRESHOLD'
+    | 'MODEL_FOUND_NOTHING'
+    | 'MODEL_ERROR'
+    | null;
+}
+
 export interface RagResult {
   refused: boolean;
   shortAnswer: string;
@@ -22,6 +67,7 @@ export interface RagResult {
   confidence: ConfidenceLevel;
   citations: RagCitation[];
   model: string;
+  diagnostics: RagDiagnostics;
 }
 
 @Injectable()
@@ -34,7 +80,7 @@ export class RagQueryService {
     private readonly llm: LlmService,
   ) {}
 
-  private refusal(): RagResult {
+  private refusal(diagnostics: RagDiagnostics): RagResult {
     return {
       refused: true,
       // Contractual refusal — returned verbatim whenever no approved source
@@ -45,6 +91,7 @@ export class RagQueryService {
       confidence: ConfidenceLevel.NONE,
       citations: [],
       model: this.llm.name,
+      diagnostics,
     };
   }
 
@@ -68,17 +115,67 @@ export class RagQueryService {
     const candidates = await this.retrieval.search(question, {
       category: opts.category,
     });
-    if (candidates.length === 0) return this.refusal();
+    if (candidates.length === 0) {
+      return this.refusal({
+        candidateCount: 0,
+        qualifiedCount: 0,
+        bestScore: null,
+        consideredSources: [],
+        threshold: minScore,
+        refusedAt: 'NO_CANDIDATES',
+      });
+    }
 
-    const top = this.rerank
-      .rerank(question, candidates)
-      .filter((c) => (c.rerankScore ?? c.similarity) >= minScore);
-    if (top.length === 0) return this.refusal();
+    // Score every candidate first so the diagnostic reports the true best
+    // score even when nothing clears the threshold.
+    const ranked = this.rerank.rerank(question, candidates);
+    const best = ranked.length
+      ? Math.round((ranked[0].rerankScore ?? ranked[0].similarity) * 1000) / 1000
+      : null;
+    const diagnostics = (
+      refusedAt: RagDiagnostics['refusedAt'],
+      qualifiedCount: number,
+    ): RagDiagnostics => ({
+      candidateCount: candidates.length,
+      qualifiedCount,
+      bestScore: best,
+      consideredSources: ranked.slice(0, 3).map((c) => {
+        const cite = this.toCitation(c);
+        return {
+          documentTitle: cite.documentTitle,
+          pageNumber: cite.pageNumber,
+          similarity: cite.similarity,
+          snippet: cite.snippet,
+        };
+      }),
+      threshold: minScore,
+      refusedAt,
+    });
+
+    const top = ranked.filter((c) => (c.rerankScore ?? c.similarity) >= minScore);
+    if (top.length === 0) return this.refusal(diagnostics('BELOW_THRESHOLD', 0));
 
     const llmAnswer = await this.llm.answer(question, top);
-    if (!llmAnswer.shortAnswer || llmAnswer.shortAnswer.trim().length === 0) {
-      // The model found nothing in context that answers the question.
-      return this.refusal();
+
+    // A provider outage is not a governed refusal. Both still refuse — never
+    // guess — but only one of them means "the corpus does not cover this",
+    // and operators must be able to tell them apart.
+    if (llmAnswer.failed) {
+      this.logger.error(
+        `LLM provider ${this.llm.name} failed on a question with ${top.length} qualifying chunks; refusing.`,
+      );
+      return this.refusal(diagnostics('MODEL_ERROR', top.length));
+    }
+
+    // Refuse only when the model produced nothing at all. Checking shortAnswer
+    // alone discarded complete, cited answers to procedural questions, where
+    // the model naturally puts the substance in steps.
+    const hasContent =
+      llmAnswer.shortAnswer.trim().length > 0 ||
+      llmAnswer.steps.length > 0 ||
+      llmAnswer.warnings.length > 0;
+    if (!hasContent) {
+      return this.refusal(diagnostics('MODEL_FOUND_NOTHING', top.length));
     }
 
     const bestScore = top[0].rerankScore ?? top[0].similarity;
@@ -90,6 +187,7 @@ export class RagQueryService {
       confidence: this.confidenceFor(bestScore),
       citations: top.map((c) => this.toCitation(c)),
       model: this.llm.name,
+      diagnostics: diagnostics(null, top.length),
     };
   }
 

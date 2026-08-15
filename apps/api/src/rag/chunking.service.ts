@@ -37,11 +37,33 @@ export class ChunkingService {
     for (const sentence of sentences) {
       if (current.length + sentence.length + 1 > TARGET_CHARS && current.length > 0) {
         out.push(current.trim());
-        current = current.slice(Math.max(0, current.length - OVERLAP_CHARS));
+        current = this.overlapTail(current);
       }
       current += (current ? ' ' : '') + sentence;
     }
     if (current.trim()) out.push(current.trim());
     return out;
+  }
+
+  /**
+   * Trailing context carried into the next chunk, always starting at a whole
+   * token.
+   *
+   * Slicing by character count alone cuts mid-word, so a chunk could begin
+   * "fonicid sodium" — the tail of "Cefonicid sodium". In a drug manual that
+   * is not cosmetic: the fragment reads as a different (non-existent) drug,
+   * it embeds as one, and an answer built on it would be attributed to the
+   * wrong medication. Prefer resuming at a sentence boundary, fall back to a
+   * word boundary, and carry nothing rather than carry a fragment.
+   */
+  private overlapTail(text: string): string {
+    if (text.length <= OVERLAP_CHARS) return text;
+    const tail = text.slice(text.length - OVERLAP_CHARS);
+
+    const sentenceBreak = tail.search(/(?<=[.!?؟])\s+/);
+    if (sentenceBreak !== -1) return tail.slice(sentenceBreak).trimStart();
+
+    const wordBreak = tail.search(/\s/);
+    return wordBreak === -1 ? '' : tail.slice(wordBreak + 1);
   }
 }

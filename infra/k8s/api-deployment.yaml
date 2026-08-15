@@ -25,13 +25,14 @@ spec:
             # Required. An empty allowlist blocks every cross-origin browser
             # call, so the web app cannot reach the API. Set your real origin.
             - { name: CORS_ORIGINS, value: "https://your-web-origin.example" }
-            # Required in production: "smtp" to deliver password-reset links,
-            # or "none" to deliberately disable self-service reset. Unset (or
-            # "console") refuses to boot. SMTP credentials come from the Secret.
+            # "log" only writes reset links to the application log, where
+            # anyone with log access can read them. Use "smtp" for real users;
+            # MAIL_HOST and credentials come from the Secret.
             - { name: MAIL_PROVIDER, value: "smtp" }
             - { name: MAIL_FROM, value: "BNP Decision Guard <no-reply@your-hospital.example>" }
-            # Public web origin — the reset link in the email is built from it.
-            - { name: APP_WEB_URL, value: "https://your-web-origin.example" }
+            # Public web origin — the reset link is built from it. Defaults to
+            # the first CORS_ORIGINS entry if unset.
+            - { name: APP_BASE_URL, value: "https://your-web-origin.example" }
             - { name: LLM_PROVIDER, value: "mock" }
             - { name: EMBEDDING_PROVIDER, value: "mock" }
             - { name: S3_FORCE_PATH_STYLE, value: "true" }

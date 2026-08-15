@@ -12,6 +12,27 @@ interface Citation {
   snippet?: string;
 }
 
+interface ConsideredSource {
+  documentTitle: string;
+  pageNumber: number | null;
+  similarity: number;
+  snippet: string;
+}
+
+interface Diagnostics {
+  candidateCount: number;
+  qualifiedCount: number;
+  bestScore: number | null;
+  consideredSources: ConsideredSource[];
+  threshold: number;
+  refusedAt:
+    | 'NO_CANDIDATES'
+    | 'BELOW_THRESHOLD'
+    | 'MODEL_FOUND_NOTHING'
+    | 'MODEL_ERROR'
+    | null;
+}
+
 interface Answer {
   refused: boolean;
   shortAnswer: string;
@@ -19,6 +40,8 @@ interface Answer {
   warnings: string[];
   confidence: string;
   citations: Citation[];
+  /** Present only for roles with analytics:read — absent for nurses. */
+  diagnostics?: Diagnostics;
 }
 
 interface Turn {
@@ -43,7 +66,68 @@ const CONFIDENCE: Record<string, { tone: 'success' | 'warning' | 'danger' | 'neu
  * guidance. The message itself is rendered verbatim RTL: the API returns the
  * contractual Arabic string and it must not be reworded or wrapped.
  */
-function RefusalAnswer({ message }: { message: string }) {
+/**
+ * Governance-only explanation of *which* gate refused, so a knowledge manager
+ * can tell a corpus gap from an over-tight threshold — those need opposite
+ * fixes and the refusal alone cannot distinguish them. The API omits this
+ * field entirely for roles without analytics:read.
+ */
+function RefusalReason({ d }: { d: Diagnostics }) {
+  const explain = () => {
+    if (d.refusedAt === 'NO_CANDIDATES')
+      return 'No approved, indexed, in-version chunk matched this category at all — the library is missing this topic, or the documents were indexed under a different embedding provider.';
+    if (d.refusedAt === 'BELOW_THRESHOLD')
+      return `${d.candidateCount} chunk(s) were retrieved but the best scored ${d.bestScore} against a ${d.threshold} threshold — the topic is close but not close enough. Add a more specific document, or revisit RAG_MIN_SIMILARITY.`;
+    if (d.refusedAt === 'MODEL_FOUND_NOTHING')
+      return `${d.candidateCount} chunk(s) were retrieved (RAG_TOP_K) and ${d.qualifiedCount} reached the model after reranking and the ${d.threshold} threshold, best ${d.bestScore} — but none of them answered this question. If the library does cover it, the right passage never made the shortlist: raise RAG_TOP_K / RAG_FINAL_K, or check the text below for chunking damage.`;
+    if (d.refusedAt === 'MODEL_ERROR')
+      return `${d.qualifiedCount} chunk(s) reached the model (best ${d.bestScore}), but it failed to respond. This is a technical fault, not a corpus gap — the library may well cover this question. Check the API logs and the AI provider's status, then retry.`;
+    return null;
+  };
+  const text = explain();
+  if (!text) return null;
+
+  return (
+    <details className="mt-3 border-t border-warning/20 pt-2">
+      <summary className="cursor-pointer text-xs font-medium text-muted hover:text-text">
+        Why was this refused?
+      </summary>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted">{text}</p>
+
+      {d.consideredSources.length > 0 && (
+        <div className="mt-3">
+          <p className="text-2xs font-medium uppercase tracking-wide text-subtle">
+            Closest text considered
+          </p>
+          <ul className="mt-1.5 space-y-2">
+            {d.consideredSources.map((s, i) => (
+              <li key={i} className="border-l-2 border-warning/25 pl-2.5">
+                <p className="text-2xs text-subtle">
+                  {s.documentTitle}
+                  {s.pageNumber !== null && ` · p.${s.pageNumber}`} · {s.similarity}
+                </p>
+                {/* The raw extracted text: this is what the model actually
+                    read, so garbled extraction or contents-page headings are
+                    visible immediately instead of being inferred. */}
+                <p dir="auto" className="mt-0.5 font-mono text-2xs leading-relaxed text-muted">
+                  {s.snippet}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </details>
+  );
+}
+
+function RefusalAnswer({
+  message,
+  diagnostics,
+}: {
+  message: string;
+  diagnostics?: Diagnostics;
+}) {
   return (
     <div className="rounded-card border border-warning/30 bg-warning-soft p-4">
       <div className="mb-2 flex items-center gap-2">
@@ -57,28 +141,51 @@ function RefusalAnswer({ message }: { message: string }) {
         assistant refuses rather than guessing — escalate to the responsible
         supervisor.
       </p>
+      {diagnostics && <RefusalReason d={diagnostics} />}
     </div>
   );
 }
 
 function AnswerBody({ answer }: { answer: Answer }) {
-  if (answer.refused) return <RefusalAnswer message={answer.shortAnswer} />;
+  if (answer.refused)
+    return (
+      <RefusalAnswer
+        message={answer.shortAnswer}
+        diagnostics={answer.diagnostics}
+      />
+    );
 
   const conf = CONFIDENCE[answer.confidence] ?? CONFIDENCE.NONE;
 
   return (
     <div className="rounded-card border border-border bg-surface p-4 shadow-sm">
-      {/* The answer itself is the dominant element on the screen. */}
-      <p className="text-base leading-relaxed text-text">{answer.shortAnswer}</p>
+      {/* The answer itself is the dominant element on the screen. The model
+          replies in the question's language, so direction is per-content:
+          an Arabic answer must not be laid out left-to-right. A procedural
+          answer can legitimately arrive as steps with no summary, so the
+          paragraph and its spacing are conditional. */}
+      {answer.shortAnswer.trim().length > 0 && (
+        <p dir="auto" className="text-base leading-relaxed text-text">
+          {answer.shortAnswer}
+        </p>
+      )}
 
       {answer.steps.length > 0 && (
-        <ol className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm text-muted">
+        <ol
+          className={`space-y-1.5 text-sm text-muted ${
+            answer.shortAnswer.trim().length > 0
+              ? 'mt-4 border-t border-border pt-3'
+              : ''
+          }`}
+        >
           {answer.steps.map((s, i) => (
             <li key={i} className="flex gap-2.5">
               <span className="tnum mt-px shrink-0 text-2xs font-medium text-subtle">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <span className="text-text">{s}</span>
+              <span dir="auto" className="text-text">
+                {s}
+              </span>
             </li>
           ))}
         </ol>
@@ -89,7 +196,9 @@ function AnswerBody({ answer }: { answer: Answer }) {
           <p className="text-2xs font-medium uppercase tracking-wide text-danger">Warnings</p>
           <ul className="mt-1 space-y-1 text-sm text-text">
             {answer.warnings.map((w, i) => (
-              <li key={i}>{w}</li>
+              <li key={i} dir="auto">
+                {w}
+              </li>
             ))}
           </ul>
         </div>

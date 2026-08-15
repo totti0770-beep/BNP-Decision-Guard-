@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { api } from '../api';
-import { align, row, t, type Lang } from '../i18n';
+import { align, alignFor, row, t, type Lang } from '../i18n';
 import { colors, radius, s, space } from '../theme';
 
 interface Citation {
@@ -218,12 +218,22 @@ export function ChatScreen({
 
                 {turn.answer && !turn.answer.refused && (
                   <>
-                    <Text style={[s.body, { textAlign }]}>{turn.answer.shortAnswer}</Text>
+                    <Text
+                      style={[
+                        s.body,
+                        { textAlign: alignFor(turn.answer.shortAnswer, lang) },
+                      ]}
+                    >
+                      {turn.answer.shortAnswer}
+                    </Text>
 
                     {turn.answer.steps.length > 0 && (
                       <View style={{ marginTop: space.md }}>
                         {turn.answer.steps.map((step, j) => (
-                          <Text key={j} style={[s.body, { textAlign }]}>
+                          <Text
+                            key={j}
+                            style={[s.body, { textAlign: alignFor(step, lang) }]}
+                          >
                             {j + 1}. {step}
                           </Text>
                         ))}
@@ -244,7 +254,11 @@ export function ChatScreen({
                         {turn.answer.warnings.map((w, j) => (
                           <Text
                             key={j}
-                            style={{ color: colors.danger, fontSize: 12, textAlign }}
+                            style={{
+                              color: colors.danger,
+                              fontSize: 12,
+                              textAlign: alignFor(w, lang),
+                            }}
                           >
                             ⚠ {w}
                           </Text>

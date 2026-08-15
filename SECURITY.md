@@ -13,15 +13,15 @@ trail are non-negotiable.
 | **Security headers** | `helmet` in `apps/api/src/main.ts` | HSTS, `X-Content-Type-Options`, `X-Frame-Options`, COOP/CORP, etc. |
 | **Rate limiting** | `@nestjs/throttler`, `app.module.ts` | Global per-IP limit; a stricter limit on all `/auth/*` endpoints (`AUTH_RATE_LIMIT_MAX`) blunts credential brute-force. Verified: 6th rapid login returns HTTP 429. |
 | **Per-account lockout** | `users.locked_until` + `auth.service.ts` | After `AUTH_MAX_FAILED_ATTEMPTS` consecutive failed logins the account is locked for `AUTH_LOCKOUT_MINUTES` — blocking even a correct password, so an attacker rotating IPs past the rate limiter is still stopped. Cleared on success or password reset. Verified end-to-end. |
-| **Self-service password reset** | `/auth/forgot-password`, `/auth/reset-password` | Reset token is bound to `token_version` (single-use; voided by logout/prior reset) and expires after `PASSWORD_RESET_TOKEN_MINUTES`. `forgot-password` never reveals whether an email exists. Completing a reset rotates the hash, bumps `token_version` (invalidating all sessions) and clears lockout. Verified end-to-end. |
+| **Self-service password reset** | `/auth/forgot-password`, `/auth/reset-password`, `mail/mail.service.ts` | Reset token is bound to `token_version` (single-use; voided by logout/prior reset) and expires after `PASSWORD_RESET_TOKEN_MINUTES`. The link is emailed; `forgot-password` never reveals whether an email exists, and delivery failures are swallowed so response timing cannot become an enumeration oracle. Completing a reset rotates the hash, bumps `token_version` (invalidating all sessions) and clears lockout. Verified end-to-end. |
 | **CORS allowlist** | `main.ts` + `CORS_ORIGINS` | Explicit origin allowlist; production with an empty list blocks all cross-origin browser calls instead of allowing `*`. |
 | **Request body cap** | `express.json({ limit })` | `REQUEST_BODY_LIMIT` caps JSON payloads; PDF uploads go through multipart/multer. |
 | **Refresh-token revocation** | `users.token_version` + `auth.service.ts` | `POST /auth/logout` and any password change bump `token_version`, immediately invalidating every outstanding refresh token. Verified end-to-end. |
 | **RBAC** | `packages/shared/src/rbac.ts` + `PermissionsGuard` | 7 roles, central permission matrix, enforced globally. The matrix is the only input to authorization — `role_permissions` is a display projection, so the roles API is read-only and a database-only role grants nothing. Nurses/auditors cannot approve or download source PDFs. |
 | **No public self-registration** | `auth.controller.ts` | Accounts are provisioned by an administrator via `POST /users`. The former public `POST /auth/register` handed any caller a `NURSE_USER` account with `ai:ask`, `ai:search`, `documents:read` and `dose:calculate` over the approved corpus. |
 | **Reset token never disclosed** | `auth.service.ts` | `POST /auth/forgot-password` returns `{requested: true}` and nothing else; the token reaches the user only by email. Disclosure requires an explicit `AUTH_DEV_RETURN_RESET_TOKEN=true` opt-in that is additionally refused in production. It previously keyed off `NODE_ENV !== 'production'`, which failed open wherever `NODE_ENV` was unset. |
-| **Email delivery** | `mail/mail.service.ts`, `MAIL_PROVIDER` | Reset links are delivered over SMTP. Production must choose explicitly: `smtp` (with `SMTP_HOST`) or `none` to disable self-service reset — an unset value, or `console` (which would write a working link into the server log), refuses to boot. The relay is verified at startup and a failure is logged loudly rather than silently swallowed. |
-| **Enumeration-safe delivery** | `auth.service.ts` | Sending is fire-and-forget: awaiting the SMTP round-trip would make a request for a real account measurably slower than one for an address that does not exist, which is exactly the signal the uniform response exists to hide. Delivery outcomes are audited (`AUTH:PASSWORD_RESET_EMAIL_SENT` / `..._FAILED`), never returned. |
+| **Email delivery** | `mail/mail.service.ts`, `MAIL_PROVIDER` | Reset links are emailed. `log` (default) writes them to the application log; `smtp` delivers via nodemailer and requires `MAIL_HOST`. Production boots either way and warns while log-only — mail is a degraded feature, and taking the clinical assistant offline over it would be the worse failure. |
+| **Enumeration-safe delivery** | `auth.service.ts` | `sendQuietly()` swallows relay failures so the response *status* is identical whether or not the account exists, and the send is **not awaited**, so the response *timing* is identical too — an awaited SMTP round trip only happens for accounts that exist, which is an oracle in itself. |
 | **Upload content validation** | `documents.service.ts` | Uploads must carry a real `%PDF-` signature, not merely a PDF `Content-Type` header, which the client controls. |
 | **Refusal-first AI** | `apps/api/src/rag/*` | Retrieval hard-filtered to `ACTIVE`, non-expired documents; sub-threshold matches refuse with the exact governed message; the mock LLM is extractive and cannot generate beyond context. |
 | **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. |
@@ -36,10 +36,12 @@ trail are non-negotiable.
    `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, `S3_SECRET_KEY`. The API will
    refuse to start in production otherwise.
 2. **Set `CORS_ORIGINS`** to your exact web origin(s).
-3. **Choose an email posture** — `MAIL_PROVIDER=smtp` with `SMTP_HOST`,
-   `MAIL_FROM` and `APP_WEB_URL` (the reset link is built from it), or
-   `MAIL_PROVIDER=none` to disable self-service reset deliberately. The API
-   will not start in production without one of these.
+3. **Set `MAIL_PROVIDER=smtp` with `MAIL_HOST`** before onboarding real users.
+   The default `log` provider writes reset links into the application log,
+   where anyone with log access can read them. Production boots and warns
+   rather than refusing, so this will not stop a deploy — check for the
+   warning. Set `APP_BASE_URL` if the reset link should not use the first
+   `CORS_ORIGINS` entry.
 4. **Terminate TLS** in front of the API and web (Ingress/load balancer). All
    cookies/tokens must travel over HTTPS only.
 5. **Set `SEED_ON_BOOT=false`** in any shared/production environment (the K8s
@@ -53,6 +55,14 @@ trail are non-negotiable.
 These are deliberately out of MVP scope and must be addressed before pilot /
 production sign-off — see `docs/production-readiness.md`.
 
+- **Email delivery is built but must be configured.** `MailService`
+  (`MAIL_PROVIDER=log|smtp`) emails the reset link and the response stays
+  generic. The default `log` provider writes messages to the application
+  log — anyone with log access can then read reset links, so a deployment
+  serving real users **must** set `MAIL_PROVIDER=smtp` with `MAIL_HOST`.
+  Production boots either way and logs a warning while log-only, because
+  taking the clinical assistant offline over mail config is the worse
+  failure. SMS is still unimplemented.
 - **MFA cannot be enrolled.** `/auth/mfa/verify` and the login challenge work,
   but no endpoint writes `mfa_secret`, so MFA can only be switched on with
   direct database access. Treat "MFA-ready" as exactly that — not as available.

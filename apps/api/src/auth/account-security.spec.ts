@@ -38,8 +38,7 @@ function makeService(user: User | null) {
   const audit = { record: jest.fn() };
   const mail = {
     name: 'smtp',
-    enabled: true,
-    sendPasswordReset: jest.fn().mockResolvedValue(undefined),
+    sendQuietly: jest.fn().mockResolvedValue(undefined),
   };
   const service = new AuthService(
     users as never,
@@ -132,7 +131,7 @@ describe('Password reset', () => {
           { findOne: jest.fn().mockResolvedValue(user), save: jest.fn(async (u: User) => u) },
           { sign: jest.fn(() => 'signed.jwt.token'), verify: jest.fn() },
           { record: jest.fn() },
-          { name: 'smtp', enabled: true, sendPasswordReset: jest.fn().mockResolvedValue(undefined) },
+          { name: 'smtp', sendQuietly: jest.fn().mockResolvedValue(undefined) },
         );
         res = await service.forgotPassword('nurse@bnp.health');
       });
@@ -153,56 +152,50 @@ describe('Password reset', () => {
     const res = await service.forgotPassword('ghost@bnp.health');
     expect(res).toEqual({ requested: true });
     await flush();
-    expect(mail.sendPasswordReset).not.toHaveBeenCalled();
+    expect(mail.sendQuietly).not.toHaveBeenCalled();
   });
 
-  it('emails the reset token to the account holder', async () => {
+  it('emails a reset link carrying the token to the account holder', async () => {
     const user = makeUser();
-    const { service, mail, audit } = makeService(user);
+    const { service, mail } = makeService(user);
     await service.forgotPassword('nurse@bnp.health');
     await flush();
 
-    expect(mail.sendPasswordReset).toHaveBeenCalledWith(
-      'nurse@bnp.health',
-      'Nurse',
-      'signed.jwt.token',
-    );
-    expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'AUTH:PASSWORD_RESET_EMAIL_SENT' }),
-    );
-  });
-
-  it('audits a delivery failure without leaking it to the caller', async () => {
-    // The uniform response is what prevents account enumeration, so a bounced
-    // email must not change what the client sees.
-    const user = makeUser();
-    const { service, mail, audit } = makeService(user);
-    mail.sendPasswordReset.mockRejectedValue(new Error('SMTP 550 mailbox unavailable'));
-
-    const res = await service.forgotPassword('nurse@bnp.health');
-    expect(res).toEqual({ requested: true });
-
-    await flush();
-    expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'AUTH:PASSWORD_RESET_EMAIL_FAILED',
-        metadata: expect.objectContaining({ error: 'SMTP 550 mailbox unavailable' }),
-      }),
-    );
+    expect(mail.sendQuietly).toHaveBeenCalledTimes(1);
+    const message = mail.sendQuietly.mock.calls[0][0];
+    expect(message.to).toBe('nurse@bnp.health');
+    expect(message.text).toContain('/login/forgot?token=signed.jwt.token');
   });
 
   it('does not await delivery, so a slow relay cannot time the response', async () => {
-    // Awaiting the SMTP round-trip would make a request for a real account
-    // measurably slower than one for an address that does not exist.
+    // sendQuietly already keeps the *status* uniform, but awaiting it would
+    // still make a request for a real account take an SMTP round trip longer
+    // than one for an address that does not exist — an enumeration oracle in
+    // the timing rather than the body.
     const user = makeUser();
     const { service, mail } = makeService(user);
     let release: () => void = () => undefined;
-    mail.sendPasswordReset.mockReturnValue(new Promise<void>((r) => { release = r; }));
+    mail.sendQuietly.mockReturnValue(new Promise<void>((r) => { release = r; }));
 
     await expect(service.forgotPassword('nurse@bnp.health')).resolves.toEqual({
       requested: true,
     });
     release();
+  });
+
+  it('emails a reset link containing the token when the account exists', async () => {
+    const { service, mail } = makeService(makeUser());
+    await service.forgotPassword('nurse@bnp.health');
+    expect(mail.sendQuietly).toHaveBeenCalledTimes(1);
+    const sent = mail.sendQuietly.mock.calls[0][0];
+    expect(sent.to).toBe('nurse@bnp.health');
+    expect(sent.text).toContain('/login/forgot?token=signed.jwt.token');
+  });
+
+  it('sends no mail for an unknown account (no enumeration side channel)', async () => {
+    const { service, mail } = makeService(null);
+    await service.forgotPassword('ghost@bnp.health');
+    expect(mail.sendQuietly).not.toHaveBeenCalled();
   });
 
   it('reset-password rejects a token whose token_version is stale', async () => {

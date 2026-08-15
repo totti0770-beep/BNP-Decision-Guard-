@@ -8,9 +8,10 @@ production. Use this as the launch checklist.
 > server-side logout on web **and** mobile, upload refresh-on-401,
 > password-reset UI, `SEED_PASSWORD_<ROLE>` overrides, document-list
 > pagination, mobile secure token storage + refresh + MFA step, and a
-> reindex button in Settings (`documents:index`). Still open, in impact
-> order: **email delivery** (password reset is dead in production without
-> it), **OCR for scanned PDFs** (pdf-parse reads the text layer only — a
+> reindex button in Settings (`documents:index`), and **email delivery**
+> (pluggable `MAIL_PROVIDER=log|smtp` — code complete, needs `MAIL_HOST` to
+> actually deliver). Still open, in impact order:
+> **OCR for scanned PDFs** (pdf-parse reads the text layer only — a
 > scanned Arabic PDF indexes zero chunks), **observability**, **backup +
 > tested restore**, the **Next 15 / NestJS 11 majors**, and **compliance
 > sign-off**. The web UI is English-only while mobile is Arabic-first —
@@ -36,11 +37,11 @@ production. Use this as the launch checklist.
 >   changing nothing. No shipped screen used them, but any API client would
 >   have been misled. `ROLES_MANAGE` was dropped from the matrix with them.
 >
-> - **Email delivery is wired.** Reset links are sent over SMTP
->   (`MAIL_PROVIDER=smtp`), the relay is verified at boot, and production must
->   choose `smtp` or `none` explicitly rather than inheriting a silent default.
->   Sending is fire-and-forget so delivery latency cannot be used to enumerate
->   accounts; outcomes are audited.
+> - Email delivery landed independently on `main` (PR #13) while this branch
+>   was open. That implementation is canonical; this branch adopted it and
+>   contributed one fix on top — the send is no longer awaited, because an
+>   awaited SMTP round trip happens only for accounts that exist and so leaks
+>   by timing what the uniform response hides in the body.
 >
 > Still open, in impact order: **MFA enrollment** (no endpoint writes
 > `mfa_secret`), **observability**,
@@ -54,7 +55,7 @@ production. Use this as the launch checklist.
 | Dimension | MVP | Pilot | Production |
 | --- | --- | --- | --- |
 | Core features (RAG, RBAC, audit, dose, workflow) | ✅ | ✅ | ✅ |
-| Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr, email delivery) |
+| Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr; set `MAIL_PROVIDER=smtp`) |
 | Dependency vulnerability posture | ✅ 0 critical | 🟡 5 high pass CI | 🟡 (14 findings: 5 high, 9 moderate — see below) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
@@ -106,10 +107,18 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    iOS/Android identifiers are in place. Remaining: `eas login && eas init`
    with your Expo account, then `eas build`; production signing needs
    Apple/Google developer credentials.
-4. ~~**Email delivery for password reset**~~ — ✅ done: SMTP delivery via
-   `MAIL_PROVIDER=smtp`, bilingual Arabic/English message, single-use link
-   carrying the token, relay verified at startup. Remaining: point it at the
-   hospital's real relay and confirm deliverability (SPF/DKIM on `MAIL_FROM`).
+4. **Email delivery** — ✅ code complete, ⚙️ needs operator config. A
+   pluggable `MailService` (`MAIL_PROVIDER=log|smtp`) mirrors the LLM and
+   embedding provider pattern. `forgotPassword()` now emails the reset link,
+   and expiry notifications additionally reach knowledge managers by mail.
+   The default `log` provider only writes messages to the application log, so
+   **set `MAIL_PROVIDER=smtp` + `MAIL_HOST` before onboarding real users** —
+   production boots either way (mail is a degraded feature, not a security
+   hole) but logs a warning while log-only. Reset links resolve against
+   `APP_BASE_URL`, which falls back to the first `CORS_ORIGINS` entry.
+   Remaining: point it at the hospital's real relay and confirm deliverability
+   (SPF/DKIM on the `MAIL_FROM` domain). The message is English-only, which is
+   worth revisiting for Arabic-speaking nursing staff.
 
 ## Fastest path to PRODUCTION
 

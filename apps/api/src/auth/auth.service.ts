@@ -230,21 +230,20 @@ export class AuthService {
    * Starts a password reset. Always returns the same shape regardless of
    * whether the email exists (no account enumeration). When the account does
    * exist, a short-lived reset token bound to the current token_version is
-   * signed.
+   * signed and emailed as a link.
    *
-   * The token reaches the user by email and is NEVER returned to the caller
-   * unless an operator explicitly opts in with AUTH_DEV_RETURN_RESET_TOKEN=true.
-   * This endpoint is public, so returning the token by default would let anyone
-   * who knows an email address take over that account. It previously keyed off
-   * `NODE_ENV !== 'production'` — which fails open: NODE_ENV is unset in the
-   * shipped k8s manifests, so a real deployment handed out reset tokens to
-   * unauthenticated callers.
+   * The token is NEVER returned to the caller unless an operator explicitly
+   * opts in with AUTH_DEV_RETURN_RESET_TOKEN=true. This endpoint is public, so
+   * returning it by default would let anyone who knows an email address take
+   * over that account. It previously keyed off `NODE_ENV !== 'production'`,
+   * which fails open: NODE_ENV is unset in the shipped k8s manifests, so a
+   * real deployment handed reset tokens to unauthenticated callers.
    *
-   * Delivery is fire-and-forget on purpose. Awaiting the SMTP round-trip would
-   * make a request for a real account measurably slower than one for an
-   * address that does not exist, reintroducing the account enumeration the
-   * uniform response exists to prevent. Failures are logged and audited
-   * instead of surfacing to the caller.
+   * Delivery is deliberately not awaited. sendQuietly() already stops a relay
+   * failure from changing the response *status*, but awaiting it still lets a
+   * real account be told apart from a nonexistent one by response time — the
+   * SMTP round trip only happens for accounts that exist. Firing and
+   * forgetting keeps both the status and the timing flat.
    */
   async forgotPassword(email: string, ip?: string) {
     const user = await this.users.findOne({
@@ -262,34 +261,17 @@ export class AuthService {
         metadata: { mailProvider: this.mail.name },
         ip,
       });
-
-      void this.mail
-        .sendPasswordReset(user.email, user.fullName, resetToken)
-        .then(() =>
-          this.audit.record({
-            actorId: user.id,
-            actorEmail: user.email,
-            action: 'AUTH:PASSWORD_RESET_EMAIL_SENT',
-            ip,
-          }),
-        )
-        .catch((err) => {
-          // The user is already locked out; a silent failure here is the
-          // difference between "check your inbox" and an unexplained dead end.
-          this.logger.error(
-            `Password-reset email to ${user.email} failed: ${err}`,
-          );
-          this.audit.record({
-            actorId: user.id,
-            actorEmail: user.email,
-            action: 'AUTH:PASSWORD_RESET_EMAIL_FAILED',
-            metadata: {
-              mailProvider: this.mail.name,
-              error: err instanceof Error ? err.message : String(err),
-            },
-            ip,
-          });
-        });
+      const env = loadEnv();
+      const link = `${env.appBaseUrl}/login/forgot?token=${encodeURIComponent(resetToken)}`;
+      void this.mail.sendQuietly({
+        to: user.email,
+        subject: 'Reset your BNP Decision Guard password',
+        text:
+          `A password reset was requested for your BNP Decision Guard account.\n\n` +
+          `Open this link to choose a new password:\n${link}\n\n` +
+          `The link expires in ${env.passwordResetTokenMinutes} minutes and can be used once.\n` +
+          `If you did not request this, you can ignore this message — your password stays unchanged.`,
+      });
 
       const includeToken =
         process.env.AUTH_DEV_RETURN_RESET_TOKEN === 'true' && !isProduction;

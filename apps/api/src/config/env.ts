@@ -57,58 +57,16 @@ export interface AppEnv {
   rateLimit: { ttlSeconds: number; limit: number; authLimit: number };
   lockout: { maxFailedAttempts: number; lockoutMinutes: number };
   passwordResetTokenMinutes: number;
+  /** Public base URL of the web app, used to build links inside emails. */
+  appBaseUrl: string;
   mail: {
-    provider: MailProviderName;
+    provider: 'log' | 'smtp';
     from: string;
-    /** Public origin of the web app, used to build the reset link. */
-    webUrl: string;
-    smtp: {
-      host: string;
-      port: number;
-      secure: boolean;
-      user: string;
-      password: string;
-    };
+    host: string;
+    port: number;
+    user: string;
+    pass: string;
   };
-}
-
-export type MailProviderName = 'console' | 'smtp' | 'none';
-
-/**
- * Production must make an explicit choice about email, because a password
- * reset nobody receives is indistinguishable from one that failed. `console`
- * is refused in production on top of that: it would write a working reset
- * link into the server log, which is a disclosure channel of its own.
- */
-function resolveMailProvider(): MailProviderName {
-  const raw = process.env.MAIL_PROVIDER?.trim().toLowerCase();
-
-  if (!raw) {
-    if (isProduction) {
-      throw new Error(
-        '[env] MAIL_PROVIDER must be set in production. Use "smtp" to deliver ' +
-          'password-reset links, or "none" to deliberately disable self-service ' +
-          'reset (administrators then rotate passwords from the Users screen).',
-      );
-    }
-    return 'console';
-  }
-
-  if (raw !== 'console' && raw !== 'smtp' && raw !== 'none') {
-    throw new Error(
-      `[env] MAIL_PROVIDER must be one of "smtp", "none" or "console" (got "${raw}").`,
-    );
-  }
-  if (raw === 'console' && isProduction) {
-    throw new Error(
-      '[env] MAIL_PROVIDER=console writes a usable password-reset link to the ' +
-        'server log and must not be used in production. Use "smtp" or "none".',
-    );
-  }
-  if (raw === 'smtp' && isProduction && !process.env.SMTP_HOST) {
-    throw new Error('[env] SMTP_HOST is required when MAIL_PROVIDER=smtp.');
-  }
-  return raw;
 }
 
 let cached: AppEnv | null = null;
@@ -121,6 +79,24 @@ export function loadEnv(): AppEnv {
   required('JWT_REFRESH_SECRET', DEFAULT_JWT_REFRESH_SECRET);
   required('POSTGRES_PASSWORD', DEMO_DB_PASSWORD);
   required('S3_SECRET_KEY', DEMO_S3_SECRET);
+
+  // Mail is deliberately NOT part of the secret fail-fast. A missing secret is
+  // a security hole that must stop the boot; log-only mail is a degraded
+  // feature. Refusing to start would take the whole clinical assistant offline
+  // over undelivered password-reset links — the wrong trade for a hospital.
+  // An explicitly chosen smtp provider with no host IS a hard config error.
+  const mailProvider = process.env.MAIL_PROVIDER === 'smtp' ? 'smtp' : 'log';
+  if (mailProvider === 'smtp' && !process.env.MAIL_HOST?.trim()) {
+    throw new Error('[env] MAIL_HOST must be set when MAIL_PROVIDER=smtp.');
+  }
+  if (isProduction && mailProvider !== 'smtp') {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[env] MAIL_PROVIDER is "log" in production: password-reset emails are ' +
+        'written to the application log instead of being delivered. Set ' +
+        'MAIL_PROVIDER=smtp with MAIL_HOST before onboarding real users.',
+    );
+  }
 
   const corsRaw = process.env.CORS_ORIGINS?.trim();
   const origins = corsRaw
@@ -168,22 +144,21 @@ export function loadEnv(): AppEnv {
       process.env.PASSWORD_RESET_TOKEN_MINUTES ?? '30',
       10,
     ),
+    // Falls back to the first configured CORS origin — that is by definition
+    // the web app allowed to call this API, so reset links resolve correctly
+    // on an existing deployment without introducing another variable.
+    appBaseUrl: (
+      process.env.APP_BASE_URL ??
+      origins[0] ??
+      'http://localhost:3000'
+    ).replace(/\/+$/, ''),
     mail: {
-      provider: resolveMailProvider(),
+      provider: mailProvider,
       from: process.env.MAIL_FROM ?? 'BNP Decision Guard <no-reply@bnp.health>',
-      webUrl: (process.env.APP_WEB_URL ?? 'http://localhost:3000').replace(
-        /\/+$/,
-        '',
-      ),
-      smtp: {
-        host: process.env.SMTP_HOST ?? 'localhost',
-        port: parseInt(process.env.SMTP_PORT ?? '587', 10),
-        // Implicit TLS (port 465). Port 587 upgrades via STARTTLS instead,
-        // which nodemailer negotiates automatically when secure is false.
-        secure: (process.env.SMTP_SECURE ?? 'false') === 'true',
-        user: process.env.SMTP_USER ?? '',
-        password: process.env.SMTP_PASSWORD ?? '',
-      },
+      host: process.env.MAIL_HOST ?? '',
+      port: parseInt(process.env.MAIL_PORT ?? '587', 10),
+      user: process.env.MAIL_USER ?? '',
+      pass: process.env.MAIL_PASSWORD ?? '',
     },
   };
   return cached;

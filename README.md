@@ -223,8 +223,8 @@ See `.env.example`. Key ones:
 | `OPENAI_API_KEY` | — | required only for `openai` providers |
 | `RAG_MIN_SIMILARITY` | `0.25` | refusal threshold |
 | `RAG_TOP_K` / `RAG_FINAL_K` | `8` / `4` | retrieval / rerank depth |
-| `MAIL_PROVIDER` | `console` (dev) | `smtp`, `none`, or `console`; **must** be `smtp` or `none` in production |
-| `SMTP_HOST` / `MAIL_FROM` / `APP_WEB_URL` | — | required for `smtp`; the reset link is built from `APP_WEB_URL` |
+| `MAIL_PROVIDER` | `log` | `log` writes reset links to the app log; set `smtp` before real users |
+| `MAIL_HOST` / `MAIL_FROM` / `APP_BASE_URL` | — | `MAIL_HOST` required for `smtp`; reset links resolve against `APP_BASE_URL` (defaults to the first `CORS_ORIGINS` entry) |
 | `SEED_ON_BOOT` | `true` (docker) | seed demo data on API start |
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | change-me | **must** be rotated in production |
 
@@ -248,10 +248,10 @@ for the pilot/production launch checklist. Highlights:
 - **Self-service password reset**: `POST /auth/forgot-password` (no account
   enumeration) and `POST /auth/reset-password` (single-use token bound to
   `token_version`; rotating the password invalidates every session). The link
-  is **emailed** — set `MAIL_PROVIDER=smtp` with `SMTP_HOST`, `MAIL_FROM` and
-  `APP_WEB_URL`, or `MAIL_PROVIDER=none` to disable self-service reset
-  deliberately. Production refuses to boot without one of the two, because a
-  reset nobody receives looks exactly like one that failed.
+  is **emailed** — set `MAIL_PROVIDER=smtp` with `MAIL_HOST` before onboarding
+  real users. The default `log` provider writes the link to the application
+  log instead of sending it, so the flow works with no mail server but reaches
+  nobody; production warns rather than refusing to boot.
 - **Safe errors**: a global exception filter returns a uniform envelope and
   never leaks internal 5xx details in production.
 - **RBAC**: 7 roles with a central permission matrix (`packages/shared`),

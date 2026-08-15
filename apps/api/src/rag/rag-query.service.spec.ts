@@ -80,6 +80,115 @@ describe('RagQueryService refusal logic (clinical safety contract)', () => {
     expect(result.citations.length).toBeGreaterThan(0);
   });
 
+  describe('LLM answer gate', () => {
+    function withLlm(answer: Partial<import('./llm.service').LlmAnswer>) {
+      const retrieval = { search: jest.fn().mockResolvedValue([chunk()]) };
+      return new RagQueryService(
+        retrieval as never,
+        new RerankService(),
+        {
+          name: 'test-llm',
+          answer: jest.fn().mockResolvedValue({
+            shortAnswer: '',
+            steps: [],
+            warnings: [],
+            ...answer,
+          }),
+        } as never,
+      );
+    }
+
+    it('accepts a steps-only answer — a procedural reply is still an answer', async () => {
+      const svc = withLlm({ steps: ['Reconstitute with 10 mL sterile water.'] });
+      const result = await svc.ask('How is it diluted?');
+      expect(result.refused).toBe(false);
+      expect(result.steps).toHaveLength(1);
+      expect(result.citations.length).toBeGreaterThan(0);
+    });
+
+    it('accepts a warnings-only answer', async () => {
+      const svc = withLlm({ warnings: ['Do not administer as a bolus.'] });
+      expect((await svc.ask('Any cautions?')).refused).toBe(false);
+    });
+
+    it('refuses with the exact Arabic string when every field is empty', async () => {
+      const result = await withLlm({}).ask('Something uncovered');
+      expect(result.refused).toBe(true);
+      expect(result.shortAnswer).toBe(REFUSAL_MESSAGE_AR);
+      expect(result.diagnostics.refusedAt).toBe('MODEL_FOUND_NOTHING');
+    });
+
+    it('reports MODEL_ERROR — a provider outage is not a corpus gap', async () => {
+      const result = await withLlm({ failed: true }).ask('Anything');
+      expect(result.refused).toBe(true);
+      expect(result.shortAnswer).toBe(REFUSAL_MESSAGE_AR);
+      // The distinction operators need: the library may well cover this.
+      expect(result.diagnostics.refusedAt).toBe('MODEL_ERROR');
+    });
+  });
+
+  describe('refusal diagnostics (governance visibility)', () => {
+    it('reports NO_CANDIDATES when retrieval returns nothing', async () => {
+      const result = await makeService([]).ask('anything');
+      expect(result.diagnostics).toEqual({
+        candidateCount: 0,
+        qualifiedCount: 0,
+        bestScore: null,
+        consideredSources: [],
+        threshold: 0.25,
+        refusedAt: 'NO_CANDIDATES',
+      });
+    });
+
+    it('separates the retrieved pool from what actually reached the model', async () => {
+      // One chunk is retrieved but scores below the threshold, so nothing
+      // qualifies. Reporting the pool size as the qualifying count would tell
+      // a manager the model saw evidence it never received.
+      const svc = makeService([
+        chunk({ similarity: 0.05, content: 'unrelated cafeteria menu text' }),
+      ]);
+      const { candidateCount, qualifiedCount } = (
+        await svc.ask('paracetamol dose for a child')
+      ).diagnostics;
+      expect(candidateCount).toBe(1);
+      expect(qualifiedCount).toBe(0);
+    });
+
+    it('carries the considered chunk text so the cause is readable, not inferred', async () => {
+      const svc = makeService([
+        chunk({ similarity: 0.05, content: 'Table of contents .... 14' }),
+      ]);
+      const { consideredSources } = (await svc.ask('paracetamol dose')).diagnostics;
+      expect(consideredSources).toHaveLength(1);
+      expect(consideredSources[0].documentTitle).toBe('IV Paracetamol Guide');
+      expect(consideredSources[0].pageNumber).toBe(2);
+      expect(consideredSources[0].snippet).toContain('Table of contents');
+    });
+
+    it('reports BELOW_THRESHOLD with the real best score, not the cut-off list', async () => {
+      const svc = makeService([
+        chunk({ similarity: 0.05, content: 'unrelated text about cafeteria menus' }),
+      ]);
+      const result = await svc.ask('paracetamol dose for a child');
+      expect(result.diagnostics.refusedAt).toBe('BELOW_THRESHOLD');
+      expect(result.diagnostics.candidateCount).toBe(1);
+      // The score must survive the threshold filter so a manager can see how
+      // near the miss was.
+      expect(result.diagnostics.bestScore).toBeGreaterThan(0);
+      expect(result.diagnostics.bestScore).toBeLessThan(0.25);
+    });
+
+    it('leaves refusedAt null on an answered question', async () => {
+      const svc = makeService([chunk()]);
+      const result = await svc.ask(
+        'What is the paracetamol dose per kg for patients weighing 50 kg or less?',
+      );
+      expect(result.refused).toBe(false);
+      expect(result.diagnostics.refusedAt).toBeNull();
+      expect(result.diagnostics.candidateCount).toBe(1);
+    });
+  });
+
   it('extracts practical steps from numbered lines in the source', async () => {
     const svc = makeService([chunk()]);
     const result = await svc.ask('paracetamol dose per kg administer');

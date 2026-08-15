@@ -46,7 +46,7 @@
     "@types/jest": "^29.5.12",
     "@types/multer": "^2.0.0",
     "@types/node": "^20.14.10",
-    "@types/nodemailer": "^8.0.1",
+    "@types/nodemailer": "^6.4.24",
     "@types/passport-jwt": "^4.0.1",
     "@types/pdf-parse": "^1.1.5",
     "@types/pdfkit": "^0.13.4",

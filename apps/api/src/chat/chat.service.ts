@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AssistantType, DocumentCategory } from '@bnp/shared';
+import { AssistantType, DocumentCategory, Permission } from '@bnp/shared';
 import { AiAnswer, AiQuestion, Citation } from '../entities';
 import { RagQueryService } from '../rag/rag-query.service';
 import { AuditService } from '../audit/audit.service';
@@ -97,6 +97,12 @@ export class ChatService {
       warnings: result.warnings,
       confidence: result.confidence,
       citations: result.citations,
+      // Governance visibility only. A nurse needs the refusal, not the
+      // retrieval internals behind it; a knowledge manager needs the internals
+      // to tell a corpus gap from an over-tight threshold.
+      ...(actor.permissions?.includes(Permission.ANALYTICS_READ)
+        ? { diagnostics: result.diagnostics }
+        : {}),
     };
   }
 

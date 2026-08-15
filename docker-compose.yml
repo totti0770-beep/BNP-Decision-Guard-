@@ -86,16 +86,15 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-bnp_minio_secret}
       S3_BUCKET: ${S3_BUCKET:-bnp-documents}
       S3_FORCE_PATH_STYLE: "true"
-      # Demo default logs the reset email instead of sending it. Point this at
-      # a relay (MAIL_PROVIDER=smtp + SMTP_HOST) to exercise real delivery.
-      MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
+      # Demo default logs the reset link instead of sending it. Point this at
+      # a relay (MAIL_PROVIDER=smtp + MAIL_HOST) to exercise real delivery.
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-log}
       MAIL_FROM: ${MAIL_FROM:-BNP Decision Guard <no-reply@bnp.health>}
-      APP_WEB_URL: ${APP_WEB_URL:-http://localhost:3000}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-mock}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
