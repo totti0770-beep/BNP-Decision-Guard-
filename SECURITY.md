@@ -69,7 +69,9 @@ production sign-off — see `docs/production-readiness.md`.
 - **Five high-severity dependency advisories pass CI**, because the gate only
   hard-fails on critical (0 critical, 5 high, 9 moderate as of Aug 2026).
 - Centralised secret management (Vault/KMS) instead of env vars.
-- Observability: structured logs shipping, metrics, error tracking, alerting.
+- Observability: API logs are structured JSON already (`/health` liveness,
+  `/health/ready` checks Postgres + object storage) — still missing is
+  shipping those logs anywhere, metrics, error tracking, and alerting.
 - Formal penetration test and CBAHI/HIPAA compliance review.
 - **NestJS 10→11 / Next.js 14→15 migration.** The critical Next.js middleware
   auth-bypass CVE (CVE-2025-29927) and the exploitable multer/lodash CVEs were
