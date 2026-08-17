@@ -5,7 +5,7 @@
 ```mermaid
 graph TB
     subgraph Clients
-        WEB[Next.js Web App<br/>13 governance screens]
+        WEB[Next.js Web App<br/>13 protected screens]
         MOB[Expo Mobile App<br/>nurse companion]
     end
 

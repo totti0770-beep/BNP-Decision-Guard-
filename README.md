@@ -22,7 +22,7 @@ calculator, role-based access control, and a complete audit trail.
 ```
 apps/
   api/        NestJS + TypeScript — REST API, RAG pipeline, RBAC, audit
-  web/        Next.js 14 + Tailwind — 14 governance screens
+  web/        Next.js 14 + Tailwind — 13 protected screens
   mobile/     Expo React Native — nurse-focused companion app
 packages/
   shared/     RBAC matrix, clinical safety strings, lifecycle enums, DTO types
@@ -190,8 +190,8 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test                        # 80 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 30 integration tests — real HTTP + real Postgres
+npm test                        # 90 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 32 integration tests — real HTTP + real Postgres
 ```
 
 **Unit** (`apps/api/src/**/*.spec.ts`) covers: the exact refusal contract,
@@ -260,7 +260,10 @@ See `.env.example`. Key ones:
 
 See **[SECURITY.md](SECURITY.md)** for the full control list and operational
 requirements, and **[docs/production-readiness.md](docs/production-readiness.md)**
-for the pilot/production launch checklist. Highlights:
+for the pilot/production launch checklist — including a "Path to Production"
+runbook table naming, for every item still open, whether it's an engineering
+task or requires the hospital operator's own credentials/infrastructure/
+institutional process. Highlights:
 
 - **Production secret fail-fast**: with `NODE_ENV=production` the API refuses to
   boot if any JWT secret, DB password or S3 secret is missing or left at a
@@ -318,17 +321,24 @@ for the pilot/production launch checklist. Highlights:
 
 ## Deployment notes
 
-- `infra/k8s/` contains reference Deployments/Services and a Secret template;
-  add an Ingress with TLS, point the env at a managed PostgreSQL (with the
-  `vector` extension) and an S3 bucket, and set `SEED_ON_BOOT=false`.
+- `infra/k8s/` contains reference Deployments/Services, an `ingress.yaml`
+  (cert-manager TLS, two hosts) and a Secret template; point the env at a
+  managed PostgreSQL (with the `vector` extension) and an S3 bucket, generate
+  real secrets, and set `SEED_ON_BOOT=false`. See `infra/k8s/README.md` for
+  the full checklist, including what the manifests deliberately don't cover.
+- The API exposes `/health` (liveness, dependency-free) and `/health/ready`
+  (readiness — checks Postgres and object storage, 503 if either is down);
+  both k8s Deployments and `docker-compose.yml` probe them.
 - Images build from `infra/docker/Dockerfile.api` and `Dockerfile.web`.
+  CI builds both on every push (the smoke job) but pushes to no registry —
+  point it at yours before deploying.
 - Scale-out: the API is stateless (JWT), so replicas are safe; the near-expiry
   cron should be limited to a single replica or moved to a Job in production.
 
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) — system + RAG flow diagrams
-- [docs/database-schema.md](docs/database-schema.md) — all 16 tables
+- [docs/database-schema.md](docs/database-schema.md) — all 17 tables
 - [docs/api.md](docs/api.md) — REST endpoint reference
 
 ## Disclaimer

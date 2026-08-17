@@ -174,6 +174,34 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
 6. **Resilience** — automated backups, tested restore runbook, load test to
    target concurrency, blue/green or rolling deploy strategy.
 
+## Path to Production — Operator Runbook
+
+Everything above is prose spread across three audit passes. This table is
+the single checklist: every item still standing between this codebase and a
+real clinical deployment, who owns closing it, and why it can't be closed by
+more autonomous engineering work in this repository. "Hospital operator"
+means your organization — a credential, a decision, or a real-world process
+this session has no access to and, in several rows, should not have access
+to (a pen test on your own infrastructure without authorization is not
+something an AI agent should ever run itself).
+
+| Item | Owner | Why it can't be automated here |
+| --- | --- | --- |
+| Real approved clinical corpus | Hospital operator (knowledge managers + pharmacist/quality reviewers) | Requires real hospital policy PDFs and real clinical sign-off through the governed `DRAFT → … → ACTIVE` workflow — the seeded corpus is synthetic by design. |
+| Real SMTP relay + SPF/DKIM | Hospital operator (IT) | `MAIL_PROVIDER=smtp` is code-complete; needs a real mail domain, relay credentials, and DNS records this repo has no access to. |
+| Cloud / Kubernetes provisioning | Hospital operator (infra/cloud team) | Manifests in `infra/k8s/` are references, not a running cluster — needs a real managed Postgres+pgvector, object storage, and a cluster to apply them to. |
+| Container registry + CI image push | Hospital operator (platform team) | CI builds both images (the smoke job) but pushes to no registry — no registry credentials exist in this repo. |
+| Centralised secret management (Vault/KMS/SealedSecrets) | Hospital operator (platform team) | `secrets.example.yaml` is plaintext-in-base64 by design; wiring a real secret manager needs your cloud account. |
+| Log/metrics/tracing backend | Hospital operator (platform team) | Application logs are structured JSON already (this session's work) — shipping them to a store, plus Prometheus/OTel/Sentry, needs a provisioned backend. |
+| External penetration test | Hospital operator (security team) | Authorized security testing against your live deployment is not something to run against a repository in the abstract — needs your infrastructure and your authorization. |
+| CBAHI/HIPAA compliance sign-off, DPIA, vendor BAAs | Hospital operator (compliance/legal) | Regulatory sign-off is a human institutional process, not a code change. |
+| Apple/Google developer accounts | Hospital operator | Required for `eas build`/`eas submit` to produce signed, store-distributable mobile builds. |
+| Load testing against target concurrency | Hospital operator (platform team) | Needs a real, provisioned environment to load-test against — a laptop/CI run cannot represent production traffic. |
+| Backup + tested restore drill | Hospital operator (platform team) | Requires a real database instance and a rehearsed recovery process; nothing here has ever backed anything up. |
+| NestJS 10→11 / Next.js 14→15 major-version migration | Engineering (this codebase) | Not an operator item — semver-major breaking-change surface (Next: async `params`/`searchParams`; NestJS 11: Node floor, module resolution) needs a dedicated migration + regression pass, tracked as a non-blocking CI report in the meantime. |
+| MFA enrollment endpoint | Engineering (this codebase) | The verify/challenge path exists; no endpoint writes `mfa_secret` yet. Code work, not an operator dependency. |
+| OCR for scanned PDFs | Engineering (this codebase) | `pdf-parse` reads the text layer only; a scanned Arabic PDF indexes zero chunks. Code work. |
+
 ## Effort estimate
 
 | Milestone | Estimate |
