@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (51), the only test suite
+npm test                      # API unit tests (80), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (30), real HTTP + real Postgres
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
 npm run dev:api               # API on :4000
@@ -26,6 +27,34 @@ Single test (run from repo root):
 npm test -w @bnp/api -- --testPathPattern=dose   # one spec file
 npm test -w @bnp/api -- -t "refus"               # tests matching a name
 ```
+
+### The two test suites are deliberately separate
+
+`apps/api/src/**/*.spec.ts` are unit tests: every repository is a `jest.fn()`,
+nothing touches the network or a database. Config lives in `package.json`
+(`rootDir: src`).
+
+`apps/api/test/**/*.e2e-spec.ts` are integration tests: real HTTP through the
+real `AppModule` — guards, `ValidationPipe`, exception filter and all — against
+a real PostgreSQL + pgvector. Config is `apps/api/jest-e2e.config.js`. They live
+*outside* `src/` on purpose: `.e2e-spec.ts` also matches the unit suite's
+`.*\.spec\.ts$` pattern, so keeping them out of `rootDir` is what stops the unit
+run from trying to execute them.
+
+They need a database. Point them at one with `E2E_POSTGRES_*` (host, port, user,
+password, db — defaults to `bnp_e2e`):
+
+```bash
+docker compose up -d postgres
+E2E_POSTGRES_DB=bnp_e2e npm run test:e2e -w @bnp/api
+```
+
+Only three things are faked, and each is a genuinely external boundary: S3
+storage (in-memory), SMTP (captured so specs can read the reset link), and PDF
+text extraction. That last one is **not** a choice — `pdf-parse`'s bundled
+pdf.js throws inside any jest process however it is loaded, so extraction is the
+one ingestion step with no automated coverage anywhere. It is exercised only by
+`npm run seed` and manual upload.
 
 Mobile (separate install, not an npm workspace):
 

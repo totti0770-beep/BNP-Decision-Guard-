@@ -190,28 +190,56 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test               # 51 unit tests over the clinical safety + security paths
+npm test                        # 80 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 30 integration tests — real HTTP + real Postgres
 ```
 
-Covered: exact refusal contract, retrieval thresholding, mock-embedding
-determinism, chunk/page integrity, dose math + unapproved-formula rejection +
-max-dose caps, the RBAC permission matrix (nurse cannot approve/download,
-only pharmacists approve formulas, auditor is read-only, a database-only role
-grants nothing), upload content validation (a non-PDF cannot be stored by
-spoofing the `Content-Type` header), the password-reset token never being
-returned to the caller, and the production secret fail-fast.
+**Unit** (`apps/api/src/**/*.spec.ts`) covers: the exact refusal contract,
+retrieval thresholding, mock-embedding determinism, chunk/page integrity, dose
+math + unapproved-formula rejection + max-dose caps, the RBAC permission matrix
+(nurse cannot approve/download, only pharmacists approve formulas, auditor is
+read-only, a database-only role grants nothing), upload content validation, the
+password-reset token never being returned to the caller, and the production
+secret fail-fast.
 
-Not covered, and worth knowing before you rely on the suite: there are no HTTP,
-database, web or mobile tests, and no end-to-end run in CI. The browser smoke
-script below is not wired into the pipeline.
+**Integration** (`apps/api/test/**/*.e2e-spec.ts`) boots the real `AppModule` —
+guards, `ValidationPipe`, exception filter — and drives it over HTTP against a
+real PostgreSQL + pgvector. It needs a database:
 
-Continuous integration (`.github/workflows/ci.yml`) runs the API build +
-tests + migrations (against a real pgvector service), the web production
-build, and the mobile typecheck on every push and pull request.
+```bash
+docker compose up -d postgres
+E2E_POSTGRES_DB=bnp_e2e npm run test:e2e -w @bnp/api
+```
 
-A browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives
+It covers the governance chain end to end: a PDF uploaded, refused as a source
+while unapproved, moved `DRAFT → IN_REVIEW → APPROVED` (illegal transitions
+rejected), indexed into pgvector, then cited in an answer — and refused again
+the moment it is deactivated. Plus the auth lifecycle (token revocation on
+logout, account lockout blocking a correct password, a reset link that arrives
+by mail and is single-use while the token never appears in a response), RBAC
+403s on real routes, and the dose-calculator safety gates.
+
+Still not covered: **PDF text extraction** — `pdf-parse`'s bundled pdf.js cannot
+run inside a jest process, so that one step is stubbed in the integration suite
+and has no automated coverage anywhere. There are also no web or mobile unit
+tests.
+
+Continuous integration (`.github/workflows/ci.yml`) runs, on every push and PR:
+the dependency scan; the API build + unit tests + migrations + **integration
+tests** against a real pgvector service; the web production build; a **full-stack
+browser smoke test** that brings the whole stack up with `docker compose` and
+drives it with Playwright; and the mobile typecheck.
+
+The browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives
 login → cited answer → refusal → dose calculation → copy-protection →
-role-aware navigation against a running stack.
+role-aware navigation against a running stack. CI runs it against a stack
+started with `docker compose up -d --build`, so it also guards the quickstart
+above from regressing. To run it locally, bring the stack up and:
+
+```bash
+npx playwright install chromium
+node apps/web/e2e-smoke.mjs        # screenshots land in apps/web/e2e-shots/
+```
 
 ## Environment variables
 
