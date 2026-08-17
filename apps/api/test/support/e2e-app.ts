@@ -32,6 +32,10 @@ export class InMemoryStorageService {
 
   async ensureBucket(): Promise<void> {}
 
+  async isHealthy(): Promise<boolean> {
+    return true;
+  }
+
   async upload(key: string, body: Buffer): Promise<void> {
     this.objects.set(key, body);
   }

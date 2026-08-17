@@ -1,7 +1,8 @@
 # REST API reference
 
-Base URL: `http://localhost:4000`. All endpoints except `/health` and `/auth/*`
-require `Authorization: Bearer <accessToken>` and the listed permission.
+Base URL: `http://localhost:4000`. All endpoints except `/health`,
+`/health/ready` and `/auth/*` require `Authorization: Bearer <accessToken>`
+and the listed permission.
 
 ## Auth
 
@@ -103,4 +104,5 @@ warning.
 | `GET /settings` | `settings:read` |
 | `PUT /settings/:key` `{value}` | `settings:manage` |
 | `GET /notifications` · `POST /notifications/:id/read` | `notifications:read` |
-| `GET /health` | public |
+| `GET /health` | public — liveness only, no dependency checks |
+| `GET /health/ready` | public — checks Postgres and object storage; 503 if either is unreachable |

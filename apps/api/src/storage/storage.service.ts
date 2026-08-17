@@ -31,6 +31,21 @@ export class StorageService {
     });
   }
 
+  /**
+   * Readiness-probe check only: reports whether the bucket is reachable, and
+   * deliberately does not create it. `ensureBucket()` creating one on a
+   * missing-bucket probe hit would make a broken deployment look self-healing
+   * instead of surfacing as a failed readiness check.
+   */
+  async isHealthy(): Promise<boolean> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async ensureBucket(): Promise<void> {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));

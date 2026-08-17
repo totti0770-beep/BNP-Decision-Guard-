@@ -91,7 +91,7 @@ docker compose up --build
 | Service      | URL                                            |
 | ------------ | ---------------------------------------------- |
 | Web app      | http://localhost:3000                          |
-| API          | http://localhost:4000 (health: `/health`)      |
+| API          | http://localhost:4000 (liveness: `/health`, readiness: `/health/ready`) |
 | MinIO console| http://localhost:9001 (bnp_minio / bnp_minio_secret) |
 | PostgreSQL   | localhost:5432 (bnp / bnp_secret)              |
 
@@ -169,7 +169,7 @@ Profiles live in `apps/mobile/eas.json` — edit each profile's
 
 ## How to ask the AI assistant
 
-Sign in as **nurse@bnp.health** → **AI Nursing Assistant** (or Drug
+Sign in as **nurse@bnp.health** → **Nursing Assistant** (or Drug
 Preparation / CBAHI Search, which restrict retrieval to their category).
 
 Every answer includes: short answer, practical steps, warnings, source document

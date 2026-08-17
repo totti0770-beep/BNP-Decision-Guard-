@@ -50,6 +50,30 @@ production. Use this as the launch checklist.
 > **compliance sign-off**. The web UI is English-only while mobile is
 > Arabic-first — revisit before a nurse-facing pilot.
 
+> **Audit update (Aug 2026, third pass).** Continuing the same branch: a real
+> `jest-e2e.config.js` now exists (it previously didn't, so `npm run
+> test:e2e` was a dead script despite CI provisioning a Postgres service for
+> it) — 32 integration tests hit real HTTP through the real `AppModule`
+> (guards, `ValidationPipe`, exception filter) against real Postgres+pgvector,
+> covering login/refresh/lockout/reset, the full document
+> upload→review→approve→index→ACTIVE lifecycle, and RBAC 403s at the HTTP
+> layer, not just in mocked unit tests. The browser smoke script
+> (`apps/web/e2e-smoke.mjs`) is now wired into CI against the full Docker
+> Compose stack — it had rotted from never being run: three stale selectors
+> and two assertions that only `console.log`-ed instead of failing (nurse
+> sees no download buttons, nurse sees no admin nav) are fixed. `/health` is
+> now liveness-only (no dependency checks — a slow Postgres must not make
+> Kubernetes restart a healthy pod); `/health/ready` is new and checks
+> Postgres and object storage, returning 503 with per-dependency detail when
+> either is unreachable, wired into `web-deployment.yaml`'s new probes and a
+> new `ingress.yaml`. All API logs are now structured JSON lines
+> (`{timestamp,level,context,message}`) via a custom Nest logger with no new
+> dependency — every existing `new Logger(...)` call site needed no changes.
+> Nothing ships those lines anywhere yet; that's still open below. Still
+> open, in impact order: **metrics/tracing/alerting** (no Prometheus/OTel/
+> Sentry), **MFA enrollment**, **backup + tested restore**, **OCR for scanned
+> PDFs**, the **Next 15 / NestJS 11 majors**, and **compliance sign-off**.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
@@ -58,12 +82,13 @@ production. Use this as the launch checklist.
 | Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr; set `MAIL_PROVIDER=smtp`) |
 | Dependency vulnerability posture | ✅ 0 critical | 🟡 5 high pass CI | 🟡 (14 findings: 5 high, 9 moderate — see below) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 32 API + 7-step browser flow, both gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
 | Approved clinical content corpus | 🔴 synthetic | ✅ real, governed | ✅ |
 | High availability (HA Postgres, replicas, HPA, Ingress+TLS) | ➖ | 🟡 | ✅ required |
-| Observability (logs/metrics/traces/alerts) | ➖ | 🟡 | ✅ required |
+| Observability (logs/metrics/traces/alerts) | 🟡 structured JSON logs + liveness/readiness | 🟡 | ✅ required |
 | Compliance (CBAHI/HIPAA, pen-test, DPIA, BAA) | ➖ | 🟡 in progress | ✅ signed off |
 | DR / backup / restore runbook | ➖ | 🟡 | ✅ required |
 
@@ -139,8 +164,9 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
 2. **HA infrastructure** — managed PostgreSQL 16 with `vector`, object store
    with SSE/KMS, API replicas behind an Ingress with TLS + HPA; move the
    near-expiry cron to a singleton Job.
-3. **Observability** — structured JSON logs shipped to a store, metrics +
-   dashboards, error tracking, on-call alerting on refusal-rate spikes and 5xx.
+3. **Observability** — logs are structured JSON already (nothing to change in
+   the app); still needed: ship those lines to a store, metrics + dashboards,
+   error tracking, on-call alerting on refusal-rate spikes and 5xx.
 4. **Security sign-off** — external penetration test, centralised secret
    management, DPIA.
 5. **Compliance** — CBAHI/HIPAA controls mapping, BAAs with any external AI

@@ -105,6 +105,15 @@ services:
       SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
     ports:
       - "4000:4000"
+    # No curl/wget assumption on the alpine runtime image — node's own http
+    # client is always present. start_period covers migrate+seed running
+    # before the server even starts listening (SEED_ON_BOOT default is true).
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   web:
     build:
@@ -114,7 +123,8 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     container_name: bnp-web
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "3000:3000"
 

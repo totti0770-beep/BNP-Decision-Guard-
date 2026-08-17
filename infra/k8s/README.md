@@ -56,7 +56,7 @@ clinical deployment.
 | **TLS certificates** | `ingress.yaml` assumes cert-manager with a `letsencrypt-prod` ClusterIssuer. Adapt to your PKI. |
 | **The expiry cron** | `notifications.service.ts` runs a daily sweep in-process, so with `replicas: 2` it runs twice. Move it to a `CronJob` against a single replica before scaling. |
 | **Backup and restore** | Nothing here backs anything up. A restore that has never been rehearsed is not a backup. |
-| **Observability** | No metrics, tracing or error tracking is wired. `/health` is a liveness signal only — it does not check the database or object store. |
+| **Observability** | No metrics, tracing or error tracking is wired. `/health` (liveness) and `/health/ready` (readiness, checks Postgres and object storage — 503 if either is unreachable) exist; logs are structured JSON lines, but nothing ships them anywhere — point your cluster's log collection at container stdout/stderr. |
 | **Network policy, HPA, PDB** | Not included; add to suit your cluster. |
 
 ## Applying
