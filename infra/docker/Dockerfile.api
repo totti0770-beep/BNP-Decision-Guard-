@@ -22,4 +22,8 @@ COPY --from=build /repo/apps/api/dist ./apps/api/dist
 WORKDIR /repo/apps/api
 EXPOSE 4000
 # Runs migrations, optionally seeds demo data (SEED_ON_BOOT=true), then starts the API
-CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then node dist/seed/seed.js || true; fi && node dist/main.js"]
+# A failed seed stays non-fatal on purpose — a transient seeding problem must
+# not keep the clinical API down — but it is no longer silent. It previously
+# ended in a bare `|| true`, so a stack with zero users looked completely
+# healthy: the API served 401s to every login and nothing said why.
+CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then node dist/seed/seed.js || echo '!!!!!! SEED FAILED — the API is starting WITHOUT demo data and logins will fail; see the error above !!!!!!'; fi && node dist/main.js"]
