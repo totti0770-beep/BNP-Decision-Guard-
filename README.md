@@ -22,7 +22,7 @@ calculator, role-based access control, and a complete audit trail.
 ```
 apps/
   api/        NestJS + TypeScript — REST API, RAG pipeline, RBAC, audit
-  web/        Next.js 14 + Tailwind — 14 governance screens
+  web/        Next.js 14 + Tailwind — 13 protected screens
   mobile/     Expo React Native — nurse-focused companion app
 packages/
   shared/     RBAC matrix, clinical safety strings, lifecycle enums, DTO types
@@ -91,7 +91,7 @@ docker compose up --build
 | Service      | URL                                            |
 | ------------ | ---------------------------------------------- |
 | Web app      | http://localhost:3000                          |
-| API          | http://localhost:4000 (health: `/health`)      |
+| API          | http://localhost:4000 (liveness: `/health`, readiness: `/health/ready`) |
 | MinIO console| http://localhost:9001 (bnp_minio / bnp_minio_secret) |
 | PostgreSQL   | localhost:5432 (bnp / bnp_secret)              |
 
@@ -169,7 +169,7 @@ Profiles live in `apps/mobile/eas.json` — edit each profile's
 
 ## How to ask the AI assistant
 
-Sign in as **nurse@bnp.health** → **AI Nursing Assistant** (or Drug
+Sign in as **nurse@bnp.health** → **Nursing Assistant** (or Drug
 Preparation / CBAHI Search, which restrict retrieval to their category).
 
 Every answer includes: short answer, practical steps, warnings, source document
@@ -190,22 +190,56 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test               # 33 unit tests over the clinical safety + security paths
+npm test                        # 90 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 32 integration tests — real HTTP + real Postgres
 ```
 
-Covered: exact refusal contract, retrieval thresholding, mock-embedding
-determinism, chunk/page integrity, dose math + unapproved-formula rejection +
-max-dose caps, the RBAC permission matrix (nurse cannot approve/download,
-only pharmacists approve formulas, auditor is read-only), and the production
+**Unit** (`apps/api/src/**/*.spec.ts`) covers: the exact refusal contract,
+retrieval thresholding, mock-embedding determinism, chunk/page integrity, dose
+math + unapproved-formula rejection + max-dose caps, the RBAC permission matrix
+(nurse cannot approve/download, only pharmacists approve formulas, auditor is
+read-only, a database-only role grants nothing), upload content validation, the
+password-reset token never being returned to the caller, and the production
 secret fail-fast.
 
-Continuous integration (`.github/workflows/ci.yml`) runs the API build +
-tests + migrations (against a real pgvector service), the web production
-build, and the mobile typecheck on every push and pull request.
+**Integration** (`apps/api/test/**/*.e2e-spec.ts`) boots the real `AppModule` —
+guards, `ValidationPipe`, exception filter — and drives it over HTTP against a
+real PostgreSQL + pgvector. It needs a database:
 
-A browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives
+```bash
+docker compose up -d postgres
+E2E_POSTGRES_DB=bnp_e2e npm run test:e2e -w @bnp/api
+```
+
+It covers the governance chain end to end: a PDF uploaded, refused as a source
+while unapproved, moved `DRAFT → IN_REVIEW → APPROVED` (illegal transitions
+rejected), indexed into pgvector, then cited in an answer — and refused again
+the moment it is deactivated. Plus the auth lifecycle (token revocation on
+logout, account lockout blocking a correct password, a reset link that arrives
+by mail and is single-use while the token never appears in a response), RBAC
+403s on real routes, and the dose-calculator safety gates.
+
+Still not covered: **PDF text extraction** — `pdf-parse`'s bundled pdf.js cannot
+run inside a jest process, so that one step is stubbed in the integration suite
+and has no automated coverage anywhere. There are also no web or mobile unit
+tests.
+
+Continuous integration (`.github/workflows/ci.yml`) runs, on every push and PR:
+the dependency scan; the API build + unit tests + migrations + **integration
+tests** against a real pgvector service; the web production build; a **full-stack
+browser smoke test** that brings the whole stack up with `docker compose` and
+drives it with Playwright; and the mobile typecheck.
+
+The browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives
 login → cited answer → refusal → dose calculation → copy-protection →
-role-aware navigation against a running stack.
+role-aware navigation against a running stack. CI runs it against a stack
+started with `docker compose up -d --build`, so it also guards the quickstart
+above from regressing. To run it locally, bring the stack up and:
+
+```bash
+npx playwright install chromium
+node apps/web/e2e-smoke.mjs        # screenshots land in apps/web/e2e-shots/
+```
 
 ## Environment variables
 
@@ -217,6 +251,8 @@ See `.env.example`. Key ones:
 | `OPENAI_API_KEY` | — | required only for `openai` providers |
 | `RAG_MIN_SIMILARITY` | `0.25` | refusal threshold |
 | `RAG_TOP_K` / `RAG_FINAL_K` | `8` / `4` | retrieval / rerank depth |
+| `MAIL_PROVIDER` | `log` | `log` writes reset links to the app log; set `smtp` before real users |
+| `MAIL_HOST` / `MAIL_FROM` / `APP_BASE_URL` | — | `MAIL_HOST` required for `smtp`; reset links resolve against `APP_BASE_URL` (defaults to the first `CORS_ORIGINS` entry) |
 | `SEED_ON_BOOT` | `true` (docker) | seed demo data on API start |
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | change-me | **must** be rotated in production |
 
@@ -224,7 +260,10 @@ See `.env.example`. Key ones:
 
 See **[SECURITY.md](SECURITY.md)** for the full control list and operational
 requirements, and **[docs/production-readiness.md](docs/production-readiness.md)**
-for the pilot/production launch checklist. Highlights:
+for the pilot/production launch checklist — including a "Path to Production"
+runbook table naming, for every item still open, whether it's an engineering
+task or requires the hospital operator's own credentials/infrastructure/
+institutional process. Highlights:
 
 - **Production secret fail-fast**: with `NODE_ENV=production` the API refuses to
   boot if any JWT secret, DB password or S3 secret is missing or left at a
@@ -239,11 +278,17 @@ for the pilot/production launch checklist. Highlights:
   `AUTH_MAX_FAILED_ATTEMPTS` failed logins — blocking even a correct password.
 - **Self-service password reset**: `POST /auth/forgot-password` (no account
   enumeration) and `POST /auth/reset-password` (single-use token bound to
-  `token_version`; rotating the password invalidates every session).
+  `token_version`; rotating the password invalidates every session). The link
+  is **emailed** — set `MAIL_PROVIDER=smtp` with `MAIL_HOST` before onboarding
+  real users. The default `log` provider writes the link to the application
+  log instead of sending it, so the flow works with no mail server but reaches
+  nobody; production warns rather than refusing to boot.
 - **Safe errors**: a global exception filter returns a uniform envelope and
   never leaks internal 5xx details in production.
 - **RBAC**: 7 roles with a central permission matrix (`packages/shared`),
-  enforced by a global guard; roles/permissions are also persisted for admin UI.
+  enforced by a global guard. The matrix is the single source of truth — the
+  persisted `role_permissions` rows exist so the UI can display it and are
+  never consulted when authorizing a request.
 - **Refusal-first AI**: retrieval is hard-filtered to ACTIVE, non-expired
   document versions; sub-threshold matches refuse with the exact Arabic string;
   the mock LLM is extractive (cannot generate beyond context) and the OpenAI
@@ -265,23 +310,35 @@ for the pilot/production launch checklist. Highlights:
 - **Encryption at rest**: object storage is S3-compatible — enable SSE/KMS on
   MinIO or your cloud bucket; Postgres supports TDE/disk encryption at the
   infrastructure layer.
-- **Dependency vulnerability scanning**: CI fails on any critical `npm audit`
-  finding; 0 critical / 0 unpatchable-high remain (see SECURITY.md — the
-  residual moderate/high findings require a NestJS 11 / Next.js 15 migration).
+- **Dependency vulnerability scanning**: CI hard-fails on any **critical**
+  `npm audit` finding. As of the August 2026 audit there are **0 critical, 5
+  high and 9 moderate** findings; because the gate only blocks critical, the
+  five highs currently pass CI. Some are closeable without the NestJS 11 /
+  Next.js 15 majors — see `docs/production-readiness.md`.
+- **No public self-registration**: accounts are provisioned by an administrator
+  via `POST /users`. Roles are read-only over the API — permissions live in
+  `packages/shared/src/rbac.ts`, which is what the guard actually enforces.
 
 ## Deployment notes
 
-- `infra/k8s/` contains reference Deployments/Services and a Secret template;
-  add an Ingress with TLS, point the env at a managed PostgreSQL (with the
-  `vector` extension) and an S3 bucket, and set `SEED_ON_BOOT=false`.
+- `infra/k8s/` contains reference Deployments/Services, an `ingress.yaml`
+  (cert-manager TLS, two hosts) and a Secret template; point the env at a
+  managed PostgreSQL (with the `vector` extension) and an S3 bucket, generate
+  real secrets, and set `SEED_ON_BOOT=false`. See `infra/k8s/README.md` for
+  the full checklist, including what the manifests deliberately don't cover.
+- The API exposes `/health` (liveness, dependency-free) and `/health/ready`
+  (readiness — checks Postgres and object storage, 503 if either is down);
+  both k8s Deployments and `docker-compose.yml` probe them.
 - Images build from `infra/docker/Dockerfile.api` and `Dockerfile.web`.
+  CI builds both on every push (the smoke job) but pushes to no registry —
+  point it at yours before deploying.
 - Scale-out: the API is stateless (JWT), so replicas are safe; the near-expiry
   cron should be limited to a single replica or moved to a Job in production.
 
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) — system + RAG flow diagrams
-- [docs/database-schema.md](docs/database-schema.md) — all 16 tables
+- [docs/database-schema.md](docs/database-schema.md) — all 17 tables
 - [docs/api.md](docs/api.md) — REST endpoint reference
 
 ## Disclaimer

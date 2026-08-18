@@ -1,7 +1,8 @@
 // Pin lockout threshold before AuthService first calls loadEnv().
 process.env.AUTH_MAX_FAILED_ATTEMPTS = '3';
 process.env.AUTH_LOCKOUT_MINUTES = '15';
-delete process.env.NODE_ENV; // ensure non-production (reset token returned)
+delete process.env.NODE_ENV;
+delete process.env.AUTH_DEV_RETURN_RESET_TOKEN;
 
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
@@ -30,22 +31,26 @@ function makeService(user: User | null) {
     findOne: jest.fn().mockResolvedValue(user),
     save: jest.fn(async (u: User) => u),
   };
-  const roles = { findOne: jest.fn() };
   const jwt = {
     sign: jest.fn(() => 'signed.jwt.token'),
     verify: jest.fn(),
   };
   const audit = { record: jest.fn() };
-  const mail = { sendQuietly: jest.fn().mockResolvedValue(undefined) };
+  const mail = {
+    name: 'smtp',
+    sendQuietly: jest.fn().mockResolvedValue(undefined),
+  };
   const service = new AuthService(
     users as never,
-    roles as never,
     jwt as never,
     audit as never,
     mail as never,
   );
   return { service, users, jwt, audit, mail };
 }
+
+/** Delivery is fire-and-forget, so let its promise chain settle. */
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('Account lockout', () => {
   it('locks the account after the configured number of failed attempts', async () => {
@@ -84,18 +89,98 @@ describe('Account lockout', () => {
 });
 
 describe('Password reset', () => {
-  it('forgot-password returns a reset token outside production (no enumeration otherwise)', async () => {
+  it('forgot-password NEVER returns the reset token by default', async () => {
+    // Regression: the token used to be returned whenever NODE_ENV !== 'production'.
+    // NODE_ENV is unset here — exactly the shipped-k8s case — and the public
+    // endpoint must still disclose nothing, or knowing an email is enough to
+    // take over the account.
     const user = makeUser();
     const { service } = makeService(user);
     const res = await service.forgotPassword('nurse@bnp.health');
-    expect(res.requested).toBe(true);
-    expect((res as any).resetToken).toBe('signed.jwt.token');
+    expect(res).toEqual({ requested: true });
+    expect((res as any).resetToken).toBeUndefined();
+  });
+
+  it('returns the token only under the explicit local-demo opt-in', async () => {
+    process.env.AUTH_DEV_RETURN_RESET_TOKEN = 'true';
+    try {
+      const { service } = makeService(makeUser());
+      const res = await service.forgotPassword('nurse@bnp.health');
+      expect((res as any).resetToken).toBe('signed.jwt.token');
+    } finally {
+      delete process.env.AUTH_DEV_RETURN_RESET_TOKEN;
+    }
+  });
+
+  it('refuses the opt-in in production even when the flag is set', async () => {
+    // `isProduction` is bound at module load, so reload the module graph with
+    // NODE_ENV=production to exercise the second half of the guard.
+    process.env.AUTH_DEV_RETURN_RESET_TOKEN = 'true';
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'test-non-default-secret';
+    process.env.JWT_REFRESH_SECRET = 'test-non-default-refresh';
+    process.env.POSTGRES_PASSWORD = 'test-non-default-db';
+    process.env.S3_SECRET_KEY = 'test-non-default-s3';
+    process.env.MAIL_PROVIDER = 'none'; // production must declare one
+    try {
+      let res: unknown;
+      await jest.isolateModulesAsync(async () => {
+        const { AuthService: ProdAuthService } = require('./auth.service');
+        const user = makeUser();
+        const service = new ProdAuthService(
+          { findOne: jest.fn().mockResolvedValue(user), save: jest.fn(async (u: User) => u) },
+          { sign: jest.fn(() => 'signed.jwt.token'), verify: jest.fn() },
+          { record: jest.fn() },
+          { name: 'smtp', sendQuietly: jest.fn().mockResolvedValue(undefined) },
+        );
+        res = await service.forgotPassword('nurse@bnp.health');
+      });
+      expect(res).toEqual({ requested: true });
+    } finally {
+      delete process.env.AUTH_DEV_RETURN_RESET_TOKEN;
+      delete process.env.NODE_ENV;
+      delete process.env.JWT_SECRET;
+      delete process.env.JWT_REFRESH_SECRET;
+      delete process.env.POSTGRES_PASSWORD;
+      delete process.env.S3_SECRET_KEY;
+      delete process.env.MAIL_PROVIDER;
+    }
   });
 
   it('forgot-password on an unknown email still returns requested:true with no token', async () => {
-    const { service } = makeService(null);
+    const { service, mail } = makeService(null);
     const res = await service.forgotPassword('ghost@bnp.health');
     expect(res).toEqual({ requested: true });
+    await flush();
+    expect(mail.sendQuietly).not.toHaveBeenCalled();
+  });
+
+  it('emails a reset link carrying the token to the account holder', async () => {
+    const user = makeUser();
+    const { service, mail } = makeService(user);
+    await service.forgotPassword('nurse@bnp.health');
+    await flush();
+
+    expect(mail.sendQuietly).toHaveBeenCalledTimes(1);
+    const message = mail.sendQuietly.mock.calls[0][0];
+    expect(message.to).toBe('nurse@bnp.health');
+    expect(message.text).toContain('/login/forgot?token=signed.jwt.token');
+  });
+
+  it('does not await delivery, so a slow relay cannot time the response', async () => {
+    // sendQuietly already keeps the *status* uniform, but awaiting it would
+    // still make a request for a real account take an SMTP round trip longer
+    // than one for an address that does not exist — an enumeration oracle in
+    // the timing rather than the body.
+    const user = makeUser();
+    const { service, mail } = makeService(user);
+    let release: () => void = () => undefined;
+    mail.sendQuietly.mockReturnValue(new Promise<void>((r) => { release = r; }));
+
+    await expect(service.forgotPassword('nurse@bnp.health')).resolves.toEqual({
+      requested: true,
+    });
+    release();
   });
 
   it('emails a reset link containing the token when the account exists', async () => {

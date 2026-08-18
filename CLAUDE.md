@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (36), the only test suite
+npm test                      # API unit tests (90), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (32), real HTTP + real Postgres
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
 npm run dev:api               # API on :4000
@@ -26,6 +27,34 @@ Single test (run from repo root):
 npm test -w @bnp/api -- --testPathPattern=dose   # one spec file
 npm test -w @bnp/api -- -t "refus"               # tests matching a name
 ```
+
+### The two test suites are deliberately separate
+
+`apps/api/src/**/*.spec.ts` are unit tests: every repository is a `jest.fn()`,
+nothing touches the network or a database. Config lives in `package.json`
+(`rootDir: src`).
+
+`apps/api/test/**/*.e2e-spec.ts` are integration tests: real HTTP through the
+real `AppModule` — guards, `ValidationPipe`, exception filter and all — against
+a real PostgreSQL + pgvector. Config is `apps/api/jest-e2e.config.js`. They live
+*outside* `src/` on purpose: `.e2e-spec.ts` also matches the unit suite's
+`.*\.spec\.ts$` pattern, so keeping them out of `rootDir` is what stops the unit
+run from trying to execute them.
+
+They need a database. Point them at one with `E2E_POSTGRES_*` (host, port, user,
+password, db — defaults to `bnp_e2e`):
+
+```bash
+docker compose up -d postgres
+E2E_POSTGRES_DB=bnp_e2e npm run test:e2e -w @bnp/api
+```
+
+Only three things are faked, and each is a genuinely external boundary: S3
+storage (in-memory), SMTP (captured so specs can read the reset link), and PDF
+text extraction. That last one is **not** a choice — `pdf-parse`'s bundled
+pdf.js throws inside any jest process however it is loaded, so extraction is the
+one ingestion step with no automated coverage anywhere. It is exercised only by
+`npm run seed` and manual upload.
 
 Mobile (separate install, not an npm workspace):
 
@@ -72,7 +101,9 @@ Both LLM and embeddings are pluggable via `LLM_PROVIDER` / `EMBEDDING_PROVIDER` 
 
 ### RBAC
 
-`packages/shared/src/rbac.ts` is the single source of truth: 7 roles × permission matrix, seeded into the DB *and* enforced by `PermissionsGuard`. Change permissions there, not in controllers. Guard order is deliberate — Throttler → JwtAuth → Permissions — so unauthenticated floods are throttled before hitting auth. Use `@Public()` to opt out of auth and `@Permissions(...)` to require capabilities (both from `common/decorators.ts`).
+`packages/shared/src/rbac.ts` is the single source of truth: 7 roles × permission matrix. `PermissionsGuard` enforces the permissions `JwtStrategy` derives from that matrix and **never reads the database** — the seeded `roles`/`role_permissions` rows are a projection for the UI, not an input to authorization. That is why the roles API is read-only (`GET /roles` only): editing `role_permissions` would change nothing, so endpoints that appeared to do so were removed. Change permissions in `rbac.ts`, not in the DB and not in controllers. A role that exists only in the database grants nothing, since it has no entry in the matrix. Assigning *users* to roles (`POST /users`, `PATCH /users/:id`) is genuinely enforced, because roles travel in the JWT.
+
+There is no public self-registration; accounts are provisioned via `POST /users`. Guard order is deliberate — Throttler → JwtAuth → Permissions — so unauthenticated floods are throttled before hitting auth. Use `@Public()` to opt out of auth and `@Permissions(...)` to require capabilities (both from `common/decorators.ts`).
 
 `DOCUMENTS_DOWNLOAD` is deliberately withheld from `NURSE_USER` and `AUDITOR`: nurses read cited answers, they don't copy source PDFs.
 
@@ -95,6 +126,7 @@ Session lives in `localStorage`; `apps/web/src/lib/api.ts` wraps fetch with auto
 - **The `embedding` column is raw SQL, not TypeORM-managed.** pgvector inserts/queries in `indexing.service.ts` and `retrieval.service.ts` use parameterized raw SQL with a `[...]::vector` literal.
 - **TypeORM QueryBuilder takes entity property names, not DB column names** — `a.createdAt`, not `a.created_at`. Using the column name throws a confusing `Cannot read properties of undefined (reading 'databaseName')` at runtime, not compile time.
 - **Production fail-fast**: with `NODE_ENV=production`, `config/env.ts` refuses to boot if `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, or `S3_SECRET_KEY` is missing or left at its shipped default. This is intended — supply real secrets.
+- **`MAIL_PROVIDER` deliberately does NOT fail-fast.** It is `log` (default) or `smtp`; `smtp` requires `MAIL_HOST` or boot fails, but a production deploy left on `log` only warns. Mail is a degraded feature, not a security hole, and refusing to boot would take the whole clinical assistant offline over undelivered reset links. `log` writes the reset link into the application log, so it must not serve real users.
 - **`CORS_ORIGINS` must be set in production.** Empty means block all cross-origin browser calls, so the web app silently fails against the API.
 - **`NEXT_PUBLIC_API_URL` is baked in at Docker build time** (an `ARG` in `Dockerfile.web`), not read at runtime. Changing it requires a rebuild.
 

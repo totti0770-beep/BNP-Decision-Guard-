@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { loadEnv } from '../config/env';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { isProduction, loadEnv } from '../config/env';
+import { AuditService } from '../audit/audit.service';
 
 export interface MailMessage {
   to: string;
@@ -19,7 +20,13 @@ export interface MailProvider {
  * pilot operator can read the reset link out of the API logs.
  *
  * Not suitable for real users: anyone with log access can read reset links.
- * `config/env.ts` refuses to boot production with this provider selected.
+ * Production does NOT refuse to boot on this provider — see the rationale in
+ * `config/env.ts` (mail is a degraded feature, not a security hole, and
+ * refusing to start would take the whole clinical assistant offline over
+ * undelivered reset links). It emits a startup warning and, via
+ * `MailService.onApplicationBootstrap`, a permanent
+ * `MAIL:LOG_PROVIDER_IN_PRODUCTION` audit-trail entry, so a misconfigured
+ * relay stays discoverable after the console warning has scrolled away.
  */
 export class LogMailProvider implements MailProvider {
   readonly name = 'log';
@@ -69,11 +76,11 @@ export class SmtpMailProvider implements MailProvider {
 }
 
 @Injectable()
-export class MailService implements MailProvider {
+export class MailService implements MailProvider, OnApplicationBootstrap {
   private readonly logger = new Logger(MailService.name);
   private readonly provider: MailProvider;
 
-  constructor() {
+  constructor(private readonly audit: AuditService) {
     this.provider =
       loadEnv().mail.provider === 'smtp'
         ? new SmtpMailProvider()
@@ -82,6 +89,28 @@ export class MailService implements MailProvider {
 
   get name() {
     return this.provider.name;
+  }
+
+  /**
+   * `config/env.ts` already warns to stdout when production boots on the log
+   * provider. A console line is easy to miss once the API is running
+   * unattended, so this also leaves a permanent, queryable record in the
+   * governance audit trail — the same place a knowledge manager already
+   * checks for DOCUMENTS:EXPIRE and RAG:REINDEX events.
+   */
+  onApplicationBootstrap(): void {
+    if (isProduction && this.provider.name === 'log') {
+      this.audit.record({
+        action: 'MAIL:LOG_PROVIDER_IN_PRODUCTION',
+        resourceType: 'mail',
+        metadata: {
+          message:
+            'Password-reset links are written to the application log instead of ' +
+            'being delivered. Set MAIL_PROVIDER=smtp with MAIL_HOST before ' +
+            'onboarding real users.',
+        },
+      });
+    }
   }
 
   send(message: MailMessage): Promise<void> {

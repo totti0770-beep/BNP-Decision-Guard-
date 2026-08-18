@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -8,11 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
-import { permissionsForRoles, RoleName } from '@bnp/shared';
-import { Role, User } from '../entities';
+import { permissionsForRoles } from '@bnp/shared';
+import { User } from '../entities';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
-import { loadEnv } from '../config/env';
+import { isProduction, loadEnv } from '../config/env';
 
 export interface JwtPayload {
   sub: string;
@@ -26,9 +27,10 @@ export interface JwtPayload {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(Role) private readonly roles: Repository<Role>,
     private readonly jwt: JwtService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
@@ -228,9 +230,20 @@ export class AuthService {
    * Starts a password reset. Always returns the same shape regardless of
    * whether the email exists (no account enumeration). When the account does
    * exist, a short-lived reset token bound to the current token_version is
-   * signed and emailed as a link. Outside production the token is also
-   * returned directly so the flow works without a mail server; production
-   * never exposes it in the response.
+   * signed and emailed as a link.
+   *
+   * The token is NEVER returned to the caller unless an operator explicitly
+   * opts in with AUTH_DEV_RETURN_RESET_TOKEN=true. This endpoint is public, so
+   * returning it by default would let anyone who knows an email address take
+   * over that account. It previously keyed off `NODE_ENV !== 'production'`,
+   * which fails open: NODE_ENV is unset in the shipped k8s manifests, so a
+   * real deployment handed reset tokens to unauthenticated callers.
+   *
+   * Delivery is deliberately not awaited. sendQuietly() already stops a relay
+   * failure from changing the response *status*, but awaiting it still lets a
+   * real account be told apart from a nonexistent one by response time — the
+   * SMTP round trip only happens for accounts that exist. Firing and
+   * forgetting keeps both the status and the timing flat.
    */
   async forgotPassword(email: string, ip?: string) {
     const user = await this.users.findOne({
@@ -245,13 +258,12 @@ export class AuthService {
         actorId: user.id,
         actorEmail: user.email,
         action: 'AUTH:PASSWORD_RESET_REQUESTED',
+        metadata: { mailProvider: this.mail.name },
         ip,
       });
       const env = loadEnv();
       const link = `${env.appBaseUrl}/login/forgot?token=${encodeURIComponent(resetToken)}`;
-      // Awaited but never allowed to throw: a mail-relay outage must not turn
-      // this endpoint's timing or status into an account-existence oracle.
-      await this.mail.sendQuietly({
+      void this.mail.sendQuietly({
         to: user.email,
         subject: 'Reset your BNP Decision Guard password',
         text:
@@ -261,9 +273,8 @@ export class AuthService {
           `If you did not request this, you can ignore this message — your password stays unchanged.`,
       });
 
-      // Outside production the token is also returned so the flow is testable
-      // without a mail server. Production never exposes it in the response.
-      const includeToken = process.env.NODE_ENV !== 'production';
+      const includeToken =
+        process.env.AUTH_DEV_RETURN_RESET_TOKEN === 'true' && !isProduction;
       return { requested: true, ...(includeToken ? { resetToken } : {}) };
     }
     return { requested: true };
@@ -309,32 +320,4 @@ export class AuthService {
     return { reset: true };
   }
 
-  /** Self-registration always lands in the least-privileged NURSE_USER role. */
-  async register(email: string, password: string, fullName: string, ip?: string) {
-    const existing = await this.users.findOne({
-      where: { email: email.toLowerCase() },
-    });
-    if (existing) throw new BadRequestException('Email already registered');
-    if (password.length < 8)
-      throw new BadRequestException('Password must be at least 8 characters');
-
-    const nurseRole = await this.roles.findOne({
-      where: { name: RoleName.NURSE_USER },
-    });
-    const user = await this.users.save(
-      this.users.create({
-        email: email.toLowerCase(),
-        fullName,
-        passwordHash: await bcrypt.hash(password, 10),
-        roles: nurseRole ? [nurseRole] : [],
-      }),
-    );
-    this.audit.record({
-      actorId: user.id,
-      actorEmail: user.email,
-      action: 'AUTH:REGISTER',
-      ip,
-    });
-    return this.issueTokens(user);
-  }
 }

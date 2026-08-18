@@ -1,32 +1,29 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-} from '@nestjs/common';
-import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Controller, Get } from '@nestjs/common';
 import { Permission } from '@bnp/shared';
-import {
-  AuthenticatedUser,
-  CurrentUser,
-  Permissions,
-} from '../common/decorators';
+import { Permissions } from '../common/decorators';
 import { RolesService } from './roles.service';
 
-class CreateRoleDto {
-  @IsString() @IsNotEmpty() name: string;
-  @IsOptional() @IsString() description?: string;
-  @IsArray() permissions: string[];
-}
-
-class UpdateRoleDto {
-  @IsOptional() @IsString() description?: string;
-  @IsOptional() @IsArray() permissions?: string[];
-}
-
+/**
+ * Roles are read-only over the API.
+ *
+ * `packages/shared/src/rbac.ts` is the single source of truth for what each
+ * role may do: PermissionsGuard checks the permissions JwtStrategy derives
+ * from that matrix, and never reads the database. The roles and
+ * role_permissions tables exist so the UI can *show* the matrix and so users
+ * can be assigned to roles — they are not consulted when a request is
+ * authorized.
+ *
+ * This controller previously also exposed POST /roles and PATCH /roles/:id.
+ * Both wrote to role_permissions, returned success and emitted a
+ * ROLES:UPDATE_PERMISSIONS audit entry, while changing nothing about what any
+ * user could actually do. An access-control API that reports a change it did
+ * not make is worse than none, so they are gone. Change a role's permissions
+ * in rbac.ts, where the change is type-checked, test-covered and reviewed.
+ *
+ * Assigning users to roles is a different thing and still works: see
+ * POST /users and PATCH /users/:id, which are genuinely enforced because
+ * roles travel in the JWT.
+ */
 @Controller('roles')
 export class RolesController {
   constructor(private readonly roles: RolesService) {}
@@ -35,21 +32,5 @@ export class RolesController {
   @Permissions(Permission.ROLES_READ)
   findAll() {
     return this.roles.findAll();
-  }
-
-  @Post()
-  @Permissions(Permission.ROLES_MANAGE)
-  create(@Body() dto: CreateRoleDto, @CurrentUser() actor: AuthenticatedUser) {
-    return this.roles.create(dto, actor);
-  }
-
-  @Patch(':id')
-  @Permissions(Permission.ROLES_MANAGE)
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateRoleDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.roles.update(id, dto, actor);
   }
 }

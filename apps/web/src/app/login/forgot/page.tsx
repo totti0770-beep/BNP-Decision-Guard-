@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { API_URL } from '@/lib/api';
 import {
   Alert, Button, Field, Input } from '@/components/ui';
@@ -22,7 +23,8 @@ async function post(path: string, body: unknown) {
   return data;
 }
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [requested, setRequested] = useState(false);
   const [token, setToken] = useState('');
@@ -31,6 +33,17 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Arriving from the emailed link: the token is in the query string, so the
+  // request step is already behind the user — skip straight to choosing a
+  // password rather than making them paste anything.
+  const linkToken = searchParams.get('token');
+  useEffect(() => {
+    if (linkToken) {
+      setToken(linkToken);
+      setRequested(true);
+    }
+  }, [linkToken]);
+
   async function requestReset(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -38,8 +51,8 @@ export default function ForgotPasswordPage() {
     try {
       const data = await post('/auth/forgot-password', { email });
       setRequested(true);
-      // Outside production the API returns the token directly (no email
-      // delivery is wired yet); pre-fill it so the flow completes in one go.
+      // Only present when an operator sets AUTH_DEV_RETURN_RESET_TOKEN=true on
+      // a local install; normally the token arrives by email and never here.
       if (data.resetToken) setToken(data.resetToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
@@ -68,8 +81,9 @@ export default function ForgotPasswordPage() {
         <div className="mb-7 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Reset password</h1>
           <p className="mt-1 text-sm text-subtle">
-            Request a reset token, then choose a new password. Tokens are
-            single-use and expire quickly.
+            {linkToken
+              ? 'Choose a new password. This link is single-use and expires shortly.'
+              : 'Enter your email and we’ll send you a reset link. Links are single-use and expire shortly.'}
           </p>
         </div>
 
@@ -87,6 +101,7 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {!linkToken && (
             <form
               onSubmit={requestReset}
               className="space-y-4 rounded-panel border border-border bg-surface p-5 shadow-sm"
@@ -95,7 +110,7 @@ export default function ForgotPasswordPage() {
                 label="Email"
                 hint={
                   requested
-                    ? 'Requested. If the account exists, a token was issued — it is shown below on non-production installs; otherwise ask your administrator.'
+                    ? 'If that account exists, a reset link is on its way. Check your inbox, then follow the link. It expires shortly.'
                     : undefined
                 }
                 required
@@ -116,23 +131,28 @@ export default function ForgotPasswordPage() {
                 loading={busy && !requested}
                 disabled={!email}
               >
-                {requested ? 'Request again' : 'Request reset token'}
+                {requested ? 'Send again' : 'Send reset link'}
               </Button>
             </form>
+            )}
 
             <form
               onSubmit={resetPassword}
               className="space-y-4 rounded-panel border border-border bg-surface p-5 shadow-sm"
             >
-              <Field label="Reset token" required>
-                <Input
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  autoComplete="off"
-                  className="font-mono text-xs"
-                  required
-                />
-              </Field>
+              {/* Hidden when the token came from the link — there is nothing
+                  for the user to do with it but mistype it. */}
+              {!linkToken && (
+                <Field label="Reset token" required>
+                  <Input
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    autoComplete="off"
+                    className="font-mono text-xs"
+                    required
+                  />
+                </Field>
+              )}
               <Field label="New password" hint="At least 8 characters" required>
                 <Input
                   type="password"
@@ -169,5 +189,28 @@ export default function ForgotPasswordPage() {
         )}
       </div>
     </main>
+  );
+}
+
+/**
+ * useSearchParams opts the tree into client-side rendering, which Next
+ * requires a Suspense boundary for — without one the whole route fails to
+ * prerender at build time.
+ */
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main
+          className="flex min-h-screen items-center justify-center bg-bg p-4 text-sm text-subtle"
+          role="status"
+          aria-live="polite"
+        >
+          Loading…
+        </main>
+      }
+    >
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

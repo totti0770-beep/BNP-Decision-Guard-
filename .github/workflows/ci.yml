@@ -62,6 +62,31 @@ jobs:
         run: npm test -w @bnp/api
       - name: Run migrations against Postgres
         run: node apps/api/dist/scripts/migrate.js
+      # Uses the `pg` client already in the dependency tree rather than
+      # assuming psql is on the runner image.
+      - name: Create integration-test database
+        run: |
+          node -e "
+          const { Client } = require('pg');
+          (async () => {
+            const c = new Client({ host: 'localhost', user: 'bnp', password: 'bnp_secret', database: 'postgres' });
+            await c.connect();
+            await c.query('CREATE DATABASE bnp_e2e').catch((e) => {
+              if (!/already exists/.test(e.message)) throw e;
+            });
+            await c.end();
+          })();
+          "
+      # Real HTTP through the real Nest wiring against real Postgres+pgvector:
+      # the guards, pipes and exception filter the unit suite has to mock away.
+      - name: Integration tests
+        run: npm run test:e2e -w @bnp/api
+        env:
+          E2E_POSTGRES_HOST: localhost
+          E2E_POSTGRES_PORT: 5432
+          E2E_POSTGRES_USER: bnp
+          E2E_POSTGRES_PASSWORD: bnp_secret
+          E2E_POSTGRES_DB: bnp_e2e
 
   web:
     name: Web — typecheck & build
@@ -78,6 +103,63 @@ jobs:
       - run: npm run build:shared
       - name: Build web
         run: npm run build -w @bnp/web
+
+  smoke:
+    name: Browser smoke — full stack via Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # Brings up postgres + minio + api + web exactly as the README's
+      # quickstart does. This doubles as a regression test for that quickstart:
+      # compose previously set NODE_ENV=production against the shipped default
+      # secrets, so `docker compose up --build` crash-looped on a clean clone
+      # and nothing in CI noticed.
+      - name: Start the stack
+        run: docker compose up -d --build
+      - name: Wait for the API to become healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4000/health > /dev/null; then
+              echo "API healthy after ${i}0s"; exit 0
+            fi
+            sleep 10
+          done
+          echo "API did not become healthy in time"; docker compose logs api; exit 1
+      - name: Wait for the web app
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/login > /dev/null; then
+              echo "Web up after ${i}0s"; exit 0
+            fi
+            sleep 10
+          done
+          echo "Web did not come up in time"; docker compose logs web; exit 1
+      - run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx --yes playwright install --with-deps chromium
+      # Drives login -> cited answer -> refusal -> dose calculation ->
+      # copy-protection -> role-aware navigation against the running stack.
+      - name: Run browser smoke
+        run: node apps/web/e2e-smoke.mjs
+        env:
+          E2E_SHOTS: ${{ github.workspace }}/e2e-shots
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: e2e-shots/
+          if-no-files-found: ignore
+      - name: Dump stack logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
 
   mobile:
     name: Mobile — typecheck

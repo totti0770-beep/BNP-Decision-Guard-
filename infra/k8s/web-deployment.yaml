@@ -15,6 +15,17 @@ spec:
         - name: web
           image: bnp-decision-guard/web:latest
           ports: [{ containerPort: 3000 }]
+          # /login is statically prerendered and does not call the API, so it
+          # reports whether *this* pod can serve — a probe that depended on the
+          # API would take the web tier down during an unrelated API outage.
+          readinessProbe:
+            httpGet: { path: /login, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /login, port: 3000 }
+            initialDelaySeconds: 20
+            periodSeconds: 20
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits: { cpu: 500m, memory: 512Mi }

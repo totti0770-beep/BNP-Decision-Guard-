@@ -1,0 +1,66 @@
+# Reference Ingress — TLS termination for the web app and the API.
+#
+# Two hosts rather than path-based routing on one host, because the browser
+# talks to the API directly: the web bundle carries an absolute API origin
+# baked in at image build time (NEXT_PUBLIC_API_URL, an ARG in Dockerfile.web).
+#
+# THE THREE ORIGINS BELOW MUST AGREE, or the app fails in ways that look
+# unrelated to networking:
+#   1. `api.your-hospital.example` here
+#   2. NEXT_PUBLIC_API_URL baked into the web image at build time
+#   3. CORS_ORIGINS on the API Deployment (must list the WEB origin)
+# Get (2) wrong and the browser calls the wrong host; get (3) wrong and every
+# call is blocked by CORS while the API itself looks perfectly healthy.
+#
+# Assumes an ingress-nginx controller and cert-manager. Adapt the class and
+# annotations to your cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bnp-web
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Clinical answers are small; this mainly bounds abuse.
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [app.your-hospital.example]
+      secretName: bnp-web-tls
+  rules:
+    - host: app.your-hospital.example
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bnp-web
+                port: { number: 80 }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bnp-api
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Must exceed the document upload cap the API enforces (25 MB) or large
+    # PDFs are rejected by the proxy before the API ever sees them.
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+    # PDF ingestion (extract -> chunk -> embed) runs inside the request.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [api.your-hospital.example]
+      secretName: bnp-api-tls
+  rules:
+    - host: api.your-hospital.example
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bnp-api
+                port: { number: 80 }

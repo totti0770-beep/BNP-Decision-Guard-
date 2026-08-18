@@ -1,7 +1,8 @@
 # REST API reference
 
-Base URL: `http://localhost:4000`. All endpoints except `/health` and `/auth/*`
-require `Authorization: Bearer <accessToken>` and the listed permission.
+Base URL: `http://localhost:4000`. All endpoints except `/health`,
+`/health/ready` and `/auth/*` require `Authorization: Bearer <accessToken>`
+and the listed permission.
 
 ## Auth
 
@@ -10,7 +11,12 @@ require `Authorization: Bearer <accessToken>` and the listed permission.
 | `POST /auth/login` | `{email, password}` | → tokens + user, or `{mfaRequired, mfaToken}` |
 | `POST /auth/mfa/verify` | `{mfaToken, code}` | TOTP verification → tokens |
 | `POST /auth/refresh` | `{refreshToken}` | → new token pair |
-| `POST /auth/register` | `{email, password, fullName}` | self-registration → NURSE_USER role |
+| `POST /auth/logout` | — | bumps `token_version`, revoking every outstanding refresh token |
+| `POST /auth/forgot-password` | `{email}` | always `{requested: true}`; emails a reset link, never returns the token, never reveals whether the email exists |
+| `POST /auth/reset-password` | `{token, newPassword}` | single-use, bound to `token_version` |
+
+There is **no public self-registration**. Accounts are provisioned by an
+administrator via `POST /users`, which assigns roles explicitly.
 
 ## Users & roles
 
@@ -21,8 +27,16 @@ require `Authorization: Bearer <accessToken>` and the listed permission.
 | `POST /users` `{email, password, fullName, roles[]}` | `users:manage` |
 | `PATCH /users/:id` `{fullName?, password?, isActive?, roles?}` | `users:manage` |
 | `DELETE /users/:id` (soft deactivate) | `users:manage` |
-| `GET /roles` | `roles:read` |
-| `POST /roles` / `PATCH /roles/:id` | `roles:manage` |
+| `GET /roles` | `roles:read` (read-only — see below) |
+
+Roles are **read-only over the API**. What a role may do is defined in
+`packages/shared/src/rbac.ts`, which is what `PermissionsGuard` actually
+enforces — the `role_permissions` table is a projection for display, never an
+input to authorization. Editing it would change nothing, so `POST /roles` and
+`PATCH /roles/:id` no longer exist. Change permissions in `rbac.ts`.
+
+Assigning *users* to roles is unaffected and takes effect immediately, because
+roles travel in the JWT: use `POST /users` and `PATCH /users/:id`.
 
 ## Documents & approval workflow
 
@@ -90,4 +104,5 @@ warning.
 | `GET /settings` | `settings:read` |
 | `PUT /settings/:key` `{value}` | `settings:manage` |
 | `GET /notifications` · `POST /notifications/:id/read` | `notifications:read` |
-| `GET /health` | public |
+| `GET /health` | public — liveness only, no dependency checks |
+| `GET /health/ready` | public — checks Postgres and object storage; 503 if either is unreachable |

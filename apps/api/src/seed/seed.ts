@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import {
   DoseFormulaStatus,
@@ -13,7 +13,7 @@ import {
   RoleName,
 } from '@bnp/shared';
 import { AppModule } from '../app.module';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { getDataSourceToken } from '@nestjs/typeorm';
 import {
   DoseFormula,
   PermissionEntity,
@@ -76,15 +76,21 @@ async function main() {
     logger: ['error', 'warn', 'log'],
   });
 
-  const users: Repository<User> = app.get(getRepositoryToken(User));
-  const roles: Repository<Role> = app.get(getRepositoryToken(Role));
-  const permissions: Repository<PermissionEntity> = app.get(
-    getRepositoryToken(PermissionEntity),
-  );
-  const settings: Repository<Setting> = app.get(getRepositoryToken(Setting));
-  const formulas: Repository<DoseFormula> = app.get(
-    getRepositoryToken(DoseFormula),
-  );
+  // Repositories come from the DataSource, not from Nest's per-module
+  // repository tokens. `app.get(getRepositoryToken(X))` only resolves while
+  // some module still lists X in a TypeOrmModule.forFeature([...]), which
+  // couples this standalone script to unrelated module wiring: making the
+  // roles API read-only dropped PermissionEntity from RolesModule and broke
+  // seeding, and because the container CMD tolerates a failed seed, the stack
+  // came up with no users at all. Entities are registered globally in
+  // data-source.ts, so going through the DataSource cannot drift.
+  const dataSource = app.get<DataSource>(getDataSourceToken());
+  const users: Repository<User> = dataSource.getRepository(User);
+  const roles: Repository<Role> = dataSource.getRepository(Role);
+  const permissions: Repository<PermissionEntity> =
+    dataSource.getRepository(PermissionEntity);
+  const settings: Repository<Setting> = dataSource.getRepository(Setting);
+  const formulas: Repository<DoseFormula> = dataSource.getRepository(DoseFormula);
   const documentsService = app.get(DocumentsService);
   const approvalService = app.get(ApprovalService);
   const storage = app.get(StorageService);

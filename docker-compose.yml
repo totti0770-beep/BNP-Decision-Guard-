@@ -63,8 +63,16 @@ services:
       minio:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      # This file is the local demo stack, and it ships the shipped-default
+      # secrets below. NODE_ENV=production here made the API's secret
+      # fail-fast refuse to boot, so `docker compose up --build` — the
+      # documented quickstart — never started. Point a real deployment at the
+      # k8s manifests (or override every secret) rather than flipping this.
+      NODE_ENV: ${NODE_ENV:-development}
       API_PORT: 4000
+      # Without this the API allows no browser origin and the web app on :3000
+      # is silently blocked from calling it.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-bnp}
@@ -78,6 +86,15 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-bnp_minio_secret}
       S3_BUCKET: ${S3_BUCKET:-bnp-documents}
       S3_FORCE_PATH_STYLE: "true"
+      # Demo default logs the reset link instead of sending it. Point this at
+      # a relay (MAIL_PROVIDER=smtp + MAIL_HOST) to exercise real delivery.
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-log}
+      MAIL_FROM: ${MAIL_FROM:-BNP Decision Guard <no-reply@bnp.health>}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-mock}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -88,6 +105,15 @@ services:
       SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
     ports:
       - "4000:4000"
+    # No curl/wget assumption on the alpine runtime image — node's own http
+    # client is always present. start_period covers migrate+seed running
+    # before the server even starts listening (SEED_ON_BOOT default is true).
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   web:
     build:
@@ -97,7 +123,8 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     container_name: bnp-web
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "3000:3000"
 

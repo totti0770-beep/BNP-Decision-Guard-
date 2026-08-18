@@ -13,7 +13,9 @@ export enum Permission {
   USERS_READ = 'users:read',
   USERS_MANAGE = 'users:manage',
   ROLES_READ = 'roles:read',
-  ROLES_MANAGE = 'roles:manage',
+  // No ROLES_MANAGE: role permissions are defined in this file, not at
+  // runtime, so there is nothing for such a permission to authorize. See
+  // ROLE_PERMISSIONS below and apps/api/src/roles/roles.controller.ts.
   // Documents
   DOCUMENTS_READ = 'documents:read',
   DOCUMENTS_UPLOAD = 'documents:upload',
@@ -50,10 +52,19 @@ const CLINICAL_READ: Permission[] = [
 ];
 
 /**
- * Central RBAC matrix. Seeded into the database and enforced by the API
- * PermissionsGuard. Note: DOCUMENTS_DOWNLOAD is deliberately withheld from
- * NURSE_USER and AUDITOR — nurses read answers with citations, they do not
- * copy source PDFs.
+ * Central RBAC matrix — the SINGLE source of truth for what a role may do.
+ *
+ * PermissionsGuard authorizes against the permissions JwtStrategy derives from
+ * this matrix via permissionsForRoles(); it never reads the database. The
+ * matrix is also seeded into roles/role_permissions, but only so the UI can
+ * display it — those rows are a projection, not an input. Editing them changes
+ * nothing, which is why the roles API is read-only.
+ *
+ * Consequence worth knowing: a role created directly in the database grants no
+ * permissions at all, because it has no entry here. Add roles here first.
+ *
+ * Note: DOCUMENTS_DOWNLOAD is deliberately withheld from NURSE_USER and
+ * AUDITOR — nurses read answers with citations, they do not copy source PDFs.
  */
 export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   [RoleName.SUPER_ADMIN]: ALL_PERMISSIONS,
@@ -62,7 +73,6 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.USERS_READ,
     Permission.USERS_MANAGE,
     Permission.ROLES_READ,
-    Permission.ROLES_MANAGE,
     Permission.DOCUMENTS_UPLOAD,
     Permission.DOCUMENTS_MANAGE,
     Permission.DOCUMENTS_DOWNLOAD,

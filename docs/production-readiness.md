@@ -17,20 +17,78 @@ production. Use this as the launch checklist.
 > sign-off**. The web UI is English-only while mobile is Arabic-first —
 > a deliberate inversion to revisit before a nurse-facing pilot.
 
+> **Audit update (Aug 2026, second pass).** A read-only engineering baseline
+> scored the platform **63/100** overall: MVP ready, pilot blocked, production
+> not ready. It found the engineering sound but the shipped *configuration*
+> unsafe, and the following have since been fixed:
+>
+> - `POST /auth/forgot-password` returned a valid reset token to any
+>   unauthenticated caller whenever `NODE_ENV` was not exactly `production` —
+>   and the k8s manifests never set it. Account takeover from a known email.
+> - `docker compose up --build` could not start the API at all: compose set
+>   `NODE_ENV=production` alongside the shipped default secrets the fail-fast
+>   rejects. Neither compose nor k8s passed `CORS_ORIGINS`.
+> - Upload trusted the client's `Content-Type` with no magic-byte check.
+> - Public self-registration was **removed**; accounts are provisioned via
+>   `POST /users`.
+> - The roles API is now **read-only**. `rbac.ts` is the sole authorization
+>   input, so `POST /roles` and `PATCH /roles/:id` wrote to `role_permissions`,
+>   reported success and emitted a `ROLES:UPDATE_PERMISSIONS` audit entry while
+>   changing nothing. No shipped screen used them, but any API client would
+>   have been misled. `ROLES_MANAGE` was dropped from the matrix with them.
+>
+> - Email delivery landed independently on `main` (PR #13) while this branch
+>   was open. That implementation is canonical; this branch adopted it and
+>   contributed one fix on top — the send is no longer awaited, because an
+>   awaited SMTP round trip happens only for accounts that exist and so leaks
+>   by timing what the uniform response hides in the body.
+>
+> Still open, in impact order: **MFA enrollment** (no endpoint writes
+> `mfa_secret`), **observability**,
+> **integration/E2E tests** (none exist; no linter either), **backup + tested
+> restore**, **OCR for scanned PDFs**, the **Next 15 / NestJS 11 majors**, and
+> **compliance sign-off**. The web UI is English-only while mobile is
+> Arabic-first — revisit before a nurse-facing pilot.
+
+> **Audit update (Aug 2026, third pass).** Continuing the same branch: a real
+> `jest-e2e.config.js` now exists (it previously didn't, so `npm run
+> test:e2e` was a dead script despite CI provisioning a Postgres service for
+> it) — 32 integration tests hit real HTTP through the real `AppModule`
+> (guards, `ValidationPipe`, exception filter) against real Postgres+pgvector,
+> covering login/refresh/lockout/reset, the full document
+> upload→review→approve→index→ACTIVE lifecycle, and RBAC 403s at the HTTP
+> layer, not just in mocked unit tests. The browser smoke script
+> (`apps/web/e2e-smoke.mjs`) is now wired into CI against the full Docker
+> Compose stack — it had rotted from never being run: three stale selectors
+> and two assertions that only `console.log`-ed instead of failing (nurse
+> sees no download buttons, nurse sees no admin nav) are fixed. `/health` is
+> now liveness-only (no dependency checks — a slow Postgres must not make
+> Kubernetes restart a healthy pod); `/health/ready` is new and checks
+> Postgres and object storage, returning 503 with per-dependency detail when
+> either is unreachable, wired into `web-deployment.yaml`'s new probes and a
+> new `ingress.yaml`. All API logs are now structured JSON lines
+> (`{timestamp,level,context,message}`) via a custom Nest logger with no new
+> dependency — every existing `new Logger(...)` call site needed no changes.
+> Nothing ships those lines anywhere yet; that's still open below. Still
+> open, in impact order: **metrics/tracing/alerting** (no Prometheus/OTel/
+> Sentry), **MFA enrollment**, **backup + tested restore**, **OCR for scanned
+> PDFs**, the **Next 15 / NestJS 11 majors**, and **compliance sign-off**.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
 | --- | --- | --- | --- |
 | Core features (RAG, RBAC, audit, dose, workflow) | ✅ | ✅ | ✅ |
 | Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr; set `MAIL_PROVIDER=smtp`) |
-| Dependency vulnerability posture (0 critical, 0 unpatchable high) | ✅ | ✅ | 🟡 (12 findings gated on a NestJS 11 / Next.js 15 migration — see below) |
+| Dependency vulnerability posture | ✅ 0 critical | 🟡 5 high pass CI | 🟡 (14 findings: 5 high, 9 moderate — see below) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 32 API + 7-step browser flow, both gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
 | Approved clinical content corpus | 🔴 synthetic | ✅ real, governed | ✅ |
 | High availability (HA Postgres, replicas, HPA, Ingress+TLS) | ➖ | 🟡 | ✅ required |
-| Observability (logs/metrics/traces/alerts) | ➖ | 🟡 | ✅ required |
+| Observability (logs/metrics/traces/alerts) | 🟡 structured JSON logs + liveness/readiness | 🟡 | ✅ required |
 | Compliance (CBAHI/HIPAA, pen-test, DPIA, BAA) | ➖ | 🟡 in progress | ✅ signed off |
 | DR / backup / restore runbook | ➖ | 🟡 | ✅ required |
 
@@ -83,10 +141,18 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    production boots either way (mail is a degraded feature, not a security
    hole) but logs a warning while log-only. Reset links resolve against
    `APP_BASE_URL`, which falls back to the first `CORS_ORIGINS` entry.
+   Remaining: point it at the hospital's real relay and confirm deliverability
+   (SPF/DKIM on the `MAIL_FROM` domain). The message is English-only, which is
+   worth revisiting for Arabic-speaking nursing staff.
 
 ## Fastest path to PRODUCTION
 
-1. **Framework major-version migration** — 12 remaining npm audit findings (1
+1. **Framework major-version migration** — as of the August 2026 audit the
+   count is **14 findings (5 high, 9 moderate, 0 critical)**, not the 12 below;
+   the highs are in `next`, `js-yaml`, `nanoid`, `postcss` and
+   `brace-expansion`, and all five pass CI because the gate only hard-fails on
+   critical. Verify which are genuinely major-gated before deferring them all.
+   Historical note — 12 remaining npm audit findings (1
    high: residual Next.js 14 DoS/XSS/SSRF advisories only fixed in Next 15.5+;
    11 moderate: NestJS 10→11 transitive advisories in `express`/`body-parser`/
    `qs`/`uuid`) are only closeable by upgrading **Next.js 14→15** and
@@ -98,14 +164,43 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
 2. **HA infrastructure** — managed PostgreSQL 16 with `vector`, object store
    with SSE/KMS, API replicas behind an Ingress with TLS + HPA; move the
    near-expiry cron to a singleton Job.
-3. **Observability** — structured JSON logs shipped to a store, metrics +
-   dashboards, error tracking, on-call alerting on refusal-rate spikes and 5xx.
+3. **Observability** — logs are structured JSON already (nothing to change in
+   the app); still needed: ship those lines to a store, metrics + dashboards,
+   error tracking, on-call alerting on refusal-rate spikes and 5xx.
 4. **Security sign-off** — external penetration test, centralised secret
    management, DPIA.
 5. **Compliance** — CBAHI/HIPAA controls mapping, BAAs with any external AI
    vendor, data-retention and audit-export policies.
 6. **Resilience** — automated backups, tested restore runbook, load test to
    target concurrency, blue/green or rolling deploy strategy.
+
+## Path to Production — Operator Runbook
+
+Everything above is prose spread across three audit passes. This table is
+the single checklist: every item still standing between this codebase and a
+real clinical deployment, who owns closing it, and why it can't be closed by
+more autonomous engineering work in this repository. "Hospital operator"
+means your organization — a credential, a decision, or a real-world process
+this session has no access to and, in several rows, should not have access
+to (a pen test on your own infrastructure without authorization is not
+something an AI agent should ever run itself).
+
+| Item | Owner | Why it can't be automated here |
+| --- | --- | --- |
+| Real approved clinical corpus | Hospital operator (knowledge managers + pharmacist/quality reviewers) | Requires real hospital policy PDFs and real clinical sign-off through the governed `DRAFT → … → ACTIVE` workflow — the seeded corpus is synthetic by design. |
+| Real SMTP relay + SPF/DKIM | Hospital operator (IT) | `MAIL_PROVIDER=smtp` is code-complete; needs a real mail domain, relay credentials, and DNS records this repo has no access to. |
+| Cloud / Kubernetes provisioning | Hospital operator (infra/cloud team) | Manifests in `infra/k8s/` are references, not a running cluster — needs a real managed Postgres+pgvector, object storage, and a cluster to apply them to. |
+| Container registry + CI image push | Hospital operator (platform team) | CI builds both images (the smoke job) but pushes to no registry — no registry credentials exist in this repo. |
+| Centralised secret management (Vault/KMS/SealedSecrets) | Hospital operator (platform team) | `secrets.example.yaml` is plaintext-in-base64 by design; wiring a real secret manager needs your cloud account. |
+| Log/metrics/tracing backend | Hospital operator (platform team) | Application logs are structured JSON already (this session's work) — shipping them to a store, plus Prometheus/OTel/Sentry, needs a provisioned backend. |
+| External penetration test | Hospital operator (security team) | Authorized security testing against your live deployment is not something to run against a repository in the abstract — needs your infrastructure and your authorization. |
+| CBAHI/HIPAA compliance sign-off, DPIA, vendor BAAs | Hospital operator (compliance/legal) | Regulatory sign-off is a human institutional process, not a code change. |
+| Apple/Google developer accounts | Hospital operator | Required for `eas build`/`eas submit` to produce signed, store-distributable mobile builds. |
+| Load testing against target concurrency | Hospital operator (platform team) | Needs a real, provisioned environment to load-test against — a laptop/CI run cannot represent production traffic. |
+| Backup + tested restore drill | Hospital operator (platform team) | Requires a real database instance and a rehearsed recovery process; nothing here has ever backed anything up. |
+| NestJS 10→11 / Next.js 14→15 major-version migration | Engineering (this codebase) | Not an operator item — semver-major breaking-change surface (Next: async `params`/`searchParams`; NestJS 11: Node floor, module resolution) needs a dedicated migration + regression pass, tracked as a non-blocking CI report in the meantime. |
+| MFA enrollment endpoint | Engineering (this codebase) | The verify/challenge path exists; no endpoint writes `mfa_secret` yet. Code work, not an operator dependency. |
+| OCR for scanned PDFs | Engineering (this codebase) | `pdf-parse` reads the text layer only; a scanned Arabic PDF indexes zero chunks. Code work. |
 
 ## Effort estimate
 
