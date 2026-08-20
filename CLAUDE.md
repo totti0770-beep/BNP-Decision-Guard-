@@ -132,6 +132,6 @@ Session lives in `localStorage`; `apps/web/src/lib/api.ts` wraps fetch with auto
 
 ## Docs
 
-`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`.
+`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`).
 
 CI (`.github/workflows/ci.yml`) runs a dependency-audit gate (hard-fails on critical), API build+test+migrations against a real pgvector service, web build, and mobile typecheck.

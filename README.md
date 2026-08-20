@@ -321,6 +321,9 @@ institutional process. Highlights:
 
 ## Deployment notes
 
+- **Live deployment**: a Railway project (`bnp-decisionguard`) runs this app today —
+  see `infra/railway/README.md` for services, healthchecks, and required env var
+  names. It auto-deploys on every push to `main`.
 - `infra/k8s/` contains reference Deployments/Services, an `ingress.yaml`
   (cert-manager TLS, two hosts) and a Secret template; point the env at a
   managed PostgreSQL (with the `vector` extension) and an S3 bucket, generate

@@ -30,7 +30,7 @@ move to distinct subdirectories with their own root-directory settings.
 | `postgres` | Railway's managed Postgres (pgvector-capable) | — (internal only) | Railway-managed |
 | `minio` | Railway template | — (internal only) | Railway-managed |
 | `api` | `infra/docker/Dockerfile.api` | `api-production-5f73.up.railway.app` (port 4000) | `GET /health` |
-| `web` | `infra/docker/Dockerfile.web` | `web-production-3a27.up.railway.app` (port 3000) | *(none configured — see Phase 8 follow-up)* |
+| `web` | `infra/docker/Dockerfile.web` | `web-production-3a27.up.railway.app` (port 3000) | `GET /login` |
 
 ## Required environment variables (names only — set real values in the Railway dashboard)
 
@@ -52,10 +52,6 @@ applies here. Verified agreeing as of this writing (API boot log:
 
 ## Known gaps versus the k8s reference manifests
 
-- No healthcheck configured on `web` (the `api` service has one; `web` doesn't).
-  Low risk today — Railway falls back to TCP-port-open checks — but doesn't confirm
-  the app actually serves a page. Track alongside `infra/k8s/web-deployment.yaml`'s
-  `/login` probe, which already does this correctly.
 - `EMBEDDING_PROVIDER`/`LLM_PROVIDER` are set to `openai` here (real AI, not the
   `mock` default used elsewhere in docs) — this deployment is exercising the real
   provider path, not the offline demo path.

@@ -74,6 +74,23 @@ production. Use this as the launch checklist.
 > Sentry), **MFA enrollment**, **backup + tested restore**, **OCR for scanned
 > PDFs**, the **Next 15 / NestJS 11 majors**, and **compliance sign-off**.
 
+> **Cycle 3 (Aug 2026).** This branch's earlier merge (PR #14) turned out to
+> already be live: a Railway project (`bnp-decisionguard`, documented in
+> `infra/railway/README.md`) auto-deploys `main` and is in active real use —
+> confirmed via Railway logs showing a real user logging in, browsing, and
+> exercising most nav routes. That traffic surfaced a genuine production
+> incident, since fixed: `POST /documents/:id/index` was failing with an
+> opaque `500` because the AI-provider HTTP client discarded the upstream
+> error body on failure. It now logs that detail server-side, so the actual
+> cause (parameter bug vs. Railway-side credential/billing issue) is
+> diagnosable on the next occurrence instead of invisible. `web`'s Railway
+> service also gained a `/login` healthcheck, matching `api`'s and the k8s
+> reference's `web-deployment.yaml`. Still open: everything below this note
+> was written before the live deployment was discovered, so read
+> "Cloud / Kubernetes provisioning" in the runbook table as **partially
+> resolved** — a real single-region, single-replica deployment exists, just
+> not the HA/multi-replica target that row originally meant.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
@@ -189,7 +206,7 @@ something an AI agent should ever run itself).
 | --- | --- | --- |
 | Real approved clinical corpus | Hospital operator (knowledge managers + pharmacist/quality reviewers) | Requires real hospital policy PDFs and real clinical sign-off through the governed `DRAFT → … → ACTIVE` workflow — the seeded corpus is synthetic by design. |
 | Real SMTP relay + SPF/DKIM | Hospital operator (IT) | `MAIL_PROVIDER=smtp` is code-complete; needs a real mail domain, relay credentials, and DNS records this repo has no access to. |
-| Cloud / Kubernetes provisioning | Hospital operator (infra/cloud team) | Manifests in `infra/k8s/` are references, not a running cluster — needs a real managed Postgres+pgvector, object storage, and a cluster to apply them to. |
+| Cloud / Kubernetes provisioning | Hospital operator (infra/cloud team) | 🟡 Partially resolved — a real single-region, single-replica Railway deployment exists (`infra/railway/README.md`) with real Postgres+pgvector and object storage. `infra/k8s/` manifests remain references, not applied — needed for the HA/multi-replica target this row originally meant. |
 | Container registry + CI image push | Hospital operator (platform team) | CI builds both images (the smoke job) but pushes to no registry — no registry credentials exist in this repo. |
 | Centralised secret management (Vault/KMS/SealedSecrets) | Hospital operator (platform team) | `secrets.example.yaml` is plaintext-in-base64 by design; wiring a real secret manager needs your cloud account. |
 | Log/metrics/tracing backend | Hospital operator (platform team) | Application logs are structured JSON already (this session's work) — shipping them to a store, plus Prometheus/OTel/Sentry, needs a provisioned backend. |
