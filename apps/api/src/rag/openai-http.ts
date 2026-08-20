@@ -29,7 +29,15 @@ export async function openAiPost<T>(path: string, body: unknown): Promise<T> {
       });
       if (res.ok) return (await res.json()) as T;
 
+      // The response body (typically {"error":{"message","type","param","code"}})
+      // holds the only clue to *why* the provider rejected the request — model
+      // access, a bad param, an invalid key. Previously discarded, so every
+      // failure surfaced as an opaque "AI provider returned 400" with nothing
+      // to diagnose from. Logged server-side only; never reaches the client —
+      // the global exception filter still returns its own safe envelope.
+      const detail = await res.text().catch(() => '');
       lastError = new Error(`AI provider returned ${res.status} for ${path}`);
+      logger.warn(`${path} → ${res.status}: ${detail.slice(0, 2000)}`);
       if (!RETRYABLE_STATUS.has(res.status)) break;
       logger.warn(`Attempt ${attempt}: ${path} → ${res.status}, ${attempt === 1 ? 'retrying' : 'giving up'}`);
     } catch (err) {
