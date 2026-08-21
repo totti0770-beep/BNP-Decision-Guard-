@@ -2,6 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useT } from '@/lib/language';
+import { LanguageToggle } from '@/components/language-toggle';
 import { useSearchParams } from 'next/navigation';
 import { API_URL } from '@/lib/api';
 import {
@@ -24,6 +26,7 @@ async function post(path: string, body: unknown) {
 }
 
 function ForgotPasswordForm() {
+  const t = useT();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [requested, setRequested] = useState(false);
@@ -78,25 +81,24 @@ function ForgotPasswordForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg p-4">
       <div className="w-full max-w-sm">
+        <div className="mb-2 flex justify-end">
+          <LanguageToggle />
+        </div>
         <div className="mb-7 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Reset password</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('resetPassword')}</h1>
           <p className="mt-1 text-sm text-subtle">
-            {linkToken
-              ? 'Choose a new password. This link is single-use and expires shortly.'
-              : 'Enter your email and we’ll send you a reset link. Links are single-use and expire shortly.'}
+            {linkToken ? t('resetIntroChoose') : t('resetIntroRequest')}
           </p>
         </div>
 
         {done ? (
           <div className="rounded-panel border border-border bg-surface p-5 text-center shadow-sm">
-            <p className="text-sm text-text">
-              Password updated. Every previous session has been signed out.
-            </p>
+            <p className="text-sm text-text">{t('passwordUpdated')}</p>
             <Link
               href="/login"
               className="mt-3 inline-block text-sm text-primary underline-offset-4 hover:underline"
             >
-              Back to sign in
+              {t('backToSignIn')}
             </Link>
           </div>
         ) : (
@@ -107,12 +109,8 @@ function ForgotPasswordForm() {
               className="space-y-4 rounded-panel border border-border bg-surface p-5 shadow-sm"
             >
               <Field
-                label="Email"
-                hint={
-                  requested
-                    ? 'If that account exists, a reset link is on its way. Check your inbox, then follow the link. It expires shortly.'
-                    : undefined
-                }
+                label={t('email')}
+                hint={requested ? t('resetLinkSentHint') : undefined}
                 required
               >
                 <Input
@@ -131,7 +129,7 @@ function ForgotPasswordForm() {
                 loading={busy && !requested}
                 disabled={!email}
               >
-                {requested ? 'Send again' : 'Send reset link'}
+                {requested ? t('sendAgain') : t('sendResetLink')}
               </Button>
             </form>
             )}
@@ -143,7 +141,7 @@ function ForgotPasswordForm() {
               {/* Hidden when the token came from the link — there is nothing
                   for the user to do with it but mistype it. */}
               {!linkToken && (
-                <Field label="Reset token" required>
+                <Field label={t('resetToken')} required>
                   <Input
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
@@ -153,7 +151,7 @@ function ForgotPasswordForm() {
                   />
                 </Field>
               )}
-              <Field label="New password" hint="At least 8 characters" required>
+              <Field label={t('newPassword')} hint={t('atLeast8Chars')} required>
                 <Input
                   type="password"
                   autoComplete="new-password"
@@ -173,7 +171,7 @@ function ForgotPasswordForm() {
                 loading={busy && requested}
                 disabled={!token || newPassword.length < 8}
               >
-                Set new password
+                {t('setNewPassword')}
               </Button>
             </form>
 
@@ -182,7 +180,7 @@ function ForgotPasswordForm() {
                 href="/login"
                 className="underline-offset-4 hover:underline"
               >
-                Back to sign in
+                {t('backToSignIn')}
               </Link>
             </p>
           </div>

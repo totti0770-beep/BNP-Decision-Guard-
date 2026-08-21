@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { API_URL, setSession } from '@/lib/api';
+import { useT } from '@/lib/language';
+import { LanguageToggle } from '@/components/language-toggle';
 import {
   Alert, Button, Field, Input } from '@/components/ui';
 
 export default function LoginPage() {
+  const t = useT();
   const [email, setEmail] = useState('nurse@bnp.health');
   const [password, setPassword] = useState('');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
@@ -33,7 +36,7 @@ export default function LoginPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Login failed');
+      if (!res.ok) throw new Error(data.message ?? t('loginFailed'));
       if (data.mfaRequired) {
         setMfaToken(data.mfaToken);
         setMfaCode('');
@@ -43,7 +46,7 @@ export default function LoginPage() {
         window.location.href = '/dashboard';
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : t('loginFailed'));
     } finally {
       setBusy(false);
     }
@@ -52,6 +55,9 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg p-4">
       <div className="w-full max-w-sm">
+        <div className="mb-2 flex justify-end">
+          <LanguageToggle />
+        </div>
         <div className="mb-7 text-center">
           <div
             className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-card bg-primary text-xl font-semibold text-primary-fg"
@@ -59,10 +65,8 @@ export default function LoginPage() {
           >
             B
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">BNP Decision Guard</h1>
-          <p className="mt-1 text-sm text-subtle">
-            Knowledge governance and authorized decision platform
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('appName')}</h1>
+          <p className="mt-1 text-sm text-subtle">{t('loginTagline')}</p>
         </div>
 
         <form
@@ -71,7 +75,7 @@ export default function LoginPage() {
         >
           {!mfaToken ? (
             <>
-              <Field label="Email" required>
+              <Field label={t('email')} required>
                 <Input
                   type="email"
                   autoComplete="username"
@@ -81,7 +85,7 @@ export default function LoginPage() {
                   required
                 />
               </Field>
-              <Field label="Password" required>
+              <Field label={t('password')} required>
                 <Input
                   type="password"
                   autoComplete="current-password"
@@ -92,11 +96,7 @@ export default function LoginPage() {
               </Field>
             </>
           ) : (
-            <Field
-              label="Authentication code"
-              hint="6-digit code from your authenticator app"
-              required
-            >
+            <Field label={t('mfaCode')} hint={t('mfaHint')} required>
               <Input
                 ref={mfaRef}
                 value={mfaCode}
@@ -119,7 +119,7 @@ export default function LoginPage() {
             loading={busy}
             disabled={mfaToken ? mfaCode.length < 6 : !email || !password}
           >
-            {mfaToken ? 'Verify code' : 'Sign in'}
+            {mfaToken ? t('verifyCode') : t('signIn')}
           </Button>
 
           {mfaToken && (
@@ -131,7 +131,7 @@ export default function LoginPage() {
               }}
               className="w-full text-center text-xs text-muted underline-offset-4 hover:underline"
             >
-              Back to sign in
+              {t('backToSignIn')}
             </button>
           )}
         </form>
@@ -141,7 +141,7 @@ export default function LoginPage() {
             href="/login/forgot"
             className="underline-offset-4 hover:underline"
           >
-            Forgot password?
+            {t('forgotPassword')}
           </a>
         </p>
         <p className="mt-2 text-center text-xs text-subtle">
