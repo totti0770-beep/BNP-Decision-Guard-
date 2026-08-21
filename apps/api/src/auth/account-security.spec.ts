@@ -6,6 +6,7 @@ delete process.env.AUTH_DEV_RETURN_RESET_TOKEN;
 
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { authenticator } from 'otplib';
 import { AuthService } from './auth.service';
 import { User } from '../entities';
 
@@ -216,5 +217,100 @@ describe('Password reset', () => {
     expect(user.tokenVersion).toBe(4); // bumped → old refresh/reset tokens void
     expect(user.lockedUntil).toBeNull();
     expect(bcrypt.compareSync('new-strong-password', user.passwordHash)).toBe(true);
+  });
+});
+
+describe('MFA enrolment', () => {
+  /** Derives a currently-valid TOTP code for a secret, like a real app would. */
+  function currentCode(secret: string): string {
+    return authenticator.generate(secret);
+  }
+
+  it('enroll stores a secret but leaves MFA off until a code is verified', async () => {
+    const user = makeUser();
+    const { service } = makeService(user);
+
+    const res = await service.enrollMfa('u1');
+
+    expect(res.secret).toEqual(expect.any(String));
+    expect(res.otpauthUrl).toContain('otpauth://totp/');
+    expect(res.otpauthUrl).toContain('BNP%20Decision%20Guard');
+    expect(user.mfaSecret).toBe(res.secret);
+    // The point of the two-step flow: a scanned-but-unconfirmed secret must
+    // not start gating logins, or a bad scan locks the user out.
+    expect(user.mfaEnabled).toBe(false);
+  });
+
+  it('refuses to re-enroll while MFA is on, which would lock the user out', async () => {
+    // Overwriting the secret while mfaEnabled stays true would leave login
+    // verifying against a secret the user's app has never seen.
+    const user = makeUser({ mfaEnabled: true, mfaSecret: 'EXISTINGSECRET234' });
+    const { service } = makeService(user);
+
+    await expect(service.enrollMfa('u1')).rejects.toThrow(/already enabled/i);
+    expect(user.mfaSecret).toBe('EXISTINGSECRET234');
+  });
+
+  it('enable turns MFA on when the code matches the enrolled secret', async () => {
+    const user = makeUser();
+    const { service, audit } = makeService(user);
+    const { secret } = await service.enrollMfa('u1');
+
+    const res = await service.enableMfa('u1', currentCode(secret));
+
+    expect(res).toEqual({ mfaEnabled: true });
+    expect(user.mfaEnabled).toBe(true);
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'AUTH:MFA_ENABLED' }),
+    );
+  });
+
+  it('enable rejects a wrong code and leaves MFA off', async () => {
+    const user = makeUser();
+    const { service } = makeService(user);
+    await service.enrollMfa('u1');
+
+    await expect(service.enableMfa('u1', '000000')).rejects.toThrow(/invalid mfa code/i);
+    expect(user.mfaEnabled).toBe(false);
+  });
+
+  it('enable refuses when no enrolment has been started', async () => {
+    const { service } = makeService(makeUser());
+    await expect(service.enableMfa('u1', '123456')).rejects.toThrow(/enrol/i);
+  });
+
+  it('disable requires the account password, not just a session', async () => {
+    const user = makeUser({ mfaEnabled: true, mfaSecret: 'EXISTINGSECRET234' });
+    const { service } = makeService(user);
+
+    // A stolen access token alone must not be enough to strip the 2nd factor.
+    await expect(service.disableMfa('u1', 'wrong-password')).rejects.toThrow(
+      /invalid password/i,
+    );
+    expect(user.mfaEnabled).toBe(true);
+    expect(user.mfaSecret).toBe('EXISTINGSECRET234');
+  });
+
+  it('disable clears both the flag and the secret with the right password', async () => {
+    const user = makeUser({ mfaEnabled: true, mfaSecret: 'EXISTINGSECRET234' });
+    const { service } = makeService(user);
+
+    const res = await service.disableMfa('u1', 'correct-password');
+
+    expect(res).toEqual({ mfaEnabled: false });
+    expect(user.mfaEnabled).toBe(false);
+    expect(user.mfaSecret).toBeNull();
+  });
+
+  it('a full enroll -> enable cycle makes login demand the second factor', async () => {
+    const user = makeUser();
+    const { service } = makeService(user);
+    const { secret } = await service.enrollMfa('u1');
+    await service.enableMfa('u1', currentCode(secret));
+
+    const result = await service.login('nurse@bnp.health', 'correct-password');
+
+    expect(result).toMatchObject({ mfaRequired: true });
+    expect(result).not.toHaveProperty('accessToken');
   });
 });

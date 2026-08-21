@@ -14,9 +14,17 @@ and the listed permission.
 | `POST /auth/logout` | — | bumps `token_version`, revoking every outstanding refresh token |
 | `POST /auth/forgot-password` | `{email}` | always `{requested: true}`; emails a reset link, never returns the token, never reveals whether the email exists |
 | `POST /auth/reset-password` | `{token, newPassword}` | single-use, bound to `token_version` |
+| `POST /auth/mfa/enroll` | — | **authenticated.** Mints a TOTP secret → `{secret, otpauthUrl}`. Does *not* turn MFA on. Refused if MFA is already enabled — disable first. |
+| `POST /auth/mfa/enable` | `{code}` | **authenticated.** Verifies a live code against the enrolled secret, then turns MFA on. |
+| `POST /auth/mfa/disable` | `{password}` | **authenticated.** Requires the account password (a stolen session alone must not strip the second factor); clears both the flag and the secret. |
 
 There is **no public self-registration**. Accounts are provisioned by an
 administrator via `POST /users`, which assigns roles explicitly.
+
+MFA enrolment is deliberately two-step: `enroll` stores the secret but leaves
+`mfa_enabled` false, and only `enable` — which proves the authenticator app
+actually holds that secret — starts gating logins. A one-step design would lock
+out any user whose QR scan silently failed.
 
 ## Users & roles
 

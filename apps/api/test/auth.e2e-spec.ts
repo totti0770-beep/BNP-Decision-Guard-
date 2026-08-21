@@ -193,3 +193,106 @@ async function seedRolesAndUsersForExtraUser(ctx: E2eContext, email: string) {
     [user.id, role.id],
   );
 }
+
+describe('MFA enrolment over real HTTP', () => {
+  let ctx: E2eContext;
+  const MFA_USER = {
+    email: 'mfa@e2e.health',
+    password: 'MfaUser123!',
+    role: RoleName.NURSE_USER,
+  };
+
+  beforeAll(async () => {
+    await migrateE2eDatabase();
+    ctx = await createE2eApp();
+    await truncateAll(ctx.dataSource);
+    await seedRolesAndUsers(ctx.dataSource, [MFA_USER]);
+  });
+
+  afterAll(async () => {
+    await ctx?.close();
+  });
+
+  it('drives the full enroll -> enable -> login-challenged -> disable cycle', async () => {
+    const { authenticator } = await import('otplib');
+    const session = await login(ctx, MFA_USER.email, MFA_USER.password);
+
+    // Enrolment is authenticated: no token, no secret.
+    await ctx.http().post('/auth/mfa/enroll').expect(401);
+
+    const enrolled = await ctx
+      .http()
+      .post('/auth/mfa/enroll')
+      .set(auth(session.accessToken))
+      .expect(201);
+    expect(enrolled.body.secret).toEqual(expect.any(String));
+    expect(enrolled.body.otpauthUrl).toContain('otpauth://totp/');
+
+    // Still off until a real code proves the app holds the secret, so login
+    // must not be challenged yet.
+    const beforeEnable = await ctx
+      .http()
+      .post('/auth/login')
+      .send({ email: MFA_USER.email, password: MFA_USER.password })
+      .expect(201);
+    expect(beforeEnable.body.mfaRequired).toBe(false);
+
+    // A wrong code must not enable it.
+    await ctx
+      .http()
+      .post('/auth/mfa/enable')
+      .set(auth(session.accessToken))
+      .send({ code: '000000' })
+      .expect(401);
+
+    await ctx
+      .http()
+      .post('/auth/mfa/enable')
+      .set(auth(session.accessToken))
+      .send({ code: authenticator.generate(enrolled.body.secret) })
+      .expect(201);
+
+    // Now the password alone is no longer a full login.
+    const challenged = await ctx
+      .http()
+      .post('/auth/login')
+      .send({ email: MFA_USER.email, password: MFA_USER.password })
+      .expect(201);
+    expect(challenged.body.mfaRequired).toBe(true);
+    expect(challenged.body.mfaToken).toEqual(expect.any(String));
+    expect(challenged.body.accessToken).toBeUndefined();
+
+    // The half-authenticated token exchanges for a real session with a code.
+    const verified = await ctx
+      .http()
+      .post('/auth/mfa/verify')
+      .send({
+        mfaToken: challenged.body.mfaToken,
+        code: authenticator.generate(enrolled.body.secret),
+      })
+      .expect(201);
+    expect(verified.body.accessToken).toEqual(expect.any(String));
+
+    // Disabling needs the password, not just the session.
+    await ctx
+      .http()
+      .post('/auth/mfa/disable')
+      .set(auth(verified.body.accessToken))
+      .send({ password: 'not-the-password' })
+      .expect(401);
+
+    await ctx
+      .http()
+      .post('/auth/mfa/disable')
+      .set(auth(verified.body.accessToken))
+      .send({ password: MFA_USER.password })
+      .expect(201);
+
+    const afterDisable = await ctx
+      .http()
+      .post('/auth/login')
+      .send({ email: MFA_USER.email, password: MFA_USER.password })
+      .expect(201);
+    expect(afterDisable.body.mfaRequired).toBe(false);
+  });
+});

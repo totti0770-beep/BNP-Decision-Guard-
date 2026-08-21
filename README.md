@@ -34,7 +34,7 @@ docs/         Architecture, database schema, API reference
 
 **Stack**: PostgreSQL 16 + pgvector (embeddings + HNSW index), MinIO
 (S3-compatible PDF storage), NestJS 10, TypeORM, Next.js 14, Expo 51,
-JWT auth (+ refresh, TOTP/MFA-ready), Docker Compose.
+JWT auth (+ refresh, self-service TOTP MFA), Docker Compose.
 
 **RAG pipeline**: PDF → page-aware extraction → chunking → embeddings →
 pgvector → cosine retrieval (**restricted to ACTIVE, non-expired documents**)
@@ -190,8 +190,8 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test                        # 90 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 32 integration tests — real HTTP + real Postgres
+npm test                        # 102 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 33 integration tests — real HTTP + real Postgres
 ```
 
 **Unit** (`apps/api/src/**/*.spec.ts`) covers: the exact refusal contract,
@@ -303,8 +303,12 @@ institutional process. Highlights:
   `POST /chat/answers/:id/review`) lets the scientific committee
   (pharmacist/quality/knowledge manager) see every nurse's AI answers and
   approve or flag them — nurses cannot access either endpoint.
-- **MFA-ready**: TOTP flow (`/auth/mfa/verify`) is implemented; enable per-user
-  by setting `mfa_enabled` + secret.
+- **MFA (TOTP)**: self-service two-step enrolment — `POST /auth/mfa/enroll`
+  returns a secret + `otpauth://` URI without arming it, `POST /auth/mfa/enable`
+  arms it only after a live code proves the authenticator app holds it, and
+  `POST /auth/mfa/disable` requires the account password. Login then returns a
+  half-authenticated token exchangeable only at `/auth/mfa/verify`. Adoption is
+  per-user; there is no org-wide "require MFA" policy yet.
 - **HTTPS-ready**: the API and web containers sit behind whatever TLS
   terminator you deploy (see `infra/k8s/`); no HTTP-only assumptions in code.
 - **Encryption at rest**: object storage is S3-compatible — enable SSE/KMS on

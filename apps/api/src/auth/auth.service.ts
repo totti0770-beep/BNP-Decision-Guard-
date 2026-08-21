@@ -320,4 +320,109 @@ export class AuthService {
     return { reset: true };
   }
 
+  /**
+   * Step 1 of enrolment: mint a TOTP secret and hand back the otpauth:// URI
+   * for the user's authenticator app. Deliberately does NOT set mfaEnabled —
+   * an unverified secret must never gate login, or a user who scanned nothing
+   * (or scanned wrong) would lock themselves out on their next sign-in. Only
+   * enableMfa(), which proves possession by verifying a live code, flips it on.
+   *
+   * Re-enrolling while MFA is already on is refused rather than allowed to
+   * overwrite the secret. Overwriting would leave mfaEnabled true while the
+   * stored secret no longer matches the app the user actually has enrolled,
+   * locking them out at the next login — the exact failure this split-step
+   * design exists to prevent. Disable first (which requires the password),
+   * then enroll again.
+   *
+   * The secret is returned only here, only to the authenticated owner. It is
+   * never included in any user DTO (see UsersService.toDto, which allowlists).
+   */
+  async enrollMfa(userId: string, ip?: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user || !user.isActive) throw new UnauthorizedException('Invalid user');
+    if (user.mfaEnabled)
+      throw new BadRequestException(
+        'MFA is already enabled. Disable it first to enroll a new device.',
+      );
+
+    const secret = authenticator.generateSecret();
+    user.mfaSecret = secret;
+    await this.users.save(user);
+    this.audit.record({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'AUTH:MFA_ENROLL_STARTED',
+      ip,
+    });
+    return {
+      secret,
+      otpauthUrl: authenticator.keyuri(user.email, 'BNP Decision Guard', secret),
+    };
+  }
+
+  /**
+   * Step 2 of enrolment: proves the user's authenticator holds the secret from
+   * enrollMfa() before MFA starts gating their logins.
+   */
+  async enableMfa(userId: string, code: string, ip?: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user || !user.isActive) throw new UnauthorizedException('Invalid user');
+    if (!user.mfaSecret)
+      throw new BadRequestException('Start enrolment first: POST /auth/mfa/enroll');
+
+    if (!authenticator.verify({ token: code, secret: user.mfaSecret })) {
+      this.audit.record({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'AUTH:MFA_ENABLE_FAILED',
+        ip,
+      });
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+
+    user.mfaEnabled = true;
+    await this.users.save(user);
+    this.audit.record({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'AUTH:MFA_ENABLED',
+      ip,
+    });
+    return { mfaEnabled: true };
+  }
+
+  /**
+   * Turns MFA off and discards the secret (including a half-finished
+   * enrolment, so a stale pending secret can't linger).
+   *
+   * Requires the account password even though the caller is already
+   * authenticated: removing a second factor is exactly what someone holding a
+   * stolen access token would want to do, and the password is the one thing
+   * that token does not grant them.
+   */
+  async disableMfa(userId: string, password: string, ip?: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user || !user.isActive) throw new UnauthorizedException('Invalid user');
+
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
+      this.audit.record({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'AUTH:MFA_DISABLE_FAILED',
+        ip,
+      });
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    user.mfaEnabled = false;
+    user.mfaSecret = null;
+    await this.users.save(user);
+    this.audit.record({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'AUTH:MFA_DISABLED',
+      ip,
+    });
+    return { mfaEnabled: false };
+  }
 }

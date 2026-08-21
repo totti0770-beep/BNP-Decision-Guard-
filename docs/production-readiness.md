@@ -216,7 +216,7 @@ something an AI agent should ever run itself).
 | Load testing against target concurrency | Hospital operator (platform team) | Needs a real, provisioned environment to load-test against — a laptop/CI run cannot represent production traffic. |
 | Backup + tested restore drill | Hospital operator (platform team) | Requires a real database instance and a rehearsed recovery process; nothing here has ever backed anything up. |
 | NestJS 10→11 / Next.js 14→15 major-version migration | Engineering (this codebase) | Not an operator item — semver-major breaking-change surface (Next: async `params`/`searchParams`; NestJS 11: Node floor, module resolution) needs a dedicated migration + regression pass, tracked as a non-blocking CI report in the meantime. |
-| MFA enrollment endpoint | Engineering (this codebase) | The verify/challenge path exists; no endpoint writes `mfa_secret` yet. Code work, not an operator dependency. |
+| ~~MFA enrollment endpoint~~ | ~~Engineering~~ | ✅ **Done** — `/auth/mfa/{enroll,enable,disable}` ship a two-step self-service flow (secret is not armed until a live code verifies it; disabling requires the password). Remaining gap is policy, not plumbing: no way for an admin to *require* MFA for a role. |
 | OCR for scanned PDFs | Engineering (this codebase) | `pdf-parse` reads the text layer only; a scanned Arabic PDF indexes zero chunks. Code work. |
 
 ## Effort estimate
