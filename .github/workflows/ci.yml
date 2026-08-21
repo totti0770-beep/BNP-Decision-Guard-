@@ -179,16 +179,24 @@ jobs:
         run: docker compose down -v
 
   mobile:
-    name: Mobile — typecheck
+    name: Mobile — typecheck & test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # apps/mobile is deliberately not an npm workspace (Expo/Metro resolve
+      # hoisted dependencies badly), so it installs on its own.
       - name: Install mobile deps
         working-directory: apps/mobile
         run: npm install
       - name: Typecheck
         working-directory: apps/mobile
         run: npx tsc --noEmit
+      # Session storage, refresh-on-401 and the bilingual helpers — the parts
+      # of the mobile app that carry security and clinical consequences and
+      # that a typecheck alone says nothing about.
+      - name: Unit tests
+        working-directory: apps/mobile
+        run: npm test

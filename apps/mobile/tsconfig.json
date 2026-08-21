@@ -3,8 +3,12 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-native",
+    // moduleResolution "bundler" is only valid alongside an ES module target,
+    // and the default the base config lands on (ES2015) rejects the dynamic
+    // imports the api spec uses to reload the module under test.
+    "module": "esnext",
     "moduleResolution": "bundler",
     "skipLibCheck": true
   },
-  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx"]
+  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx", "test/**/*.ts"]
 }

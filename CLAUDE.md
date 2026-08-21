@@ -60,8 +60,18 @@ one ingestion step with no automated coverage anywhere. It is exercised only by
 Mobile (separate install, not an npm workspace):
 
 ```bash
-cd apps/mobile && npm install && npx tsc --noEmit && npm start
+cd apps/mobile && npm install && npx tsc --noEmit && npm test && npm start
 ```
+
+`npm test` there is a third, independent jest project (32 tests) covering
+`src/api.ts` and `src/i18n.ts` — session storage, refresh-on-401, and the
+bilingual helpers. It runs on `testEnvironment: node` rather than the
+`jest-expo` preset, because neither module imports a React Native component;
+the two native storage modules are mapped to fakes in `apps/mobile/test/mocks/`
+via `moduleNameMapper`. Keeping those two fakes separate is deliberate — it is
+what lets a test assert that tokens reach SecureStore and never AsyncStorage.
+The screens have no runtime coverage; that would need `jest-expo` plus
+`@testing-library/react-native`.
 
 Full stack via Docker (`docker compose up --build`) → web :3000, API :4000, MinIO console :9001. Infra only: `docker compose up -d postgres minio minio-init`.
 
