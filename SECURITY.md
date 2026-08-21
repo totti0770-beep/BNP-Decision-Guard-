@@ -68,11 +68,12 @@ production sign-off — see `docs/production-readiness.md`.
   themselves (`/auth/mfa/enroll` → `/auth/mfa/enable`), but nothing lets an
   administrator *require* it for a role — there is no org-wide MFA policy, so
   adoption is voluntary per user.
-- **Two high-severity dependency advisories pass CI**, because the gate only
-  hard-fails on critical. Root workspaces: **0 critical, 2 high, 0 moderate**
-  (re-run 21 Aug 2026, after the NestJS 11 upgrade closed all 9 moderates).
-  Both remaining highs are `next` and its bundled `postcss`, resolvable only
-  by the Next.js 14→16 major.
+- ~~**High-severity dependency advisories pass CI.**~~ ✅ Root workspaces are
+  at **0 findings of any severity** (re-run 21 Aug 2026): the NestJS 10→11
+  upgrade closed all 9 moderates, and Next.js 14→16 closed the last 2 highs in
+  `next` and its bundled `postcss`. The CI gate still hard-fails only on
+  critical and reports high/moderate, so a new advisory surfaces without
+  blocking.
 - **`apps/mobile` dependencies were entirely unscanned until Aug 2026.** It is
   deliberately not an npm workspace, so the root `npm audit` gate never saw it.
   CI now reports it (non-blocking) alongside the mobile tests: **1 critical, 21
@@ -87,13 +88,13 @@ production sign-off — see `docs/production-readiness.md`.
   `/health/ready` checks Postgres + object storage) — still missing is
   shipping those logs anywhere, metrics, error tracking, and alerting.
 - Formal penetration test and CBAHI/HIPAA compliance review.
-- **Next.js 14→16 migration.** The critical Next.js middleware auth-bypass CVE
-  (CVE-2025-29927) and the exploitable multer/lodash CVEs were patched without
-  a major-version bump. NestJS 10→11 is now **done** — it closed every moderate
-  advisory. What remains is 2 high, both in `next` and its bundled `postcss`,
-  and both need a **two**-major jump (14→16) rather than the 14→15 assumed
-  earlier: async `params`/`searchParams`, middleware changes, and a
-  React 19 floor. See `docs/production-readiness.md`.
+- ~~**Framework major-version migrations.**~~ ✅ Both are done: NestJS 10→11
+  (Express 5) and Next.js 14→16. Together they closed every remaining
+  advisory. The web app deliberately stays on **React 18** — Next 16 supports
+  18 or 19, this app uses no Server Actions or React 19-only APIs, and React
+  19 carries no security benefit here, so the extra migration surface was not
+  worth taking on in the same change. It remains available as a routine
+  follow-up. See `docs/production-readiness.md`.
 
 ## Reporting
 
