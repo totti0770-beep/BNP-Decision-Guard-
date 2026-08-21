@@ -140,6 +140,32 @@ production. Use this as the launch checklist.
 >   previously unscanned because it is not an npm workspace, is now reported
 >   in CI (non-blocking — every finding is Expo/RN toolchain, build-time, and
 >   needs an Expo major).
+
+> **Cycle 4, Expo SDK 57 (Aug 2026).** The mobile app is on Expo SDK 57 /
+> React Native 0.86.2 / React 19.2.3 — a single hop across six SDK majors,
+> justified because the app has no config plugins, no custom metro config,
+> and only three native modules; the one genuinely breaking transition
+> (React 19 + New Architecture + mandatory Android edge-to-edge) lands
+> regardless of path. Its audit went from 1 critical / 21 high / 11 moderate
+> to **8 high and nothing else**, and the mobile CI job now hard-fails on
+> critical like the root job. The remaining 8 all chain from one advisory
+> pair on `image-size`, vulnerable at *every published version* (`<=2.0.2`
+> == latest) — no dependency graph anywhere can clear it today; it sits in
+> Metro's build-time asset pipeline and this app ships zero image assets.
+> Changes beyond versions: core `SafeAreaView` (deprecated, iOS-only) →
+> `react-native-safe-area-context` with a root `SafeAreaProvider`; dead
+> `expo-status-bar` dependency dropped; `babel-preset-expo` declared as the
+> direct devDependency it factually is (npm nests it under `expo/` at SDK
+> 57, where Babel's root-relative resolution cannot find it); `uuid`
+> override to ^11.1.1 for the `xcode` prebuild path. Verified without a
+> device: typecheck on TS 5.9/React 19 types, 32/32 tests with unchanged
+> mocks (both storage-mock surfaces re-checked against async-storage 2.2.0
+> and expo-secure-store 57.0.1), and `npx expo export` producing Hermes
+> bundles for both platforms — the strongest headless proof the bundle
+> graph resolves under the New Architecture. **On-device visual checks
+> under mandatory edge-to-edge are operator-owned** (listed in PR #32):
+> LoginScreen keyboard behavior, ChatScreen composer vs nav bar, BottomNav
+> clearance above the gesture bar, first-launch session restore.
 >
 > Still open and genuinely operator-owned: metrics/tracing/alerting, backup +
 > tested restore, OCR for scanned PDFs, the Next.js 16 major, an org-wide
