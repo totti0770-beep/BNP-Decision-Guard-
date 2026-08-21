@@ -202,3 +202,14 @@ jobs:
       - name: Unit tests
         working-directory: apps/mobile
         run: npm test
+      # The root `security` job's audit cannot see this tree — apps/mobile is
+      # not an npm workspace — so its dependencies were unscanned entirely.
+      # Reported, not gated: every current finding comes from the Expo/React
+      # Native toolchain, is build-time rather than shipped in the app bundle,
+      # and is unfixable without an Expo major. A hard gate here would block
+      # every PR on something no PR can fix; silence would hide it when that
+      # stops being true.
+      - name: Report mobile vulnerabilities (non-blocking)
+        if: always()
+        working-directory: apps/mobile
+        run: npm audit --audit-level=high || true

@@ -110,6 +110,41 @@ production. Use this as the launch checklist.
 > interface. Localised role display names would belong in the API/RBAC layer
 > beside the roles, not as a drifting client-side copy.
 
+> **Cycle 3, Phases 11–12 (Aug 2026).** Testing expansion and a security
+> re-review of everything phases 8–11 changed.
+>
+> - **Mobile had no runtime tests at all** — CI ran `tsc --noEmit` and nothing
+>   else, over a module that decides where auth tokens are stored. 32 tests now
+>   pin tokens reaching the OS keychain and never plaintext storage, the
+>   pre-SecureStore session purge, a 401 refreshing exactly once without
+>   looping, teardown on failed refresh, and the RTL helpers. Each assertion
+>   was checked against a deliberately broken copy of the module. The mobile
+>   **screens** still have no runtime coverage; that needs `jest-expo` plus
+>   `@testing-library/react-native`.
+> - **The browser smoke** gained search/filtering, the full user lifecycle
+>   (validation gate → create → duplicate rejection → deactivate), audit
+>   filtering, and a rejected sign-in. Role-visibility checks are now asserted
+>   in both directions, so a locator that silently matched nothing can no
+>   longer make them pass vacuously.
+> - **Two real defects fell out of that coverage.** `AllExceptionsFilter`
+>   emitted the client-safe reason under `error` only while every client reads
+>   `message`, so *every* rejection reached a web user as "Request failed
+>   (400)" with the reason discarded. And `IndexingService` embedded a whole
+>   PDF in one `/embeddings` call, so ingestion got more likely to fail the
+>   larger the document — one confirmed cause of the indexing incident noted
+>   above. Both fixed, both pinned by tests that fail when reverted.
+> - **Security re-review.** MFA enrol/enable/disable are authenticated,
+>   throttled like the credential endpoints, act only on the caller's own JWT
+>   id, and never expose the secret in a user DTO. Upstream provider error
+>   bodies are now redacted before logging. `apps/mobile`'s dependency tree,
+>   previously unscanned because it is not an npm workspace, is now reported
+>   in CI (non-blocking — every finding is Expo/RN toolchain, build-time, and
+>   needs an Expo major).
+>
+> Still open and genuinely operator-owned: metrics/tracing/alerting, backup +
+> tested restore, OCR for scanned PDFs, the NestJS 11 / Next.js 16 majors, an
+> org-wide "require MFA" policy, and compliance sign-off.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
