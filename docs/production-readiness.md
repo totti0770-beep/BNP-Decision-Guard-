@@ -142,8 +142,31 @@ production. Use this as the launch checklist.
 >   needs an Expo major).
 >
 > Still open and genuinely operator-owned: metrics/tracing/alerting, backup +
-> tested restore, OCR for scanned PDFs, the NestJS 11 / Next.js 16 majors, an
-> org-wide "require MFA" policy, and compliance sign-off.
+> tested restore, OCR for scanned PDFs, the Next.js 16 major, an org-wide
+> "require MFA" policy, and compliance sign-off.
+
+> **Cycle 3, NestJS 11 (Aug 2026).** The API now runs on NestJS 11 and Express
+> 5, which closes **all 9** remaining moderate advisories — the audit is down
+> to 2 high (`next` + bundled `postcss`), both gated on the Next.js 14→16 major
+> that remains open. Verified against the whole regression net, not just a
+> build: 135 unit tests, 34 integration tests over real HTTP through the real
+> `AppModule` against real Postgres+pgvector, migrations, and the 13-step
+> browser smoke driving a natively booted stack.
+>
+> Two things the upgrade forced, both improvements rather than shims:
+>
+> - `@nestjs/throttler` installs its Nest peers rather than relying on the
+>   hoisted copy, which left Nest 10 and 11 resolved side by side and produced
+>   a `DynamicModule is not assignable to DynamicModule` error naming the same
+>   type twice. Pinned with an `overrides` entry alongside the existing
+>   `multer`/`lodash` ones; the lockfile was regenerated so the stale subtree
+>   could not survive the change.
+> - jsonwebtoken 9's types narrow `expiresIn` to a template-literal union that
+>   a value read from `process.env` can never satisfy. Rather than casting at
+>   the call site, `config/env.ts` now validates the format and the two token
+>   lifetimes flow from `loadEnv()` like every other setting — so
+>   `JWT_EXPIRES_IN="1 hour"` fails at boot naming the variable and the legal
+>   forms, instead of throwing inside the first login of the day.
 
 ## Readiness scorecard
 
@@ -243,19 +266,14 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
 ## Fastest path to PRODUCTION
 
 1. **Framework major-version migration** — as of the August 2026 audit the
-   count is **14 findings (5 high, 9 moderate, 0 critical)**, not the 12 below;
-   the highs are in `next`, `js-yaml`, `nanoid`, `postcss` and
-   `brace-expansion`, and all five pass CI because the gate only hard-fails on
-   critical. Verify which are genuinely major-gated before deferring them all.
-   Historical note — 12 remaining npm audit findings (1
-   high: residual Next.js 14 DoS/XSS/SSRF advisories only fixed in Next 15.5+;
-   11 moderate: NestJS 10→11 transitive advisories in `express`/`body-parser`/
-   `qs`/`uuid`) are only closeable by upgrading **Next.js 14→15** and
-   **NestJS 10→11**. Both are semver-major with real breaking-change surface
-   (Next: async `params`/`searchParams`, middleware changes; NestJS 11: Node
-   version floor, module resolution changes) — this needs a dedicated
-   migration + regression-test pass, not an autonomous dependency bump.
-   Tracked in CI as a non-blocking `npm audit --audit-level=high` report.
+   count is **2 findings (2 high, 0 moderate, 0 critical)**. NestJS 10→11 has
+   since been done and closed every moderate advisory — the transitive
+   `express`/`body-parser`/`qs`/`uuid` chain went with it. What is left is
+   `next` and its bundled `postcss`, closeable only by **Next.js 14→16**: a
+   two-major jump with async `params`/`searchParams`, middleware changes and a
+   React 19 floor, needing its own migration + regression pass rather than an
+   autonomous bump. Both pass CI because the gate only hard-fails on critical,
+   and are tracked as a non-blocking `npm audit --audit-level=high` report.
 2. **HA infrastructure** — managed PostgreSQL 16 with `vector`, object store
    with SSE/KMS, API replicas behind an Ingress with TLS + HPA; move the
    near-expiry cron to a singleton Job.
@@ -293,7 +311,7 @@ something an AI agent should ever run itself).
 | Apple/Google developer accounts | Hospital operator | Required for `eas build`/`eas submit` to produce signed, store-distributable mobile builds. |
 | Load testing against target concurrency | Hospital operator (platform team) | Needs a real, provisioned environment to load-test against — a laptop/CI run cannot represent production traffic. |
 | Backup + tested restore drill | Hospital operator (platform team) | Requires a real database instance and a rehearsed recovery process; nothing here has ever backed anything up. |
-| NestJS 10→11 / Next.js 14→15 major-version migration | Engineering (this codebase) | Not an operator item — semver-major breaking-change surface (Next: async `params`/`searchParams`; NestJS 11: Node floor, module resolution) needs a dedicated migration + regression pass, tracked as a non-blocking CI report in the meantime. |
+| ~~NestJS 10→11~~ / Next.js 14→16 major-version migration | Engineering (this codebase) | NestJS 11 is ✅ **done** — it closed all 9 moderate advisories, and the full unit + integration + browser suites pass against it on Express 5. Next.js 14→16 remains: a two-major jump (async `params`/`searchParams`, middleware changes, React 19 floor) needing its own migration + regression pass. |
 | ~~MFA enrollment endpoint~~ | ~~Engineering~~ | ✅ **Done** — `/auth/mfa/{enroll,enable,disable}` ship a two-step self-service flow (secret is not armed until a live code verifies it; disabling requires the password). Remaining gap is policy, not plumbing: no way for an admin to *require* MFA for a role. |
 | OCR for scanned PDFs | Engineering (this codebase) | `pdf-parse` reads the text layer only; a scanned Arabic PDF indexes zero chunks. Code work. |
 

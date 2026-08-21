@@ -102,13 +102,13 @@ export class AuthService {
     return {
       accessToken: this.jwt.sign(
         { ...base, type: 'access' },
-        { expiresIn: process.env.JWT_EXPIRES_IN ?? '1h' },
+        { expiresIn: loadEnv().jwt.expiresIn },
       ),
       refreshToken: this.jwt.sign(
         { ...base, type: 'refresh', tv: user.tokenVersion ?? 0 },
         {
-          secret: process.env.JWT_REFRESH_SECRET ?? 'change-me-too-in-production',
-          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
+          secret: loadEnv().jwt.refreshSecret,
+          expiresIn: loadEnv().jwt.refreshExpiresIn,
         },
       ),
       user: {

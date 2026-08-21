@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (120), mocked repositories, no I/O
+npm test                      # API unit tests (135), mocked repositories, no I/O
 npm run test:e2e -w @bnp/api  # API integration tests (34), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
@@ -79,7 +79,7 @@ Migrations run automatically on API container boot; standalone: `node apps/api/d
 
 ## Architecture
 
-npm workspaces monorepo: `apps/api` (NestJS 10), `apps/web` (Next.js 14 App Router), `apps/mobile` (Expo, **not** a workspace), `packages/shared`.
+npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 14 App Router), `apps/mobile` (Expo, **not** a workspace), `packages/shared`.
 
 ### The clinical safety contract
 
