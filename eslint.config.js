@@ -74,6 +74,11 @@ export default tseslint.config(
 
   // Standalone Node scripts (the Playwright smoke driver) — plain ESM run
   // directly by node, so they get Node globals rather than browser ones.
+  //
+  // `document`/`window` are here too, and are not a mistake: the bodies of
+  // page.evaluate() callbacks are serialised and executed inside the browser,
+  // not in this process, so they legitimately reach browser globals that the
+  // surrounding file cannot.
   {
     files: ['**/*.mjs'],
     languageOptions: {
@@ -81,6 +86,8 @@ export default tseslint.config(
         process: 'readonly',
         console: 'readonly',
         URL: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
       },
     },
   },

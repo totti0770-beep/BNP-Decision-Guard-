@@ -89,7 +89,7 @@ function Bars({
               style={{ width: `${Math.max((r.value / max) * 100, r.value > 0 ? 3 : 0)}%` }}
             />
           </div>
-          <span className="tnum w-8 shrink-0 text-right font-medium text-text">{r.value}</span>
+          <span className="tnum w-8 shrink-0 text-end font-medium text-text">{r.value}</span>
         </li>
       ))}
     </ul>

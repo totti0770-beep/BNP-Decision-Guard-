@@ -111,7 +111,7 @@ function RefusalReason({ d }: { d: Diagnostics }) {
           </p>
           <ul className="mt-1.5 space-y-2">
             {d.consideredSources.map((s, i) => (
-              <li key={i} className="border-l-2 border-warning/25 pl-2.5">
+              <li key={i} className="border-s-2 border-warning/25 ps-2.5">
                 <p className="text-2xs text-subtle">
                   {s.documentTitle}
                   {s.pageNumber !== null && ` · p.${s.pageNumber}`} · {s.similarity}
