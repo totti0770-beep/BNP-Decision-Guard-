@@ -45,7 +45,8 @@ production. Use this as the launch checklist.
 >
 > Still open, in impact order: **MFA enrollment** (no endpoint writes
 > `mfa_secret`), **observability**,
-> **integration/E2E tests** (none exist; no linter either), **backup + tested
+> **integration/E2E tests** (none exist at the time of that pass; both landed
+> later, along with a linter), **backup + tested
 > restore**, **OCR for scanned PDFs**, the **Next 15 / NestJS 11 majors**, and
 > **compliance sign-off**. The web UI is English-only while mobile is
 > Arabic-first — revisit before a nurse-facing pilot.

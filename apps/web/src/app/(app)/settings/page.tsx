@@ -10,7 +10,6 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  Input,
   PageHeader,
   Panel,
   SkeletonRows,

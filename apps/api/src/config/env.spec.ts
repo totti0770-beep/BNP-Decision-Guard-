@@ -12,7 +12,6 @@ describe('loadEnv production fail-fast', () => {
 
   function freshLoad() {
     jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     return require('./env').loadEnv;
   }
 

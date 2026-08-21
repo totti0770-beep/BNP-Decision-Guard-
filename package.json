@@ -15,7 +15,9 @@
     "dev:api": "npm run build:shared && npm run start:dev -w @bnp/api",
     "dev:web": "npm run build:shared && npm run dev -w @bnp/web",
     "seed": "npm run seed -w @bnp/api",
-    "test": "npm run test -w @bnp/api"
+    "test": "npm run test -w @bnp/api",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "engines": {
     "node": ">=20"
@@ -24,5 +26,11 @@
     "lodash": "^4.18.1",
     "multer": "^2.2.0",
     "file-type": "^21.3.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "typescript-eslint": "^8.67.0"
   }
 }
