@@ -26,7 +26,7 @@ trail are non-negotiable.
 | **Refusal-first AI** | `apps/api/src/rag/*` | Retrieval hard-filtered to `ACTIVE`, non-expired documents; sub-threshold matches refuse with the exact governed message; the mock LLM is extractive and cannot generate beyond context. |
 | **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. |
 | **Full audit trail** | global `AuditInterceptor` + `AuditService` | Every login, question, answer (incl. refusals), document action, dose calculation, permission change and error is recorded with actor, IP and metadata. |
-| **MFA-ready** | `otplib` TOTP, `/auth/mfa/verify` | Per-user TOTP challenge flow implemented. |
+| **MFA (TOTP)** | `otplib`, `/auth/mfa/{enroll,enable,disable,verify}` | Self-service two-step enrolment: `enroll` mints a secret without arming it, `enable` arms it only after verifying a live code, `disable` requires the account password. Login then issues a half-authenticated token exchangeable only at `/auth/mfa/verify`. |
 | **Answer governance review** | `GET /chat/answers`, `POST /chat/answers/:id/review`, `/answer-review` web screen | Pharmacist/quality/knowledge-manager roles review AI answers across all nurses (not just their own) and approve or flag them. Verified end-to-end incl. RBAC (nurse: 403 on both endpoints). |
 | **Dependency vulnerability scanning** | `.github/workflows/ci.yml` (`security` job) | `npm audit --audit-level=critical` fails CI on any critical finding (hard gate); `--audit-level=high` reports the rest without blocking, since some remaining findings require a NestJS 11 / Next.js 15 migration (tracked in `docs/production-readiness.md`). |
 
@@ -63,11 +63,14 @@ production sign-off — see `docs/production-readiness.md`.
   Production boots either way and logs a warning while log-only, because
   taking the clinical assistant offline over mail config is the worse
   failure. SMS is still unimplemented.
-- **MFA cannot be enrolled.** `/auth/mfa/verify` and the login challenge work,
-  but no endpoint writes `mfa_secret`, so MFA can only be switched on with
-  direct database access. Treat "MFA-ready" as exactly that — not as available.
-- **Five high-severity dependency advisories pass CI**, because the gate only
-  hard-fails on critical (0 critical, 5 high, 9 moderate as of Aug 2026).
+- **MFA is enrollable but not enforceable.** Users can now turn TOTP on for
+  themselves (`/auth/mfa/enroll` → `/auth/mfa/enable`), but nothing lets an
+  administrator *require* it for a role — there is no org-wide MFA policy, so
+  adoption is voluntary per user.
+- **Two high-severity dependency advisories pass CI**, because the gate only
+  hard-fails on critical (0 critical, 2 high, 9 moderate as of Aug 2026 — down
+  from 5 high / 10 moderate; every remaining finding is blocked on the
+  NestJS 11 / Next.js 16 majors).
 - Centralised secret management (Vault/KMS) instead of env vars.
 - Observability: API logs are structured JSON already (`/health` liveness,
   `/health/ready` checks Postgres + object storage) — still missing is

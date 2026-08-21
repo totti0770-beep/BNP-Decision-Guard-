@@ -31,6 +31,14 @@ class MfaVerifyDto {
   @IsString() @IsNotEmpty() code: string;
 }
 
+class MfaEnableDto {
+  @IsString() @IsNotEmpty() code: string;
+}
+
+class MfaDisableDto {
+  @IsString() @IsNotEmpty() password: string;
+}
+
 class ForgotPasswordDto {
   @IsEmail() email: string;
 }
@@ -89,5 +97,37 @@ export class AuthController {
   @Post('logout')
   logout(@CurrentUser() user: AuthenticatedUser) {
     return this.auth.logout(user.userId);
+  }
+
+  // MFA enrolment is authenticated (no @Public()) and needs no @Permissions():
+  // every signed-in user manages their own second factor, and each handler
+  // acts only on the caller's own id from the JWT, never an id from the body.
+  // Throttled like the credential endpoints — /mfa/enable and /mfa/disable
+  // both check a secret, so they are guessable surfaces.
+
+  @Throttle(AUTH_THROTTLE)
+  @Post('mfa/enroll')
+  enrollMfa(@CurrentUser() user: AuthenticatedUser, @Ip() ip: string) {
+    return this.auth.enrollMfa(user.userId, ip);
+  }
+
+  @Throttle(AUTH_THROTTLE)
+  @Post('mfa/enable')
+  enableMfa(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: MfaEnableDto,
+    @Ip() ip: string,
+  ) {
+    return this.auth.enableMfa(user.userId, dto.code, ip);
+  }
+
+  @Throttle(AUTH_THROTTLE)
+  @Post('mfa/disable')
+  disableMfa(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: MfaDisableDto,
+    @Ip() ip: string,
+  ) {
+    return this.auth.disableMfa(user.userId, dto.password, ip);
   }
 }

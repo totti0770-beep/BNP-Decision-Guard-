@@ -27,6 +27,23 @@ jobs:
         if: always()
         run: npm audit --audit-level=high || true
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # @bnp/shared must be built first: api and web import it from its
+      # compiled dist/, and typescript-eslint resolves those imports.
+      - run: npm run build:shared
+      # Errors fail the build; the remaining `any` warnings are documented in
+      # eslint.config.js and deliberately non-blocking.
+      - run: npm run lint
+
   api:
     name: API — build & test
     runs-on: ubuntu-latest

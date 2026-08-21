@@ -90,7 +90,6 @@ export function loadEnv(): AppEnv {
     throw new Error('[env] MAIL_HOST must be set when MAIL_PROVIDER=smtp.');
   }
   if (isProduction && mailProvider !== 'smtp') {
-    // eslint-disable-next-line no-console
     console.warn(
       '[env] MAIL_PROVIDER is "log" in production: password-reset emails are ' +
         'written to the application log instead of being delivered. Set ' +
