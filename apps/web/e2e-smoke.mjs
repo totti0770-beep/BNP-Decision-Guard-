@@ -186,5 +186,194 @@ for (const [w, h, name] of [
 await page.setViewportSize({ width: 1440, height: 900 });
 console.log('responsive layout holds at phone/tablet/laptop in both directions OK');
 
+// The responsive loop leaves the page in Arabic; the assertions below read
+// English labels, and switching back is itself the check that the toggle is
+// reachable from a state the loop put us in.
+const backToEnglish = page.locator('button[aria-label="Switch to English"]');
+if (await backToEnglish.count()) {
+  await backToEnglish.click();
+  await page.waitForTimeout(400);
+}
+check((await page.getAttribute('html', 'dir')) === 'ltr', 'back in English before step 10');
+
+// 10. Hospital admin. Everything below needs users:manage + audit:read, which
+// only this role has, and it also supplies the inverse of step 5.
+await page.click('button:has-text("Sign out")');
+await page.waitForURL('**/login');
+
+// Wrong credentials must not navigate anywhere. A deliberately non-existent
+// account, not a real one: per-account lockout is real, and a smoke run must
+// not be able to lock a demo login out of the next run.
+await page.fill('input[type=email]', 'nobody@bnp.health');
+await page.fill('input[type=password]', 'definitely-wrong');
+await page.click('button:has-text("Sign in")');
+await page.waitForSelector('[role="alert"]', { timeout: 10000 });
+check(
+  new URL(page.url()).pathname === '/login',
+  `bad credentials stay on /login (was ${new URL(page.url()).pathname})`,
+);
+
+await page.fill('input[type=email]', 'admin@bnp.health');
+await page.fill('input[type=password]', 'HospAdmin123!');
+await page.click('button:has-text("Sign in")');
+await page.waitForURL('**/dashboard', { timeout: 15000 });
+console.log('rejected sign-in stays on login, admin sign-in OK');
+
+// 11. Search and filtering, against the four seeded documents — one per
+// category, which is what makes the counts below meaningful rather than
+// "some rows are still there".
+await nav('Policies Library').click();
+await page.waitForURL('**/policies');
+const rows = page.locator('tbody tr');
+await page.waitForSelector('text=Hand Hygiene', { timeout: 15000 });
+const allDocs = await rows.count();
+check(allDocs >= 4, `policies library lists the seeded corpus (found ${allDocs} rows)`);
+
+// The inverse of step 5: the same locator that must find nothing for a nurse
+// has to find something here, or step 5 passes for the wrong reason.
+const adminDownloads = await page.locator('button:has-text("Download")').count();
+check(
+  adminDownloads === allDocs,
+  `admin sees a Download button on every row (${adminDownloads} of ${allDocs})`,
+);
+
+await page.getByLabel('Search').fill('Cannulation');
+await page.waitForFunction(
+  () => document.querySelectorAll('tbody tr').length === 1,
+  undefined,
+  { timeout: 10000 },
+);
+check(
+  (await rows.first().innerText()).includes('Peripheral IV Cannulation'),
+  'search narrows the library to the matching document',
+);
+check(
+  (await page.locator('text=Hand Hygiene').count()) === 0,
+  'non-matching documents are filtered out, not merely deprioritised',
+);
+
+// A search with no matches must say so. Rendering an empty table instead is
+// the failure mode this catches — indistinguishable from a broken request.
+await page.getByLabel('Search').fill('zzzznotadocument');
+await page.waitForSelector('text=No documents match', { timeout: 10000 });
+
+await page.getByLabel('Search').fill('');
+await page.waitForFunction(
+  (n) => document.querySelectorAll('tbody tr').length === n,
+  allDocs,
+  { timeout: 10000 },
+);
+
+// Category filter is a separate code path from search — it is a query
+// parameter, not a LIKE.
+await page.getByLabel('Category').selectOption('NURSING_POLICIES');
+await page.waitForFunction(
+  () => document.querySelectorAll('tbody tr').length === 1,
+  undefined,
+  { timeout: 10000 },
+);
+check(
+  (await rows.first().innerText()).includes('Hand Hygiene'),
+  'category filter returns only that category',
+);
+await page.getByLabel('Category').selectOption('');
+await page.screenshot({ path: `${shots}/09-policies-filtering.png` });
+console.log('search + category filtering OK');
+
+// 12. User lifecycle: validation state, create, then disable. A fresh address
+// each run so a re-run against a persistent database cannot collide.
+const newEmail = `smoke.${Date.now()}@bnp.health`;
+await nav('Users & Roles').click();
+await page.waitForURL('**/users');
+await page.waitForSelector('text=Add user', { timeout: 15000 });
+
+const createButton = page.getByRole('button', { name: 'Create user' });
+await page.getByLabel('Full name').fill('Smoke Test User');
+await page.getByLabel('Email').fill(newEmail);
+await page.getByLabel('Password').fill('short');
+await page.waitForSelector('text=Too short', { timeout: 5000 });
+check(
+  await createButton.isDisabled(),
+  'a too-short password disables submission, not just shows a message',
+);
+// Paired with the isEnabled() check below on purpose: the button is also
+// disabled while the roles list is still loading, so "disabled" alone would
+// pass for the wrong reason. Only the pair proves the password gate is real.
+
+await page.getByLabel('Password').fill('SmokeTest123!');
+await page.getByLabel('Role').selectOption('NURSE_USER');
+check(await createButton.isEnabled(), 'a valid form re-enables submission');
+await createButton.click();
+
+const newRow = page.locator('tbody tr', { hasText: newEmail });
+await newRow.waitFor({ timeout: 15000 });
+check(
+  (await newRow.innerText()).includes('Active'),
+  'a newly created user starts Active',
+);
+await page.screenshot({ path: `${shots}/10-user-created.png` });
+
+// The same address twice must surface the API's rejection in the form rather
+// than failing silently or appearing to succeed.
+await page.getByLabel('Full name').fill('Smoke Test Duplicate');
+await page.getByLabel('Email').fill(newEmail);
+await page.getByLabel('Password').fill('SmokeTest123!');
+await createButton.click();
+await page.waitForSelector('text=Email already registered', { timeout: 15000 });
+
+// Deactivation is the closest thing to a delete this system has — users are
+// never removed, because audit rows reference them.
+await newRow.getByRole('button', { name: 'Disable', exact: true }).click();
+await page
+  .locator('tbody tr', { hasText: newEmail })
+  .filter({ hasText: 'Disabled' })
+  .waitFor({ timeout: 15000 });
+console.log('user create + validation + duplicate rejection + disable OK');
+
+// 13. Audit. This is both a filtering test and the only end-to-end proof that
+// the AuditInterceptor actually recorded the mutations step 12 just made.
+await nav('Audit Log').click();
+await page.waitForURL('**/audit');
+await page.waitForSelector('tbody tr', { timeout: 15000 });
+
+// Action is an exact match and actor is a substring — two different SQL
+// predicates, so both are worth exercising. USERS:CREATE is the semantic event
+// the users service emits, distinct from the interceptor's HTTP:POST:/users.
+await page.getByLabel('Actor').fill('admin@bnp');
+await page.getByLabel('Action').fill('USERS:CREATE');
+await page.waitForTimeout(1200);
+const auditRows = await page.locator('tbody tr').count();
+check(
+  auditRows > 0,
+  'the user just created is recorded as USERS:CREATE and findable by filter',
+);
+const auditText = await page.locator('tbody').innerText();
+check(
+  auditText.includes('admin@bnp.health'),
+  'the audit actor substring filter returns that actor',
+);
+check(
+  !/nurse@bnp\.health/.test(auditText),
+  'the audit actor filter excludes other actors',
+);
+check(
+  !/AUTH:LOGIN/.test(auditText),
+  'the audit action filter is exact, not a substring over all events',
+);
+
+// The disable in step 12 is a separate semantic event, and proves the PATCH
+// was audited too rather than only the create.
+await page.getByLabel('Action').fill('USERS:UPDATE');
+await page.waitForTimeout(1200);
+check(
+  (await page.locator('tbody tr').count()) > 0,
+  'disabling a user is recorded as USERS:UPDATE',
+);
+await page.screenshot({ path: `${shots}/11-audit-filtered.png` });
+
+await page.getByLabel('Actor').fill('no.such.actor@bnp.health');
+await page.waitForSelector('text=No events match these filters', { timeout: 10000 });
+console.log('audit filtering OK, and it proves the mutations were recorded');
+
 await browser.close();
 console.log('SMOKE PASSED');

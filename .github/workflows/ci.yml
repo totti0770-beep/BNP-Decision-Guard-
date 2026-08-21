@@ -159,7 +159,9 @@ jobs:
       - name: Install Chromium for Playwright
         run: npx --yes playwright install --with-deps chromium
       # Drives login -> cited answer -> refusal -> dose calculation ->
-      # copy-protection -> role-aware navigation against the running stack.
+      # copy-protection -> role-aware navigation -> language switching and RTL
+      # mirroring -> responsive breakpoints -> search/filtering -> the user
+      # lifecycle -> audit filtering, against the running stack. See README.
       - name: Run browser smoke
         run: node apps/web/e2e-smoke.mjs
         env:

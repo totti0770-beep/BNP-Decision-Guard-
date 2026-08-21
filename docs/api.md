@@ -4,6 +4,30 @@ Base URL: `http://localhost:4000`. All endpoints except `/health`,
 `/health/ready` and `/auth/*` require `Authorization: Bearer <accessToken>`
 and the listed permission.
 
+## Error envelope
+
+Every failure — validation, permission, domain rejection, unhandled — comes
+back through one filter in the same shape:
+
+```json
+{
+  "statusCode": 400,
+  "message": ["email must be an email"],
+  "error":   ["email must be an email"],
+  "timestamp": "2026-08-21T08:07:25.718Z",
+  "path": "/users"
+}
+```
+
+`message` is what clients should read; it holds a string for a domain
+rejection and an array of strings for a validation failure. `error` carries
+the same value and exists only because this API has always returned that key.
+5xx responses are logged in full server-side and recorded in the audit trail;
+under `NODE_ENV=production` the client sees only `Internal server error`.
+
+Also documented in the audit filter table below: `action` matches **exactly**,
+`actorEmail` matches as a case-insensitive substring.
+
 ## Auth
 
 | Method & path | Body | Notes |
