@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
+import { useLanguage } from '@/lib/language';
+import { localeTag } from '@/lib/i18n';
 import {
   Alert,
   Badge,
@@ -42,6 +44,7 @@ interface RoleRow {
 const humanise = (s: string) => s.replaceAll('_', ' ');
 
 export default function UsersPage() {
+  const { t, lang } = useLanguage();
   const { hasPermission } = useAuth();
   const canManage = hasPermission('users:manage');
   const canReadRoles = hasPermission('roles:read');
@@ -111,21 +114,21 @@ export default function UsersPage() {
   return (
     <>
       <PageHeader
-        title="Users & Roles"
-        subtitle="Role changes are fully audited. Disabling a user revokes their outstanding sessions."
+        title={t('usersTitle')}
+        subtitle={t('usersSubtitle')}
       />
 
       <div className="grid items-start gap-6 xl:grid-cols-3">
         <div className="min-w-0 xl:col-span-2">
           {loading ? (
-            <SkeletonRows rows={6} label="Loading users" />
+            <SkeletonRows rows={6} label={t('loadingUsers')} />
           ) : error ? (
             <ErrorState message={error} onRetry={reload} />
           ) : !data || data.users.length === 0 ? (
             <Panel>
               <EmptyState
-                title="No users yet"
-                description="Seed the demo data or create the first account with the form beside this list."
+                title={t('noUsersYet')}
+                description={t('noUsersYetDesc')}
               />
             </Panel>
           ) : (
@@ -133,11 +136,11 @@ export default function UsersPage() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Name</Th>
-                    <Th className="hidden md:table-cell">Email</Th>
-                    <Th>Roles</Th>
-                    <Th>Status</Th>
-                    <Th className="hidden lg:table-cell">Last login</Th>
+                    <Th>{t('colName')}</Th>
+                    <Th className="hidden md:table-cell">{t('colEmail')}</Th>
+                    <Th>{t('colRoles')}</Th>
+                    <Th>{t('colStatus')}</Th>
+                    <Th className="hidden lg:table-cell">{t('colLastLogin')}</Th>
                     {canManage && <Th />}
                   </tr>
                 </thead>
@@ -162,11 +165,13 @@ export default function UsersPage() {
                       </Td>
                       <Td>
                         <Badge tone={u.isActive ? 'success' : 'neutral'}>
-                          {u.isActive ? 'Active' : 'Disabled'}
+                          {u.isActive ? t('statusActive') : t('statusDisabled')}
                         </Badge>
                       </Td>
                       <Td className="tnum hidden text-subtle lg:table-cell">
-                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : '—'}
+                        {u.lastLoginAt
+                          ? new Date(u.lastLoginAt).toLocaleDateString(localeTag(lang))
+                          : '—'}
                       </Td>
                       {canManage && (
                         <Td className="text-right">
@@ -175,7 +180,7 @@ export default function UsersPage() {
                             loading={togglingId === u.id}
                             onClick={() => toggleActive(u)}
                           >
-                            {u.isActive ? 'Disable' : 'Enable'}
+                            {u.isActive ? t('disableUser') : t('enableUser')}
                           </Button>
                         </Td>
                       )}
@@ -191,9 +196,9 @@ export default function UsersPage() {
           {canManage && (
             <Card>
               <form onSubmit={createUser} className="space-y-3">
-                <h2 className="text-lg font-semibold tracking-tight">Add user</h2>
+                <h2 className="text-lg font-semibold tracking-tight">{t('addUser')}</h2>
 
-                <Field label="Full name" required>
+                <Field label={t('fullName')} required>
                   <Input
                     required
                     autoComplete="off"
@@ -202,7 +207,7 @@ export default function UsersPage() {
                   />
                 </Field>
 
-                <Field label="Email" required>
+                <Field label={t('email')} required>
                   <Input
                     type="email"
                     required
@@ -213,9 +218,9 @@ export default function UsersPage() {
                 </Field>
 
                 <Field
-                  label="Password"
+                  label={t('password')}
                   required
-                  hint="At least 8 characters"
+                  hint={t('atLeast8CharsHint')}
                   error={passwordTooShort ? 'Too short — use 8 characters or more' : undefined}
                 >
                   <Input
@@ -228,7 +233,7 @@ export default function UsersPage() {
                   />
                 </Field>
 
-                <Field label="Role" required hint="Determines which screens and actions they get">
+                <Field label={t('role')} required hint={t('roleHint')}>
                   <Select
                     value={form.role}
                     onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -252,16 +257,16 @@ export default function UsersPage() {
                     !form.fullName || !form.email || form.password.length < 8 || !roles.length
                   }
                 >
-                  Create user
+                  {t('createUser')}
                 </Button>
               </form>
             </Card>
           )}
 
           {canReadRoles && (
-            <Section title="Roles" description="Permission sets defined by the platform">
+            <Section title={t('rolesSectionTitle')} description={t('rolesSectionDesc')}>
               {loading ? (
-                <SkeletonRows rows={3} label="Loading roles" />
+                <SkeletonRows rows={3} label={t('loadingRoles')} />
               ) : (
                 <Panel className="divide-y divide-border">
                   {roles.map((r) => (
@@ -271,7 +276,7 @@ export default function UsersPage() {
                         <p className="mt-0.5 text-xs text-subtle">{r.description}</p>
                       )}
                       <p className="tnum mt-1 text-2xs text-subtle">
-                        {r.permissions.length} permissions
+                        {t('permissionsCount', { count: r.permissions.length })}
                       </p>
                     </div>
                   ))}

@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
+import { useT } from '@/lib/language';
 import { StatusBadge } from '@/components/shell';
 import {
   Alert,
@@ -64,6 +65,7 @@ function LifecycleTrack({ status }: { status: string }) {
 }
 
 export default function ApprovalsPage() {
+  const t = useT();
   const { hasPermission } = useAuth();
 
   const [offset, setOffset] = useState(0);
@@ -132,13 +134,13 @@ export default function ApprovalsPage() {
   return (
     <>
       <PageHeader
-        title="Document Approval Workflow"
-        subtitle="DRAFT → IN REVIEW → APPROVED → INDEXED → ACTIVE. Only ACTIVE documents are retrievable by the assistant."
+        title={t('approvalsTitle')}
+        subtitle={t('approvalsSubtitle')}
       />
 
       <div className="mb-4">
         <SegmentedControl<Filter>
-          label="Filter documents"
+          label={t('filterDocuments')}
           value={filter}
           onChange={setFilter}
           options={[
@@ -151,7 +153,7 @@ export default function ApprovalsPage() {
       {actionError && <Alert className="mb-4">{actionError}</Alert>}
 
       {loading ? (
-        <SkeletonRows rows={4} label="Loading documents" />
+        <SkeletonRows rows={4} label={t('loadingDocuments')} />
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : shown.length === 0 ? (
@@ -197,7 +199,7 @@ export default function ApprovalsPage() {
                           loading={busy}
                           onClick={() => act(d.id, 'submit-review')}
                         >
-                          Submit for review
+                          {t('submitForReview')}
                         </Button>
                       )}
 
@@ -209,7 +211,7 @@ export default function ApprovalsPage() {
                           loading={busy && rejectingId !== d.id}
                           onClick={() => act(d.id, 'approve')}
                         >
-                          Approve
+                          {t('approve')}
                         </Button>
                         <Button
                           size="sm"
@@ -220,7 +222,7 @@ export default function ApprovalsPage() {
                             setRejectingId(rejectingId === d.id ? null : d.id)
                           }
                         >
-                          Reject
+                          {t('reject')}
                         </Button>
                       </>
                     )}
@@ -232,14 +234,14 @@ export default function ApprovalsPage() {
                         loading={busy}
                         onClick={() => act(d.id, 'index')}
                       >
-                        Index into AI
+                        {t('indexIntoAi')}
                       </Button>
                     )}
 
                     {['ACTIVE', 'APPROVED', 'INDEXED', 'EXPIRED'].includes(d.status) &&
                       hasPermission('documents:deactivate') && (
                         <Button size="sm" loading={busy} onClick={() => act(d.id, 'deactivate')}>
-                          Deactivate
+                          {t('deactivate')}
                         </Button>
                       )}
 
@@ -264,10 +266,10 @@ export default function ApprovalsPage() {
                       htmlFor={`reject-${d.id}`}
                       className="block text-xs font-medium text-danger"
                     >
-                      Why is this being rejected?
+                      {t('whyRejecting')}
                     </label>
                     <p className="mt-0.5 text-2xs text-muted">
-                      The reason is recorded in the approval history and shown to the uploader.
+                      {t('rejectionRecorded')}
                     </p>
                     <Textarea
                       id={`reject-${d.id}`}
@@ -275,7 +277,7 @@ export default function ApprovalsPage() {
                       className="mt-2"
                       value={rejectComment}
                       onChange={(e) => setRejectComment(e.target.value)}
-                      placeholder="e.g. Dosing table on page 4 contradicts the current protocol"
+                      placeholder={t('rejectionPlaceholder')}
                     />
                     <div className="mt-2 flex gap-2">
                       <Button
@@ -285,7 +287,7 @@ export default function ApprovalsPage() {
                         disabled={!rejectComment.trim()}
                         onClick={() => act(d.id, 'reject', rejectComment.trim())}
                       >
-                        Confirm rejection
+                        {t('confirmRejection')}
                       </Button>
                       <Button
                         size="sm"
@@ -295,7 +297,7 @@ export default function ApprovalsPage() {
                           setRejectComment('');
                         }}
                       >
-                        Cancel
+                        {t('cancel')}
                       </Button>
                     </div>
                   </div>
@@ -304,12 +306,12 @@ export default function ApprovalsPage() {
                 {open && (
                   <div id={`history-${d.id}`} className="mt-4 border-t border-border pt-3">
                     <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
-                      Approval history
+                      {t('approvalHistory')}
                     </p>
                     {historyLoading ? (
-                      <SkeletonRows rows={2} label="Loading history" />
+                      <SkeletonRows rows={2} label={t('loadingHistory')} />
                     ) : history.length === 0 ? (
-                      <p className="text-xs text-subtle">No workflow events yet.</p>
+                      <p className="text-xs text-subtle">{t('noWorkflowEvents')}</p>
                     ) : (
                       <ol className="space-y-1.5 text-xs text-subtle">
                         {history.map((h, i) => (
@@ -343,7 +345,7 @@ export default function ApprovalsPage() {
           limit={PAGE_LIMIT}
           total={data.total}
           onChange={setOffset}
-          noun="documents"
+          noun={t('documentsNoun')}
         />
       )}
     </>

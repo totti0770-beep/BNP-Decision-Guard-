@@ -6,6 +6,8 @@ import { REFUSAL_MESSAGE_AR } from '@bnp/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
+import { useT } from '@/lib/language';
+import type { Key } from '@/lib/i18n';
 import {
   Badge,
   Card,
@@ -22,35 +24,41 @@ interface Overview {
   refusalRate: number;
 }
 
-const ACTIONS = [
+const ACTIONS: {
+  href: string;
+  titleKey: Key;
+  descKey: Key;
+  permission: string;
+}[] = [
   {
     href: '/assistant',
-    title: 'Nursing Assistant',
-    desc: 'Cited answers from approved documents',
+    titleKey: 'navAssistant',
+    descKey: 'assistantDesc',
     permission: 'ai:ask',
   },
   {
     href: '/drug-prep',
-    title: 'Drug Preparation',
-    desc: 'Medication-scoped assistant',
+    titleKey: 'navDrugPrep',
+    descKey: 'drugPrepDesc',
     permission: 'ai:ask',
   },
   {
     href: '/dose-calculator',
-    title: 'Dose Calculator',
-    desc: 'Pharmacist-approved formulas only',
+    titleKey: 'navDoseCalculator',
+    descKey: 'doseCalculatorDesc',
     permission: 'dose:calculate',
   },
   {
     href: '/policies',
-    title: 'Policies Library',
-    desc: 'Browse the approved knowledge base',
+    titleKey: 'navPolicies',
+    descKey: 'policiesDesc',
     permission: 'documents:read',
   },
 ];
 
 export default function DashboardPage() {
   const { session, hasPermission } = useAuth();
+  const t = useT();
   const canSeeAnalytics = hasPermission('analytics:read');
 
   const fetchOverview = useCallback(
@@ -72,8 +80,8 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader
-        title={`Welcome, ${first}`}
-        subtitle="Governed clinical knowledge — every answer traceable to an approved document."
+        title={t('welcomeName', { name: first })}
+        subtitle={t('dashboardSubtitle')}
       />
 
       <div className="space-y-8">
@@ -82,8 +90,8 @@ export default function DashboardPage() {
             "nothing to do" or a link to the thing that needs attention. */}
         {canSeeAnalytics && (
           <Section
-            title="Knowledge base health"
-            description="What needs your attention right now"
+            title={t('kbHealth')}
+            description={t('kbHealthDesc')}
           >
             {loading ? (
               <Panel className="divide-y divide-border">
@@ -98,25 +106,28 @@ export default function DashboardPage() {
             ) : overview ? (
               <Panel className="divide-y divide-border">
                 <AttentionRow
-                  label="Documents awaiting review"
+                  label={t('docsAwaitingReview')}
                   value={overview.counters.documents_in_review}
                   href="/approvals"
-                  cta="Open workflow"
+                  cta={t('openWorkflow')}
                   tone={overview.counters.documents_in_review > 0 ? 'warning' : 'ok'}
+                  clearLabel={t('clear')}
                 />
                 <AttentionRow
-                  label="Approaching expiry (30 days)"
+                  label={t('approachingExpiry')}
                   value={overview.counters.near_expiry_documents}
                   href="/policies"
-                  cta="Review documents"
+                  cta={t('reviewDocuments')}
                   tone={overview.counters.near_expiry_documents > 0 ? 'warning' : 'ok'}
+                  clearLabel={t('clear')}
                 />
                 <AttentionRow
-                  label="Expired — no longer answerable"
+                  label={t('expiredNotAnswerable')}
                   value={overview.counters.expired_documents}
                   href="/policies"
-                  cta="Review documents"
+                  cta={t('reviewDocuments')}
                   tone={overview.counters.expired_documents > 0 ? 'danger' : 'ok'}
+                  clearLabel={t('clear')}
                 />
               </Panel>
             ) : null}
@@ -124,20 +135,20 @@ export default function DashboardPage() {
             {/* Coverage context, secondary to the action list above. */}
             {overview && (
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 px-1 pt-1 sm:grid-cols-4">
-                <Metric label="Active documents" value={overview.counters.active_documents} />
-                <Metric label="Questions asked" value={overview.counters.total_questions} />
+                <Metric label={t('activeDocuments')} value={overview.counters.active_documents} />
+                <Metric label={t('questionsAsked')} value={overview.counters.total_questions} />
                 <Metric
-                  label="Refusal rate"
+                  label={t('refusalRate')}
                   value={`${overview.refusalRate}%`}
-                  hint="Questions with no approved source"
+                  hint={t('refusalRateHint')}
                 />
-                <Metric label="Audit events" value={overview.counters.audit_events} />
+                <Metric label={t('auditEvents')} value={overview.counters.audit_events} />
               </dl>
             )}
           </Section>
         )}
 
-        <Section title="Go to">
+        <Section title={t('goTo')}>
           <div className="grid gap-3 sm:grid-cols-2">
             {ACTIONS.filter((a) => hasPermission(a.permission)).map((a) => (
               <Link
@@ -146,15 +157,15 @@ export default function DashboardPage() {
                 className="group rounded-card border border-border bg-surface p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium text-text">{a.title}</span>
+                  <span className="font-medium text-text">{t(a.titleKey)}</span>
                   <span
                     aria-hidden="true"
-                    className="text-subtle transition-transform group-hover:translate-x-0.5"
+                    className="text-subtle transition-transform group-hover:translate-x-0.5 rtl:-scale-x-100"
                   >
                     →
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-subtle">{a.desc}</p>
+                <p className="mt-1 text-sm text-subtle">{t(a.descKey)}</p>
               </Link>
             ))}
           </div>
@@ -162,12 +173,9 @@ export default function DashboardPage() {
 
         <Card className="border-warning/25 bg-warning-soft">
           <p className="text-2xs font-medium uppercase tracking-wide text-warning">
-            Governance guarantee
+            {t('governanceGuarantee')}
           </p>
-          <p className="mt-1.5 text-sm text-text">
-            The assistant answers only from approved, indexed, non-expired
-            documents. When no approved source qualifies it returns exactly:
-          </p>
+          <p className="mt-1.5 text-sm text-text">{t('governanceGuaranteeBody')}</p>
           <p
             dir="rtl"
             lang="ar"
@@ -188,12 +196,14 @@ function AttentionRow({
   href,
   cta,
   tone,
+  clearLabel,
 }: {
   label: string;
   value: number | undefined;
   href: string;
   cta: string;
   tone: 'ok' | 'warning' | 'danger';
+  clearLabel: string;
 }) {
   const count = value ?? 0;
   return (
@@ -208,7 +218,7 @@ function AttentionRow({
       </span>
       <span className="flex-1 text-sm text-text">{label}</span>
       {count === 0 ? (
-        <Badge tone="success">Clear</Badge>
+        <Badge tone="success">{clearLabel}</Badge>
       ) : (
         <Link
           href={href}

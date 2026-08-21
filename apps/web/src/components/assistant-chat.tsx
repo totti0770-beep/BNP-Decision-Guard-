@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/language';
 import { Badge, Button, EmptyState, Skeleton, cx } from '@/components/ui';
 
 interface Citation {
@@ -73,6 +74,13 @@ const CONFIDENCE: Record<string, { tone: 'success' | 'warning' | 'danger' | 'neu
  * field entirely for roles without analytics:read.
  */
 function RefusalReason({ d }: { d: Diagnostics }) {
+  const t = useT();
+  // The four explanations below stay in English deliberately. They are
+  // governance/debug prose shown only to analytics:read holders, and they name
+  // English configuration keys (RAG_TOP_K, RAG_MIN_SIMILARITY) that a reader
+  // has to match against env vars and API logs. Translating the surrounding
+  // chrome while leaving these verbatim keeps them greppable against the
+  // config they refer to.
   const explain = () => {
     if (d.refusedAt === 'NO_CANDIDATES')
       return 'No approved, indexed, in-version chunk matched this category at all — the library is missing this topic, or the documents were indexed under a different embedding provider.';
@@ -90,14 +98,16 @@ function RefusalReason({ d }: { d: Diagnostics }) {
   return (
     <details className="mt-3 border-t border-warning/20 pt-2">
       <summary className="cursor-pointer text-xs font-medium text-muted hover:text-text">
-        Why was this refused?
+        {t('whyRefused')}
       </summary>
-      <p className="mt-1.5 text-xs leading-relaxed text-muted">{text}</p>
+      <p dir="auto" className="mt-1.5 text-xs leading-relaxed text-muted">
+        {text}
+      </p>
 
       {d.consideredSources.length > 0 && (
         <div className="mt-3">
           <p className="text-2xs font-medium uppercase tracking-wide text-subtle">
-            Closest text considered
+            {t('closestTextConsidered')}
           </p>
           <ul className="mt-1.5 space-y-2">
             {d.consideredSources.map((s, i) => (
@@ -128,25 +138,23 @@ function RefusalAnswer({
   message: string;
   diagnostics?: Diagnostics;
 }) {
+  const t = useT();
   return (
     <div className="rounded-card border border-warning/30 bg-warning-soft p-4">
       <div className="mb-2 flex items-center gap-2">
-        <Badge tone="warning">No approved source</Badge>
+        <Badge tone="warning">{t('noApprovedSource')}</Badge>
       </div>
       <p dir="rtl" lang="ar" className="text-right text-base font-medium leading-relaxed text-warning">
         {message}
       </p>
-      <p className="mt-2 text-xs text-muted">
-        No approved, indexed, non-expired document supports an answer here. The
-        assistant refuses rather than guessing — escalate to the responsible
-        supervisor.
-      </p>
+      <p className="mt-2 text-xs text-muted">{t('refusalExplanation')}</p>
       {diagnostics && <RefusalReason d={diagnostics} />}
     </div>
   );
 }
 
 function AnswerBody({ answer }: { answer: Answer }) {
+  const t = useT();
   if (answer.refused)
     return (
       <RefusalAnswer
@@ -193,7 +201,7 @@ function AnswerBody({ answer }: { answer: Answer }) {
 
       {answer.warnings.length > 0 && (
         <div className="mt-3 rounded-control border border-danger/25 bg-danger-soft px-3 py-2.5">
-          <p className="text-2xs font-medium uppercase tracking-wide text-danger">Warnings</p>
+          <p className="text-2xs font-medium uppercase tracking-wide text-danger">{t('warningsLabel')}</p>
           <ul className="mt-1 space-y-1 text-sm text-text">
             {answer.warnings.map((w, i) => (
               <li key={i} dir="auto">
@@ -209,18 +217,21 @@ function AnswerBody({ answer }: { answer: Answer }) {
       {answer.citations.length > 0 && (
         <div className="mt-4 border-t border-border pt-3">
           <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
-            Approved sources
+            {t('approvedSources')}
           </p>
           <ul className="space-y-1">
             {answer.citations.map((c, i) => (
               <li key={i} className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                <span className="font-medium text-text">{c.documentTitle}</span>
+                <span dir="auto" className="font-medium text-text">{c.documentTitle}</span>
                 {c.pageNumber != null && (
-                  <span className="tnum text-xs text-muted">p.{c.pageNumber}</span>
+                  <span className="tnum text-xs text-muted">
+                    {t('pageAbbrev')}
+                    {c.pageNumber}
+                  </span>
                 )}
                 {c.approvalDate && (
                   <span className="tnum text-xs text-subtle">
-                    approved {c.approvalDate.slice(0, 10)}
+                    {t('approvedOn', { date: c.approvalDate.slice(0, 10) })}
                   </span>
                 )}
               </li>
@@ -230,7 +241,7 @@ function AnswerBody({ answer }: { answer: Answer }) {
       )}
 
       <div className="mt-4 flex items-center gap-3 border-t border-border pt-3">
-        <span className="text-2xs uppercase tracking-wide text-subtle">Confidence</span>
+        <span className="text-2xs uppercase tracking-wide text-subtle">{t('confidence')}</span>
         <div className="h-1 w-24 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
           <div className={cx('h-full rounded-full', conf.fill)} />
         </div>
@@ -241,12 +252,13 @@ function AnswerBody({ answer }: { answer: Answer }) {
 }
 
 function ThinkingRow() {
+  const t = useT();
   return (
     <div className="rounded-card border border-border bg-surface p-4 shadow-sm">
       <div role="status" aria-live="polite" className="space-y-2">
         <Skeleton className="h-4 w-4/5" />
         <Skeleton className="h-4 w-3/5" />
-        <span className="sr-only">Searching approved documents…</span>
+        <span className="sr-only">{t('searchingApprovedDocs')}</span>
       </div>
     </div>
   );
@@ -261,6 +273,7 @@ export function AssistantChat({
   placeholder: string;
   category?: string;
 }) {
+  const t = useT();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState(false);
@@ -304,8 +317,8 @@ export function AssistantChat({
       <div className="flex-1 space-y-6 overflow-y-auto pb-4">
         {turns.length === 0 && (
           <EmptyState
-            title="Ask a clinical question"
-            description="Answers are drawn only from approved, indexed, non-expired hospital documents and always cite their source. If no approved document covers your question, the assistant will say so rather than guess."
+            title={t('askClinicalQuestion')}
+            description={t('askClinicalQuestionDesc')}
           />
         )}
 
@@ -326,7 +339,7 @@ export function AssistantChat({
                     role="alert"
                     className="rounded-card border border-danger/30 bg-danger-soft p-4"
                   >
-                    <p className="text-sm font-medium text-danger">Could not reach the assistant</p>
+                    <p className="text-sm font-medium text-danger">{t('couldNotReachAssistant')}</p>
                     <p className="mt-1 text-sm text-muted">{turn.error}</p>
                   </div>
                 ) : (
@@ -350,7 +363,7 @@ export function AssistantChat({
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder={placeholder}
-          aria-label="Your question"
+          aria-label={t('yourQuestion')}
           disabled={busy}
         />
         <Button
@@ -360,7 +373,7 @@ export function AssistantChat({
           loading={busy}
           disabled={!question.trim()}
         >
-          Ask
+          {t('ask')}
         </Button>
       </form>
     </div>

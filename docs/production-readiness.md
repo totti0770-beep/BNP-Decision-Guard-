@@ -92,6 +92,24 @@ production. Use this as the launch checklist.
 > resolved** — a real single-region, single-replica deployment exists, just
 > not the HA/multi-replica target that row originally meant.
 
+> **Cycle 3, Phase 10 (Aug 2026).** The web UI is no longer English-only. All
+> 13 protected screens, the shell and both auth screens are now bilingual
+> EN/AR with a per-user toggle, and RTL genuinely mirrors the layout rather
+> than only flipping text direction. Deliberately *not* next-intl: its
+> `[locale]` routing would have restructured every route, changed every URL,
+> broken the browser smoke test's paths and the Railway `/login` healthcheck,
+> and pushed statically prerendered routes dynamic — for SEO that does not
+> exist behind auth. It instead reuses the localStorage + pre-paint init
+> script pattern the app already used for theme, so `lang`/`dir` are correct
+> in the first paint. Web defaults to English (mobile stays Arabic-first);
+> the earlier note below that calls this a "deliberate inversion to revisit"
+> is now resolved — both languages exist on both clients, and which one is
+> *default* is a per-client product call rather than a gap. Still English in
+> an Arabic session, on purpose: user names, emails, document titles, and the
+> role enum values/descriptions returned by the API — that is data, not
+> interface. Localised role display names would belong in the API/RBAC layer
+> beside the roles, not as a drifting client-side copy.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |

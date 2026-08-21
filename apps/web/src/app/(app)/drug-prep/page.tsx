@@ -1,16 +1,20 @@
+'use client';
+
 import { PageHeader } from '@/components/shell';
+import { useT } from '@/lib/language';
 import { AssistantChat } from '@/components/assistant-chat';
 
 export default function DrugPrepPage() {
+  const t = useT();
   return (
     <>
       <PageHeader
-        title="Drug Preparation Assistant"
-        subtitle="Retrieval is restricted to approved medication documents."
+        title={t('drugPrepTitle')}
+        subtitle={t('drugPrepSubtitle')}
       />
       <AssistantChat
         assistantType="DRUG_PREPARATION"
-        placeholder="e.g. How do I prepare IV paracetamol for a dose below 1000 mg?"
+        placeholder={t('drugPrepPlaceholder')}
       />
     </>
   );

@@ -22,7 +22,7 @@ calculator, role-based access control, and a complete audit trail.
 ```
 apps/
   api/        NestJS + TypeScript — REST API, RAG pipeline, RBAC, audit
-  web/        Next.js 14 + Tailwind — 13 protected screens
+  web/        Next.js 14 + Tailwind — 13 protected screens, bilingual EN/AR
   mobile/     Expo React Native — nurse-focused companion app
 packages/
   shared/     RBAC matrix, clinical safety strings, lifecycle enums, DTO types
@@ -303,6 +303,13 @@ institutional process. Highlights:
   `POST /chat/answers/:id/review`) lets the scientific committee
   (pharmacist/quality/knowledge manager) see every nurse's AI answers and
   approve or flag them — nurses cannot access either endpoint.
+- **Bilingual EN / AR with real RTL**: every screen, the shell and both auth
+  screens translate, and Arabic mirrors the layout (sidebar, tables, form
+  alignment, icon direction) rather than only flipping text. The choice is
+  per-user, persisted, and applied before first paint so there is no
+  left-to-right flash on load. Not locale-routed — URLs are language
+  independent. Arabic keeps Latin digits so doses, page citations and
+  timestamps stay comparable against English source PDFs.
 - **MFA (TOTP)**: self-service two-step enrolment — `POST /auth/mfa/enroll`
   returns a secret + `otpauth://` URI without arming it, `POST /auth/mfa/enable`
   arms it only after a live code proves the authenticator app holds it, and

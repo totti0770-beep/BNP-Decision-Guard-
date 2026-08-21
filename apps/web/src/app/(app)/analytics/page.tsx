@@ -3,6 +3,8 @@
 import { useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useAsyncData } from '@/lib/async';
+import { useT } from '@/lib/language';
+import type { Key } from '@/lib/i18n';
 import {
   EmptyState,
   ErrorState,
@@ -25,35 +27,39 @@ interface Overview {
  * cards. A wall of equal-weight KPI tiles is decoration: it tells you nothing
  * about which number matters.
  */
-const GROUPS: { title: string; description: string; keys: [string, string][] }[] = [
+const GROUPS: {
+  titleKey: Key;
+  descriptionKey: Key;
+  keys: [string, Key][];
+}[] = [
   {
-    title: 'Knowledge base',
-    description: 'How much approved material the assistant can draw on',
+    titleKey: 'kbGroupTitle',
+    descriptionKey: 'kbGroupDesc',
     keys: [
-      ['active_documents', 'Active'],
-      ['total_documents', 'Total uploaded'],
-      ['documents_in_review', 'In review'],
-      ['near_expiry_documents', 'Near expiry (30d)'],
-      ['expired_documents', 'Expired'],
-      ['approved_formulas', 'Approved formulas'],
+      ['active_documents', 'mActive'],
+      ['total_documents', 'mTotalUploaded'],
+      ['documents_in_review', 'mInReview'],
+      ['near_expiry_documents', 'mNearExpiry'],
+      ['expired_documents', 'mExpired'],
+      ['approved_formulas', 'mApprovedFormulas'],
     ],
   },
   {
-    title: 'Assistant usage',
-    description: 'What nurses asked and what came back',
+    titleKey: 'usageGroupTitle',
+    descriptionKey: 'usageGroupDesc',
     keys: [
-      ['total_questions', 'Questions asked'],
-      ['answered_questions', 'Answered'],
-      ['refused_answers', 'Refused (no source)'],
-      ['dose_calculations', 'Dose calculations'],
+      ['total_questions', 'mQuestionsAsked'],
+      ['answered_questions', 'mAnswered'],
+      ['refused_answers', 'mRefusedNoSource'],
+      ['dose_calculations', 'mDoseCalculations'],
     ],
   },
   {
-    title: 'Governance',
-    description: 'Accounts and the audit trail',
+    titleKey: 'govGroupTitle',
+    descriptionKey: 'govGroupDesc',
     keys: [
-      ['active_users', 'Active users'],
-      ['audit_events', 'Audit events'],
+      ['active_users', 'mActiveUsers'],
+      ['audit_events', 'mAuditEvents'],
     ],
   },
 ];
@@ -91,16 +97,17 @@ function Bars({
 }
 
 export default function AnalyticsPage() {
+  const t = useT();
   const fetchOverview = useCallback(() => api<Overview>('/analytics/overview'), []);
   const { data, error, loading, reload } = useAsyncData(fetchOverview, []);
 
   if (loading) {
     return (
       <>
-        <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+        <PageHeader title={t('analyticsTitle')} subtitle={t('analyticsSubtitle')} />
         <div className="space-y-6">
           <Skeleton className="h-24 w-full" />
-          <SkeletonRows rows={3} label="Loading analytics" />
+          <SkeletonRows rows={3} label={t('loadingAnalytics')} />
         </div>
       </>
     );
@@ -109,7 +116,7 @@ export default function AnalyticsPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+        <PageHeader title={t('analyticsTitle')} subtitle={t('analyticsSubtitle')} />
         <ErrorState message={error} onRetry={reload} />
       </>
     );
@@ -118,11 +125,11 @@ export default function AnalyticsPage() {
   if (!data) {
     return (
       <>
-        <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+        <PageHeader title={t('analyticsTitle')} subtitle={t('analyticsSubtitle')} />
         <Panel>
           <EmptyState
-            title="No analytics available"
-            description="The overview endpoint returned nothing. This usually means the database has not been seeded yet."
+            title={t('noAnalytics')}
+            description={t('noAnalyticsDesc')}
           />
         </Panel>
       </>
@@ -133,7 +140,7 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <PageHeader title="Analytics" subtitle="Knowledge-base health and assistant usage." />
+      <PageHeader title={t('analyticsTitle')} subtitle={t('analyticsSubtitle')} />
 
       <div className="space-y-8">
         {/* Refusal rate is the one number that describes whether governance is
@@ -144,7 +151,7 @@ export default function AnalyticsPage() {
               {data.refusalRate}%
             </span>
             <div>
-              <p className="text-sm font-medium text-text">Refusal rate</p>
+              <p className="text-sm font-medium text-text">{t('refusalRate')}</p>
               <p className="text-xs text-subtle">
                 Share of questions with no approved source behind them
               </p>
@@ -158,11 +165,15 @@ export default function AnalyticsPage() {
         </Panel>
 
         {GROUPS.map((g) => (
-          <Section key={g.title} title={g.title} description={g.description}>
+          <Section
+            key={g.titleKey}
+            title={t(g.titleKey)}
+            description={t(g.descriptionKey)}
+          >
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-              {g.keys.map(([key, label]) => (
+              {g.keys.map(([key, labelKey]) => (
                 <div key={key}>
-                  <dt className="text-2xs uppercase tracking-wide text-subtle">{label}</dt>
+                  <dt className="text-2xs uppercase tracking-wide text-subtle">{t(labelKey)}</dt>
                   <dd className="tnum mt-0.5 text-xl font-semibold text-text">
                     {data.counters[key] ?? 0}
                   </dd>
@@ -173,19 +184,19 @@ export default function AnalyticsPage() {
         ))}
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Section title="Documents by category">
+          <Section title={t('documentsByCategory')}>
             <Panel className="p-4">
               <Bars
                 rows={data.documentsByCategory.map((r) => ({
                   label: r.category.replaceAll('_', ' '),
                   value: r.count,
                 }))}
-                emptyLabel="No documents have been uploaded yet."
+                emptyLabel={t('noDocumentsUploaded')}
               />
             </Panel>
           </Section>
 
-          <Section title="Questions (last 14 days)">
+          <Section title={t('questionsLast14Days')}>
             <Panel className="p-4">
               <Bars
                 rows={data.questionsByDay.map((r) => ({
@@ -193,9 +204,7 @@ export default function AnalyticsPage() {
                   value: Number(r.questions),
                 }))}
                 emptyLabel={
-                  totalQuestions > 0
-                    ? 'No questions in the last 14 days.'
-                    : 'No questions asked yet.'
+                  totalQuestions > 0 ? t('noQuestionsRecently') : t('noQuestionsYet')
                 }
               />
             </Panel>

@@ -120,6 +120,11 @@ Two layers: a global `AuditInterceptor` logging every mutating HTTP request (it 
 
 Session lives in `localStorage`; `apps/web/src/lib/api.ts` wraps fetch with automatic refresh-on-401 then redirect to login. Navigation is permission-filtered in `components/shell.tsx`.
 
+**i18n (EN/AR).** `lib/i18n.ts` holds the dictionary + `t()`/`isRtl()`/`localeTag()`; `lib/language.tsx` is the provider and `useT()` hook. Deliberately **not** next-intl and **not** locale-routed: routes stay language-independent so URLs, the browser smoke test and the Railway `/login` healthcheck are unaffected, and every route stays statically prerendered. Language persists in `localStorage` under `bnp.lang` and is applied to `<html lang|dir>` by the `LANG_INIT` script in `app/layout.tsx` **before first paint** — same trick as `THEME_INIT`, and for a stronger reason: a direction flip on hydration moves every element on the page. Two rules when touching web UI:
+- Use logical Tailwind classes (`start-*`/`end-*`, `ps-`/`pe-`, `border-s`/`border-e`, `text-start`/`text-end`), never `left`/`right`/`pl`/`pr`/`text-left`. Physical classes do not mirror, which is how you get `dir="rtl"` with a sidebar still pinned left.
+- Put `dir="auto"` on anything rendered from API data (document titles, citations, answers, warnings). It takes direction from its own content, which matters because an assistant answer comes back in the language of the question, not of the UI.
+Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page numbers and timestamps stay comparable against English source PDFs. The two governed clinical strings are never in the dictionary — they come verbatim from `@bnp/shared`.
+
 ## Gotchas
 
 - **`npm run build:shared` before anything else.** API and web import `@bnp/shared` from its compiled `dist/`, so on a fresh clone `npm test` fails with `Cannot find module '@bnp/shared'` until shared is built. The `build:api` / `dev:api` scripts chain it for you; bare `npm test` does not.

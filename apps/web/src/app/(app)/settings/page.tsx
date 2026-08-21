@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
+import { useT } from '@/lib/language';
 import {
   Alert,
   Badge,
@@ -34,6 +35,7 @@ interface ReindexOutcome {
 }
 
 export default function SettingsPage() {
+  const t = useT();
   const { hasPermission } = useAuth();
   const canManage = hasPermission('settings:manage');
   // Deliberately independent of canManage: /rag/reindex is guarded by
@@ -123,8 +125,8 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader
-        title="Settings"
-        subtitle="Platform configuration. Values are JSON and every change is audited."
+        title={t('settingsTitle')}
+        subtitle={t('settingsSubtitle')}
       />
 
       {saveError && <Alert className="mb-4">{saveError}</Alert>}
@@ -133,7 +135,7 @@ export default function SettingsPage() {
         <Panel className="mb-6 max-w-3xl p-4">
           <div className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:flex-nowrap">
             <div className="min-w-0 flex-1">
-              <span className="text-sm font-medium text-text">Reindex knowledge library</span>
+              <span className="text-sm font-medium text-text">{t('reindexLibrary')}</span>
               <p className="mt-0.5 text-xs text-subtle">
                 Re-embeds every active document with the current embedding provider.
                 Required after switching EMBEDDING_PROVIDER — until then the assistant
@@ -175,14 +177,14 @@ export default function SettingsPage() {
       )}
 
       {loading ? (
-        <SkeletonRows rows={5} label="Loading settings" />
+        <SkeletonRows rows={5} label={t('loadingSettings')} />
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : !data || data.length === 0 ? (
         <Panel>
           <EmptyState
-            title="No settings defined"
-            description="Platform settings are seeded on first run. If this list is empty, the seed step has not completed against this database."
+            title={t('noSettings')}
+            description={t('noSettingsDesc')}
           />
         </Panel>
       ) : (
@@ -198,7 +200,7 @@ export default function SettingsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-text">{s.key}</span>
-                    {savedKey === s.key && !dirty && <Badge tone="success">Saved</Badge>}
+                    {savedKey === s.key && !dirty && <Badge tone="success">{t('saved')}</Badge>}
                   </div>
                   {s.description && (
                     <p className="mt-0.5 text-xs text-subtle">{s.description}</p>

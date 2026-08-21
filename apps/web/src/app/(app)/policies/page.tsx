@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData, useDebounced } from '@/lib/async';
+import { useT } from '@/lib/language';
 import { StatusBadge } from '@/components/shell';
 import {
   Alert,
@@ -46,6 +47,7 @@ function expiryTone(expiry: string | null) {
 }
 
 export default function PoliciesPage() {
+  const t = useT();
   const { hasPermission } = useAuth();
   const canDownload = hasPermission('documents:download');
 
@@ -95,24 +97,24 @@ export default function PoliciesPage() {
   return (
     <>
       <PageHeader
-        title="Policies Library"
-        subtitle="Approved, active documents currently feeding the assistant."
+        title={t('policiesTitle')}
+        subtitle={t('policiesSubtitle')}
       />
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <Field label="Category" className="w-full sm:w-56">
+        <Field label={t('category')} className="w-full sm:w-56">
           <Select value={category} onChange={(e) => setCategory(e.target.value)}>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {c ? c.replaceAll('_', ' ') : 'All categories'}
+                {c ? c.replaceAll('_', ' ') : t('allCategories')}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Search" className="w-full sm:w-72">
+        <Field label={t('search')} className="w-full sm:w-72">
           <Input
             type="search"
-            placeholder="Search title…"
+            placeholder={t('searchTitlePlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -122,17 +124,15 @@ export default function PoliciesPage() {
       {downloadError && <Alert className="mb-4">{downloadError}</Alert>}
 
       {loading ? (
-        <SkeletonRows rows={5} label="Loading documents" />
+        <SkeletonRows rows={5} label={t('loadingDocuments')} />
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : !data || data.items.length === 0 ? (
         <Panel>
           <EmptyState
-            title={filtered ? 'No documents match' : 'No active documents'}
+            title={filtered ? t('noDocumentsMatch') : t('noActiveDocuments')}
             description={
-              filtered
-                ? 'Try another category, or clear the search to see the whole active library.'
-                : 'Nothing has completed approval and indexing yet. Until a document is ACTIVE the assistant will refuse every question in its area.'
+              filtered ? t('noDocumentsMatchDesc') : t('noActiveDocumentsDesc')
             }
           />
         </Panel>
@@ -141,12 +141,12 @@ export default function PoliciesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>Title</Th>
-                <Th className="hidden sm:table-cell">Category</Th>
-                <Th>Status</Th>
-                <Th className="hidden lg:table-cell">Ver</Th>
-                <Th className="hidden md:table-cell">Approved</Th>
-                <Th>Expires</Th>
+                <Th>{t('colTitle')}</Th>
+                <Th className="hidden sm:table-cell">{t('category')}</Th>
+                <Th>{t('colStatus')}</Th>
+                <Th className="hidden lg:table-cell">{t('colVersion')}</Th>
+                <Th className="hidden md:table-cell">{t('colApproved')}</Th>
+                <Th>{t('colExpires')}</Th>
                 {canDownload && <Th />}
               </tr>
             </thead>
@@ -173,13 +173,13 @@ export default function PoliciesPage() {
                     {d.expiryDate?.slice(0, 10) ?? '—'}
                   </Td>
                   {canDownload && (
-                    <Td className="text-right">
+                    <Td className="text-end">
                       <Button
                         size="sm"
                         loading={downloadingId === d.id}
                         onClick={() => download(d.id)}
                       >
-                        Download
+                        {t('download')}
                       </Button>
                     </Td>
                   )}
@@ -196,7 +196,7 @@ export default function PoliciesPage() {
           limit={LIMIT}
           total={data.total}
           onChange={setOffset}
-          noun="documents"
+          noun={t('documentsNoun')}
         />
       )}
 
