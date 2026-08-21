@@ -112,5 +112,46 @@ await page.waitForSelector('text=Peripheral IV Cannulation', { timeout: 15000 })
 await page.screenshot({ path: `${shots}/07-approvals.png` });
 console.log('approval workflow screen OK');
 
+// 8. Arabic / RTL. Asserts the layout actually mirrors, not just that the text
+// changed: `dir="rtl"` with a sidebar still pinned left is the classic
+// half-done RTL, and it looks fine in a diff. Comparing the sidebar's x
+// against the viewport midpoint catches it.
+await page.click('button[aria-label="التبديل إلى العربية"]');
+await page.waitForTimeout(400);
+check(
+  (await page.getAttribute('html', 'dir')) === 'rtl',
+  'switching to Arabic sets dir="rtl" on <html>',
+);
+check(
+  (await page.getAttribute('html', 'lang')) === 'ar',
+  'switching to Arabic sets lang="ar" on <html>',
+);
+const arabicNav = page.getByRole('navigation', { name: 'التنقل الرئيسي' });
+check((await arabicNav.count()) === 1, 'navigation is labelled in Arabic');
+const asideBox = await page.locator('aside').boundingBox();
+check(
+  asideBox !== null && asideBox.x > 720,
+  `sidebar mirrors to the right under RTL (x=${asideBox ? Math.round(asideBox.x) : 'null'})`,
+);
+await page.screenshot({ path: `${shots}/08-arabic-rtl.png` });
+
+// The preference must survive a full reload, applied before first paint by
+// LANG_INIT — otherwise every navigation flashes LTR and snaps back.
+await page.reload();
+await page.waitForTimeout(600);
+check(
+  (await page.getAttribute('html', 'dir')) === 'rtl',
+  'Arabic preference survives a reload',
+);
+
+// And back, so a wrong toggle is recoverable.
+await page.click('button[aria-label="Switch to English"]');
+await page.waitForTimeout(400);
+check(
+  (await page.getAttribute('html', 'dir')) === 'ltr',
+  'switching back to English restores dir="ltr"',
+);
+console.log('language switching + RTL mirroring OK');
+
 await browser.close();
 console.log('SMOKE PASSED');

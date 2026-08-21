@@ -6,48 +6,57 @@ import { usePathname, useRouter } from 'next/navigation';
 import { getSession } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { LanguageToggle } from '@/components/language-toggle';
+import { useT } from '@/lib/language';
+import type { Key } from '@/lib/i18n';
 import { Badge, Button, cx } from '@/components/ui';
 
 /**
  * Navigation grouped by intent rather than one flat list — with 12 destinations
  * a single column forces users to read every label to find anything.
+ *
+ * Labels are dictionary keys, not literals, so the nav translates with the rest
+ * of the interface. The hrefs are deliberately NOT localised: routes stay
+ * language-independent so bookmarks, the browser smoke test and the Railway
+ * healthcheck keep working whatever language a user picks.
  */
 const NAV_GROUPS: {
-  label: string;
-  items: { href: string; label: string; permission?: string }[];
+  labelKey: Key;
+  items: { href: string; labelKey: Key; permission?: string }[];
 }[] = [
   {
-    label: 'Clinical',
+    labelKey: 'navClinical',
     items: [
-      { href: '/dashboard', label: 'Dashboard' },
-      { href: '/assistant', label: 'Nursing Assistant', permission: 'ai:ask' },
-      { href: '/drug-prep', label: 'Drug Preparation', permission: 'ai:ask' },
-      { href: '/dose-calculator', label: 'Dose Calculator', permission: 'dose:calculate' },
-      { href: '/cbahi', label: 'CBAHI Standards', permission: 'ai:search' },
+      { href: '/dashboard', labelKey: 'navDashboard' },
+      { href: '/assistant', labelKey: 'navAssistant', permission: 'ai:ask' },
+      { href: '/drug-prep', labelKey: 'navDrugPrep', permission: 'ai:ask' },
+      { href: '/dose-calculator', labelKey: 'navDoseCalculator', permission: 'dose:calculate' },
+      { href: '/cbahi', labelKey: 'navCbahi', permission: 'ai:search' },
     ],
   },
   {
-    label: 'Knowledge',
+    labelKey: 'navKnowledge',
     items: [
-      { href: '/policies', label: 'Policies Library', permission: 'documents:read' },
-      { href: '/upload', label: 'Upload Document', permission: 'documents:upload' },
-      { href: '/approvals', label: 'Approval Workflow', permission: 'documents:read' },
-      { href: '/answer-review', label: 'Answer Review', permission: 'ai:review-answers' },
+      { href: '/policies', labelKey: 'navPolicies', permission: 'documents:read' },
+      { href: '/upload', labelKey: 'navUpload', permission: 'documents:upload' },
+      { href: '/approvals', labelKey: 'navApprovals', permission: 'documents:read' },
+      { href: '/answer-review', labelKey: 'navAnswerReview', permission: 'ai:review-answers' },
     ],
   },
   {
-    label: 'Governance',
+    labelKey: 'navGovernance',
     items: [
-      { href: '/users', label: 'Users & Roles', permission: 'users:read' },
-      { href: '/audit', label: 'Audit Log', permission: 'audit:read' },
-      { href: '/analytics', label: 'Analytics', permission: 'analytics:read' },
-      { href: '/settings', label: 'Settings', permission: 'settings:read' },
+      { href: '/users', labelKey: 'navUsers', permission: 'users:read' },
+      { href: '/audit', labelKey: 'navAudit', permission: 'audit:read' },
+      { href: '/analytics', labelKey: 'navAnalytics', permission: 'analytics:read' },
+      { href: '/settings', labelKey: 'navSettings', permission: 'settings:read' },
     ],
   },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { session, loading, logout, hasPermission } = useAuth();
+  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
@@ -103,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         role="status"
         aria-live="polite"
       >
-        Loading…
+        {t('loading')}
       </div>
     );
   }
@@ -124,17 +133,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold leading-tight">
-            BNP Decision Guard
+            {t('appName')}
           </div>
-          <div className="truncate text-2xs text-subtle">Governed clinical answers</div>
+          <div className="truncate text-2xs text-subtle">{t('tagline')}</div>
         </div>
       </div>
 
-      <nav aria-label="Main" className="flex-1 space-y-5 overflow-y-auto px-2 pb-4">
+      <nav aria-label={t('mainNav')} className="flex-1 space-y-5 overflow-y-auto px-2 pb-4">
         {groups.map((group) => (
-          <div key={group.label}>
+          <div key={group.labelKey}>
             <div className="px-2 pb-1 text-2xs font-medium uppercase tracking-wide text-subtle">
-              {group.label}
+              {t(group.labelKey)}
             </div>
             <ul className="space-y-0.5">
               {group.items.map((item) => {
@@ -151,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           : 'text-muted hover:bg-sunken hover:text-text',
                       )}
                     >
-                      {item.label}
+                      {t(item.labelKey)}
                     </Link>
                   </li>
                 );
@@ -172,8 +181,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </div>
         </div>
-        <Button size="sm" variant="ghost" className="w-full justify-start" onClick={logout}>
-          Sign out
+        <Button size="sm" variant="ghost" className="w-full justify-start rtl:justify-end" onClick={logout}>
+          {t('signOut')}
         </Button>
       </div>
     </>
@@ -182,11 +191,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <a href="#main" className="skip-link">
-        Skip to content
+        {t('skipToContent')}
       </a>
 
       {/* Persistent sidebar from lg up */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-border bg-surface lg:flex">
         {navContent}
       </aside>
 
@@ -202,8 +211,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Navigation"
-            className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-border bg-surface shadow-lg animate-slide-in-left"
+            aria-label={t('mainNav')}
+            className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col border-e border-border bg-surface shadow-lg animate-slide-in-left"
           >
             {navContent}
           </div>
@@ -211,7 +220,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       {/* Top bar — mobile menu + theme; sticky so context is never lost */}
-      <div className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-bg/85 px-4 backdrop-blur lg:pl-[calc(15rem+1.5rem)] lg:pr-6">
+      <div className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-bg/85 px-4 backdrop-blur lg:ps-[calc(15rem+1.5rem)] lg:pe-6">
         <Button
           ref={openerRef}
           size="sm"
@@ -224,15 +233,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
             <path d="M3 5.5A.5.5 0 0 1 3.5 5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5Zm0 4.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 3 10Zm.5 4a.5.5 0 0 0 0 1h13a.5.5 0 0 0 0-1h-13Z" />
           </svg>
-          <span className="sr-only">Open navigation</span>
+          <span className="sr-only">{t('openNav')}</span>
         </Button>
-        <span className="text-sm font-medium lg:hidden">BNP Decision Guard</span>
-        <div className="ml-auto">
+        <span className="text-sm font-medium lg:hidden">{t('appName')}</span>
+        <div className="ms-auto flex items-center gap-1">
+          <LanguageToggle />
           <ThemeToggle />
         </div>
       </div>
 
-      <main id="main" className="px-4 py-6 lg:pl-[calc(15rem+1.5rem)] lg:pr-6 lg:py-8">
+      <main id="main" className="px-4 py-6 lg:ps-[calc(15rem+1.5rem)] lg:pe-6 lg:py-8">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>
