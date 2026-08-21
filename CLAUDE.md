@@ -50,6 +50,30 @@ docker compose up -d postgres
 E2E_POSTGRES_DB=bnp_e2e npm run test:e2e -w @bnp/api
 ```
 
+### The answer-quality gold set
+
+`apps/api/test/answer-quality.e2e-spec.ts` runs a gold set of questions
+through the whole governed chain — real PDFs, chunking, embeddings, pgvector,
+reranking, threshold, refusal gate — and asserts each reaches the document
+that actually holds its answer, and that questions no approved source covers
+are refused. It runs inside the normal e2e job, so a retrieval regression
+fails the build.
+
+Two boundaries are deliberate and worth keeping straight:
+
+- **Routing is gated; answer content is only measured.** Whether the extract
+  surfaced the specific figure depends on the *mock* LLM's sentence-picking,
+  which is a stand-in — gating on it would fail builds over behaviour that
+  never ships.
+- **A green run is not clinical approval.** It says the plumbing routes
+  correctly. Whether the answers are clinically sound is a reviewer's
+  judgement on real questions.
+
+`npm run test:eval` additionally writes `apps/api/eval-report.md` with a
+scored breakdown and a `RAG_MIN_SIMILARITY` sweep showing the
+answer-vs-refuse trade-off. The report is gitignored on purpose: a committed
+copy goes stale silently, which is the failure mode it exists to catch.
+
 Only three things are faked, and each is a genuinely external boundary: S3
 storage (in-memory), SMTP (captured so specs can read the reset link), and PDF
 text extraction. The extraction stub is a convenience for the *integration*

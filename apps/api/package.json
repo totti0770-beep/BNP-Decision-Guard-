@@ -9,7 +9,8 @@
     "migrate": "ts-node src/scripts/migrate.ts",
     "seed": "ts-node src/seed/seed.ts",
     "test": "jest",
-    "test:e2e": "jest --config jest-e2e.config.js"
+    "test:e2e": "jest --config jest-e2e.config.js",
+    "test:eval": "EVAL_REPORT=1 jest --config jest-e2e.config.js --testPathPattern=answer-quality"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
