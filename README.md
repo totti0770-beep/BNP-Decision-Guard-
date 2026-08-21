@@ -190,8 +190,9 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test                        # 102 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 33 integration tests — real HTTP + real Postgres
+npm test                        # 120 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 34 integration tests — real HTTP + real Postgres
+cd apps/mobile && npm test      # 32 mobile unit tests — separate install
 ```
 
 **Unit** (`apps/api/src/**/*.spec.ts`) covers: the exact refusal contract,
@@ -201,6 +202,15 @@ math + unapproved-formula rejection + max-dose caps, the RBAC permission matrix
 read-only, a database-only role grants nothing), upload content validation, the
 password-reset token never being returned to the caller, and the production
 secret fail-fast.
+
+**Mobile** (`apps/mobile/src/*.spec.ts`) covers `src/api.ts` and `src/i18n.ts`:
+tokens reaching the OS keychain and never plaintext storage, the pre-SecureStore
+session purge, a 401 refreshing exactly once and replaying with the new token
+without looping, session teardown when refresh fails, and the bilingual/RTL
+helpers. It runs on `testEnvironment: node` with the two native storage modules
+mocked; `apps/mobile` is a separate install, not an npm workspace. The screens
+themselves have no runtime coverage — that needs `jest-expo` plus
+`@testing-library/react-native`.
 
 **Integration** (`apps/api/test/**/*.e2e-spec.ts`) boots the real `AppModule` —
 guards, `ValidationPipe`, exception filter — and drives it over HTTP against a
