@@ -174,7 +174,7 @@ export default function UsersPage() {
                           : '—'}
                       </Td>
                       {canManage && (
-                        <Td className="text-right">
+                        <Td className="text-end">
                           <Button
                             size="sm"
                             loading={togglingId === u.id}

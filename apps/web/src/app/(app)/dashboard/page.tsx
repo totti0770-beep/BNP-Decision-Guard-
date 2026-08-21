@@ -176,6 +176,10 @@ export default function DashboardPage() {
             {t('governanceGuarantee')}
           </p>
           <p className="mt-1.5 text-sm text-text">{t('governanceGuaranteeBody')}</p>
+          {/* text-right, not text-end: this element is force-RTL regardless of
+              the interface language, because the string is the contractual
+              Arabic refusal. It must read right-aligned even in an English
+              session, so it must not follow the page direction. */}
           <p
             dir="rtl"
             lang="ar"

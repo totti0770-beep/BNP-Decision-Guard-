@@ -206,7 +206,7 @@ export const Select = forwardRef<
     <select
       ref={ref}
       {...a11y}
-      className={cx(CONTROL_BASE, 'h-9 pr-8', borderClass, className)}
+      className={cx(CONTROL_BASE, 'h-9 pe-8', borderClass, className)}
       {...rest}
     >
       {children}
@@ -433,7 +433,7 @@ export function Th({ children, className }: { children?: ReactNode; className?: 
     <th
       scope="col"
       className={cx(
-        'border-b border-border bg-sunken px-4 py-2 text-left text-2xs font-medium uppercase tracking-wide text-subtle',
+        'border-b border-border bg-sunken px-4 py-2 text-start text-2xs font-medium uppercase tracking-wide text-subtle',
         className,
       )}
     >

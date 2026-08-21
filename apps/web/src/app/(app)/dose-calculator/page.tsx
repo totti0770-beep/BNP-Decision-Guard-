@@ -304,7 +304,9 @@ export default function DoseCalculatorPage() {
               </p>
             )}
 
-            {/* Contractual clinical warning — verbatim, RTL, always last. */}
+            {/* Contractual clinical warning — verbatim, RTL, always last.
+                text-right rather than text-end on purpose: it is force-RTL in
+                either interface language, so it must not follow page direction. */}
             <p
               dir="rtl"
               lang="ar"

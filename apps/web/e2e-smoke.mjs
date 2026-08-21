@@ -153,5 +153,38 @@ check(
 );
 console.log('language switching + RTL mirroring OK');
 
+// 9. Responsive: the layout must hold at real viewport sizes in BOTH reading
+// directions. Horizontal overflow is the failure this catches — an RTL page
+// whose content spills sideways is unusable on a phone, and it is invisible
+// in a desktop-only check because the sidebar hides the spill.
+for (const [w, h, name] of [
+  [390, 844, 'phone'],
+  [768, 1024, 'tablet'],
+  [1280, 800, 'laptop'],
+]) {
+  await page.setViewportSize({ width: w, height: h });
+  for (const lang of ['ltr', 'rtl']) {
+    const target = lang === 'rtl' ? 'التبديل إلى العربية' : 'Switch to English';
+    const toggle = page.locator(`button[aria-label="${target}"]`);
+    if (await toggle.count()) {
+      await toggle.click();
+      await page.waitForTimeout(350);
+    }
+    check(
+      (await page.getAttribute('html', 'dir')) === lang,
+      `${name}/${lang}: direction applied`,
+    );
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    // 1px of slack: sub-pixel layout rounding is not a real overflow.
+    check(overflow <= 1, `${name}/${lang}: no horizontal overflow (${overflow}px)`);
+  }
+}
+await page.setViewportSize({ width: 1440, height: 900 });
+console.log('responsive layout holds at phone/tablet/laptop in both directions OK');
+
 await browser.close();
 console.log('SMOKE PASSED');
