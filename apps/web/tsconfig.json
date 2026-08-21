@@ -10,11 +10,21 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    // Next 16 requires the automatic runtime; "preserve" is rejected outright.
+    "jsx": "react-jsx",
+    // Added by Next 16 for top-level await. Next only polyfills to the
+    // esmodules target, so this is the floor rather than a preference.
+    "target": "ES2017",
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

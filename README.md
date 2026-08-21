@@ -33,7 +33,7 @@ docs/         Architecture, database schema, API reference
 ```
 
 **Stack**: PostgreSQL 16 + pgvector (embeddings + HNSW index), MinIO
-(S3-compatible PDF storage), NestJS 11, TypeORM, Next.js 14, Expo 51,
+(S3-compatible PDF storage), NestJS 11, TypeORM, Next.js 16, Expo 51,
 JWT auth (+ refresh, self-service TOTP MFA), Docker Compose.
 
 **RAG pipeline**: PDF → page-aware extraction → chunking → embeddings →

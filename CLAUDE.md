@@ -79,7 +79,7 @@ Migrations run automatically on API container boot; standalone: `node apps/api/d
 
 ## Architecture
 
-npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 14 App Router), `apps/mobile` (Expo, **not** a workspace), `packages/shared`.
+npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 16 App Router), `apps/mobile` (Expo, **not** a workspace), `packages/shared`.
 
 ### The clinical safety contract
 

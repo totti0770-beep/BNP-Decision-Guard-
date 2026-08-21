@@ -168,6 +168,36 @@ production. Use this as the launch checklist.
 >   `JWT_EXPIRES_IN="1 hour"` fails at boot naming the variable and the legal
 >   forms, instead of throwing inside the first login of the day.
 
+> **Cycle 3, Next.js 16 (Aug 2026).** The web app is on Next.js 16.3.1, which
+> closes the last 2 advisories. **The dependency audit is now zero findings at
+> every severity.**
+>
+> This was much smaller than the row below used to claim, and the estimate was
+> wrong rather than merely conservative. The feared breaking changes do not
+> apply to this codebase: no page receives `params` or `searchParams` as props
+> (the only `searchParams` use is the *client* `useSearchParams()` hook, which
+> is unchanged), there is no `middleware.ts` at all, and 23 of 25 components
+> are `'use client'` — the two server components are layouts taking only
+> `children`. The whole diff is a version bump plus three `tsconfig.json`
+> lines Next 16 mandates.
+>
+> **React stays on 18 deliberately.** Next 16 supports 18 or 19, this app uses
+> no Server Actions and no React 19-only APIs, and React 19 closes no
+> advisory — so its migration surface (ref typing, `useRef` initial argument)
+> was not worth taking on inside a security-motivated change. It is available
+> as a routine follow-up whenever it is wanted.
+>
+> Verified the same way as the Nest upgrade: every route still reports
+> `○ (Static)` in the build output — the property the no-locale-routing i18n
+> decision depends on — and the 13-step browser smoke passes against a
+> confirmed `next-server (v16.3.1)`. That confirmation mattered: a stale Next
+> 14 server was still holding port 3000 and answering 200, so the first
+> "passing" run was against the old build.
+>
+> CI now runs Node 22, matching the runtime container image. It was on 20
+> while both Dockerfiles used `node:22-alpine`, so CI had never actually
+> exercised the Node major that production runs.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
@@ -266,14 +296,12 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
 ## Fastest path to PRODUCTION
 
 1. **Framework major-version migration** — as of the August 2026 audit the
-   count is **2 findings (2 high, 0 moderate, 0 critical)**. NestJS 10→11 has
-   since been done and closed every moderate advisory — the transitive
-   `express`/`body-parser`/`qs`/`uuid` chain went with it. What is left is
-   `next` and its bundled `postcss`, closeable only by **Next.js 14→16**: a
-   two-major jump with async `params`/`searchParams`, middleware changes and a
-   React 19 floor, needing its own migration + regression pass rather than an
-   autonomous bump. Both pass CI because the gate only hard-fails on critical,
-   and are tracked as a non-blocking `npm audit --audit-level=high` report.
+   count is **0 findings of any severity**. Both framework majors have since
+   been done: NestJS 10→11 closed every moderate (the transitive
+   `express`/`body-parser`/`qs`/`uuid` chain went with it) and Next.js 14→16
+   closed the last two highs in `next` and its bundled `postcss`. The CI gate
+   still hard-fails on critical and reports high/moderate non-blocking, so a
+   newly published advisory surfaces without blocking merges.
 2. **HA infrastructure** — managed PostgreSQL 16 with `vector`, object store
    with SSE/KMS, API replicas behind an Ingress with TLS + HPA; move the
    near-expiry cron to a singleton Job.
@@ -311,7 +339,7 @@ something an AI agent should ever run itself).
 | Apple/Google developer accounts | Hospital operator | Required for `eas build`/`eas submit` to produce signed, store-distributable mobile builds. |
 | Load testing against target concurrency | Hospital operator (platform team) | Needs a real, provisioned environment to load-test against — a laptop/CI run cannot represent production traffic. |
 | Backup + tested restore drill | Hospital operator (platform team) | Requires a real database instance and a rehearsed recovery process; nothing here has ever backed anything up. |
-| ~~NestJS 10→11~~ / Next.js 14→16 major-version migration | Engineering (this codebase) | NestJS 11 is ✅ **done** — it closed all 9 moderate advisories, and the full unit + integration + browser suites pass against it on Express 5. Next.js 14→16 remains: a two-major jump (async `params`/`searchParams`, middleware changes, React 19 floor) needing its own migration + regression pass. |
+| ~~NestJS 10→11 / Next.js 14→16 major-version migration~~ | ~~Engineering~~ | ✅ **Done**, both. Together they take the audit to zero findings. The Next jump was far smaller than this row assumed: no page here takes `params`/`searchParams` as props and there is no middleware at all, so the headline breaking changes did not apply. Web stays on React 18 by choice — see the cycle note above. |
 | ~~MFA enrollment endpoint~~ | ~~Engineering~~ | ✅ **Done** — `/auth/mfa/{enroll,enable,disable}` ship a two-step self-service flow (secret is not armed until a live code verifies it; disabling requires the password). Remaining gap is policy, not plumbing: no way for an admin to *require* MFA for a role. |
 | OCR for scanned PDFs | Engineering (this codebase) | `pdf-parse` reads the text layer only; a scanned Arabic PDF indexes zero chunks. Code work. |
 
