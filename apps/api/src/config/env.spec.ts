@@ -77,3 +77,65 @@ describe('loadEnv production fail-fast', () => {
     expect(env.cors.origins).toContain('http://localhost:3000');
   });
 });
+
+/**
+ * Token lifetimes come from the environment as free text, so an unparseable
+ * value used to reach `jwt.sign` and fail on the first login rather than at
+ * boot. Validating here is also what lets the value be typed for
+ * jsonwebtoken 9, whose types no longer accept a bare `string`.
+ */
+describe('JWT lifetime validation', () => {
+  const ORIGINAL = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL };
+    jest.resetModules();
+  });
+
+  function freshLoad() {
+    jest.resetModules();
+    return require('./env').loadEnv;
+  }
+
+  it('defaults to 1h / 7d when unset', () => {
+    delete process.env.JWT_EXPIRES_IN;
+    delete process.env.JWT_REFRESH_EXPIRES_IN;
+    const env = freshLoad()();
+    expect(env.jwt.expiresIn).toBe('1h');
+    expect(env.jwt.refreshExpiresIn).toBe('7d');
+  });
+
+  it.each(['30s', '15m', '1h', '7d', '2w', '1y', '1.5h'])(
+    'accepts %s',
+    (value) => {
+      process.env.JWT_EXPIRES_IN = value;
+      expect(freshLoad()().jwt.expiresIn).toBe(value);
+    },
+  );
+
+  it('reads a bare number as seconds', () => {
+    process.env.JWT_EXPIRES_IN = '900';
+    expect(freshLoad()().jwt.expiresIn).toBe(900);
+  });
+
+  it.each(['1 hour', 'forever', '7 days', 'd7', ''])(
+    'rejects %s at boot rather than at the first login',
+    (value) => {
+      process.env.JWT_EXPIRES_IN = value;
+      const load = freshLoad();
+      // An empty string is falsy and legitimately falls back to the default;
+      // everything else must name the offending variable and the valid forms.
+      if (value === '') {
+        expect(load().jwt.expiresIn).toBe('1h');
+      } else {
+        expect(() => load()).toThrow(/JWT_EXPIRES_IN/);
+      }
+    },
+  );
+
+  it('validates the refresh lifetime too, not only the access one', () => {
+    process.env.JWT_REFRESH_EXPIRES_IN = 'a fortnight';
+    expect(() => freshLoad()()).toThrow(/JWT_REFRESH_EXPIRES_IN/);
+  });
+});
+

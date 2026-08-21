@@ -29,7 +29,7 @@ trail are non-negotiable.
 | **Full audit trail** | global `AuditInterceptor` + `AuditService` | Every login, question, answer (incl. refusals), document action, dose calculation, permission change and error is recorded with actor, IP and metadata. |
 | **MFA (TOTP)** | `otplib`, `/auth/mfa/{enroll,enable,disable,verify}` | Self-service two-step enrolment: `enroll` mints a secret without arming it, `enable` arms it only after verifying a live code, `disable` requires the account password. Login then issues a half-authenticated token exchangeable only at `/auth/mfa/verify`. |
 | **Answer governance review** | `GET /chat/answers`, `POST /chat/answers/:id/review`, `/answer-review` web screen | Pharmacist/quality/knowledge-manager roles review AI answers across all nurses (not just their own) and approve or flag them. Verified end-to-end incl. RBAC (nurse: 403 on both endpoints). |
-| **Dependency vulnerability scanning** | `.github/workflows/ci.yml` (`security` job) | `npm audit --audit-level=critical` fails CI on any critical finding (hard gate); `--audit-level=high` reports the rest without blocking, since some remaining findings require a NestJS 11 / Next.js 15 migration (tracked in `docs/production-readiness.md`). |
+| **Dependency vulnerability scanning** | `.github/workflows/ci.yml` (`security` job) | `npm audit --audit-level=critical` fails CI on any critical finding (hard gate); `--audit-level=high` reports the rest without blocking, since the two remaining findings require the Next.js 14→16 major (tracked in `docs/production-readiness.md`). |
 
 ## Operational requirements before a real deployment
 
@@ -69,10 +69,10 @@ production sign-off — see `docs/production-readiness.md`.
   administrator *require* it for a role — there is no org-wide MFA policy, so
   adoption is voluntary per user.
 - **Two high-severity dependency advisories pass CI**, because the gate only
-  hard-fails on critical. Root workspaces: **0 critical, 2 high, 9 moderate**
-  (re-run 21 Aug 2026, down from 5 high / 10 moderate). Both highs are `next`
-  and its bundled `postcss`, resolvable only by the Next.js 14→16 major; the
-  9 moderates all resolve via the single NestJS 10→11 bump.
+  hard-fails on critical. Root workspaces: **0 critical, 2 high, 0 moderate**
+  (re-run 21 Aug 2026, after the NestJS 11 upgrade closed all 9 moderates).
+  Both remaining highs are `next` and its bundled `postcss`, resolvable only
+  by the Next.js 14→16 major.
 - **`apps/mobile` dependencies were entirely unscanned until Aug 2026.** It is
   deliberately not an npm workspace, so the root `npm audit` gate never saw it.
   CI now reports it (non-blocking) alongside the mobile tests: **1 critical, 21
@@ -87,12 +87,13 @@ production sign-off — see `docs/production-readiness.md`.
   `/health/ready` checks Postgres + object storage) — still missing is
   shipping those logs anywhere, metrics, error tracking, and alerting.
 - Formal penetration test and CBAHI/HIPAA compliance review.
-- **NestJS 10→11 / Next.js 14→16 migration.** The critical Next.js middleware
-  auth-bypass CVE (CVE-2025-29927) and the exploitable multer/lodash CVEs were
-  patched without a major-version bump, and everything closeable without a
-  major has since been closed. What remains — 2 high, 9 moderate — is gated on
-  those two majors, and Next.js is now a **two**-major jump (14→16), not the
-  14→15 assumed earlier. See `docs/production-readiness.md`.
+- **Next.js 14→16 migration.** The critical Next.js middleware auth-bypass CVE
+  (CVE-2025-29927) and the exploitable multer/lodash CVEs were patched without
+  a major-version bump. NestJS 10→11 is now **done** — it closed every moderate
+  advisory. What remains is 2 high, both in `next` and its bundled `postcss`,
+  and both need a **two**-major jump (14→16) rather than the 14→15 assumed
+  earlier: async `params`/`searchParams`, middleware changes, and a
+  React 19 floor. See `docs/production-readiness.md`.
 
 ## Reporting
 

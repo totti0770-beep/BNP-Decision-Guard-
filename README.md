@@ -33,7 +33,7 @@ docs/         Architecture, database schema, API reference
 ```
 
 **Stack**: PostgreSQL 16 + pgvector (embeddings + HNSW index), MinIO
-(S3-compatible PDF storage), NestJS 10, TypeORM, Next.js 14, Expo 51,
+(S3-compatible PDF storage), NestJS 11, TypeORM, Next.js 14, Expo 51,
 JWT auth (+ refresh, self-service TOTP MFA), Docker Compose.
 
 **RAG pipeline**: PDF → page-aware extraction → chunking → embeddings →
@@ -190,7 +190,7 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test                        # 120 unit tests — mocked repositories, no I/O
+npm test                        # 135 unit tests — mocked repositories, no I/O
 npm run test:e2e -w @bnp/api    # 34 integration tests — real HTTP + real Postgres
 cd apps/mobile && npm test      # 32 mobile unit tests — separate install
 ```

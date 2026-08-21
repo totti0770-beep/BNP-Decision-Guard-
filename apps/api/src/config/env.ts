@@ -15,6 +15,37 @@ const DEMO_S3_SECRET = 'bnp_minio_secret';
 
 export const isProduction = process.env.NODE_ENV === 'production';
 
+/**
+ * A `jsonwebtoken` lifetime: seconds as a number, or an `ms`-parseable string
+ * such as `15m`, `1h`, `7d`.
+ *
+ * jsonwebtoken 9's types narrow `expiresIn` to a template-literal union that a
+ * value read from `process.env` can never satisfy statically. Rather than
+ * casting at each call site — which would accept `JWT_EXPIRES_IN="1 hour or
+ * so"` and only fail inside the first login of the day — the value is checked
+ * here and the cast happens once, behind a validated precondition.
+ */
+export type JwtLifetime = number | `${number}${'s' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
+
+// Deliberately narrower than everything `ms` accepts. The long forms ("2
+// days") are legal there but nobody configures a token lifetime that way, and
+// a tight pattern turns a typo into a boot failure instead of a session that
+// silently lasts the wrong length of time.
+const LIFETIME_PATTERN = /^\d+(?:\.\d+)?[smhdwy]$/;
+
+function jwtLifetime(name: string, fallback: JwtLifetime): JwtLifetime {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  if (/^\d+$/.test(raw)) return parseInt(raw, 10);
+  if (!LIFETIME_PATTERN.test(raw)) {
+    throw new Error(
+      `${name}="${raw}" is not a valid token lifetime. Use seconds as a plain ` +
+        `number, or a unit suffix: 30s, 15m, 1h, 7d, 2w, 1y.`,
+    );
+  }
+  return raw as JwtLifetime;
+}
+
 function required(name: string, demoValue?: string): string {
   const value = process.env[name];
   if (!value || (demoValue !== undefined && value === demoValue)) {
@@ -41,8 +72,8 @@ export interface AppEnv {
   jwt: {
     secret: string;
     refreshSecret: string;
-    expiresIn: string;
-    refreshExpiresIn: string;
+    expiresIn: JwtLifetime;
+    refreshExpiresIn: JwtLifetime;
   };
   s3: {
     endpoint: string;
@@ -117,8 +148,8 @@ export function loadEnv(): AppEnv {
     jwt: {
       secret: process.env.JWT_SECRET ?? DEFAULT_JWT_SECRET,
       refreshSecret: process.env.JWT_REFRESH_SECRET ?? DEFAULT_JWT_REFRESH_SECRET,
-      expiresIn: process.env.JWT_EXPIRES_IN ?? '1h',
-      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
+      expiresIn: jwtLifetime('JWT_EXPIRES_IN', '1h'),
+      refreshExpiresIn: jwtLifetime('JWT_REFRESH_EXPIRES_IN', '7d'),
     },
     s3: {
       endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
