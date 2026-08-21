@@ -147,13 +147,39 @@ Profiles live in `apps/mobile/eas.json` — edit each profile's
 
 *Demo data only — no real patient data is used anywhere in this MVP.*
 
-> **⚠️ These passwords are public.** They are fine for a local demo, but on
-> any internet-facing deployment you must either set `SEED_PASSWORD_<ROLE>`
-> environment variables (e.g. `SEED_PASSWORD_NURSE_USER`) **before first
-> boot** — seeding is skip-if-present, so overrides never touch an existing
-> database — or sign in as an admin right after deploying and rotate every
-> account from the **Users** screen (`PATCH /users/:id` also revokes that
-> user's outstanding refresh tokens).
+> **⚠️ These passwords are public, and production now enforces that.** Two
+> gates exist because the table above is the single largest credential risk
+> in this repository:
+>
+> 1. **The seed refuses to run with `NODE_ENV=production`** — both in
+>    `seed.ts` itself and in the container's start command, which no longer
+>    keys on `SEED_ON_BOOT` alone. Override with `SEED_ALLOW_PRODUCTION=true`
+>    only for a throwaway demo holding no real data.
+> 2. **Any production account still using one of these passwords is disabled
+>    at boot** by `DemoAccountGuardService`: `is_active` goes false,
+>    `token_version` is bumped (revoking outstanding refresh tokens), and a
+>    `SECURITY:DEMO_ACCOUNT_DISABLED` audit row is written. It compares
+>    against the *shipped* literal, so an account whose password was rotated —
+>    including one seeded from a `SEED_PASSWORD_<ROLE>` override — is never
+>    touched. `ALLOW_DEMO_ACCOUNTS=true` opts out, loudly.
+>
+> On a deployment seeded before this shipped, gate 2 can disable **all seven**
+> accounts and lock you out. Provision a real administrator first:
+>
+> ```bash
+> ADMIN_EMAIL=you@hospital.example ADMIN_PASSWORD='<a strong password>' \
+>   ADMIN_NAME='Your Name' node dist/scripts/create-admin.js
+> ```
+>
+> It creates a SUPER_ADMIN, or resets and reactivates that email if it already
+> exists. It refuses weak passwords and refuses every password in the table
+> above. Nothing echoes the password back to the log.
+>
+> For a fresh internet-facing install, set `SEED_PASSWORD_<ROLE>` environment
+> variables (e.g. `SEED_PASSWORD_NURSE_USER`) **before first boot** — seeding
+> is skip-if-present, so overrides never touch an existing database — or
+> rotate every account from the **Users** screen right after deploying
+> (`PATCH /users/:id` also revokes that user's outstanding refresh tokens).
 
 ## How to upload and approve a PDF
 
@@ -283,7 +309,10 @@ See `.env.example`. Key ones:
 | `RAG_TOP_K` / `RAG_FINAL_K` | `8` / `4` | retrieval / rerank depth |
 | `MAIL_PROVIDER` | `log` | `log` writes reset links to the app log; set `smtp` before real users |
 | `MAIL_HOST` / `MAIL_FROM` / `APP_BASE_URL` | — | `MAIL_HOST` required for `smtp`; reset links resolve against `APP_BASE_URL` (defaults to the first `CORS_ORIGINS` entry) |
-| `SEED_ON_BOOT` | `true` (docker) | seed demo data on API start |
+| `SEED_ON_BOOT` | `true` (docker) | seed demo data on API start — ignored when `NODE_ENV=production` |
+| `SEED_ALLOW_PRODUCTION` | unset | allow seeding published demo accounts in production |
+| `ALLOW_DEMO_ACCOUNTS` | unset | keep default-password demo accounts enabled in production |
+| `NEXT_PUBLIC_DEMO_EMAIL` | unset | prefill this email on the login page and show a demo hint (build-time, web) |
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | change-me | **must** be rotated in production |
 
 ## Security & governance design

@@ -22,8 +22,17 @@ COPY --from=build /repo/apps/api/dist ./apps/api/dist
 WORKDIR /repo/apps/api
 EXPOSE 4000
 # Runs migrations, optionally seeds demo data (SEED_ON_BOOT=true), then starts the API
+#
+# The seed gate consults NODE_ENV, not just SEED_ON_BOOT. This image sets
+# NODE_ENV=production (above), and the demo accounts the seed creates use
+# passwords published in README.md — so a flag left true on a production
+# deployment used to be enough to put seven known-credential accounts,
+# including SUPER_ADMIN, into a live clinical database. SEED_ALLOW_PRODUCTION
+# is the deliberate override for a throwaway demo. `seed.js` enforces the same
+# rule itself, so running it by hand is gated too.
+#
 # A failed seed stays non-fatal on purpose — a transient seeding problem must
 # not keep the clinical API down — but it is no longer silent. It previously
 # ended in a bare `|| true`, so a stack with zero users looked completely
 # healthy: the API served 401s to every login and nothing said why.
-CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then node dist/seed/seed.js || echo '!!!!!! SEED FAILED — the API is starting WITHOUT demo data and logins will fail; see the error above !!!!!!'; fi && node dist/main.js"]
+CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then if [ \"$NODE_ENV\" != \"production\" ] || [ \"$SEED_ALLOW_PRODUCTION\" = \"true\" ]; then node dist/seed/seed.js || echo '!!!!!! SEED FAILED — the API is starting WITHOUT demo data and logins will fail; see the error above !!!!!!'; else echo '>>> SEED_ON_BOOT=true ignored because NODE_ENV=production. The demo accounts use passwords published in README.md. Provision a real administrator with: ADMIN_EMAIL=... ADMIN_PASSWORD=... node dist/scripts/create-admin.js  (or set SEED_ALLOW_PRODUCTION=true if this deployment holds no real data).'; fi; fi && node dist/main.js"]
