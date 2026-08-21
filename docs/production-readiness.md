@@ -161,6 +161,30 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    the corpus is re-embedded; provider calls have timeouts + retry.
    Remaining: supply the actual API key and run an answer-quality eval
    against a gold set of nurse questions.
+
+   **Open incident (partially addressed).** On the live Railway deployment,
+   indexing an uploaded document has failed with
+   `POST /documents/:id/index → 500` / `AI provider returned 400 for
+   /embeddings`. Two things have changed since:
+
+   - `openai-http.ts` now logs the provider's response body, which is the only
+     place the actual reason appears. It previously discarded it, so every
+     failure looked identical.
+   - One concrete cause has been found and fixed: `IndexingService` embeds a
+     whole PDF in a single `/embeddings` call, and a long document exceeded the
+     provider's per-request limits — an ingestion failure that got *more*
+     likely the larger the document, which is the opposite of what an operator
+     would guess. Requests are now split (`EMBEDDING_BATCH_SIZE`,
+     `EMBEDDING_BATCH_CHARS`).
+
+   Whether that was *the* cause of the observed 400 is **not yet confirmed**:
+   no indexing has been attempted on the live deployment since the diagnostic
+   logging shipped, so the logs hold no instance of the error. The remaining
+   candidates — an invalid or unfunded `OPENAI_API_KEY`, or a project without
+   access to the configured embedding model — are operator-owned and settable
+   only in the Railway dashboard. **Next step for whoever runs the pilot:**
+   retry the indexing action once, then read the `OpenAiHttp` warning in the
+   API service logs; it now names the reason.
 2. **Ingest the real approved corpus** — upload actual hospital PDFs and run
    them through the governed `DRAFT → … → ACTIVE` workflow with real reviewers.
 3. ~~**Mobile build config**~~ — ✅ `apps/mobile/eas.json` (development /
