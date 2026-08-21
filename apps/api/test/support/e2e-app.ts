@@ -54,20 +54,18 @@ export class InMemoryStorageService {
 /**
  * Stand-in for PDF text extraction.
  *
- * NOT a design preference — a hard environment constraint. `pdf-parse`'s
- * bundled pdf.js v1.10.100 throws an empty `UnknownErrorException` during
- * parsing whenever it runs inside a jest process, however it is loaded
- * (verified: plain `require`, and `module.createRequire` to escape jest's
- * module registry, both fail; the identical call succeeds in bare node).
- *
- * So the extraction step is the one link of the ingestion chain these tests
- * cannot execute. Everything downstream of it — chunking, embedding, the
+ * A convenience, not a constraint: it lets a spec state outright what text a
+ * document yields, so a test about the *approval lifecycle* does not depend
+ * on PDF rendering. Everything downstream — chunking, embedding, the
  * pgvector write, vector retrieval, reranking, the refusal gate and citation
  * assembly — runs for real against real Postgres.
  *
- * Consequence worth stating plainly: **PDF text extraction has no automated
- * coverage at all**, here or in the unit suite, for the same reason. It is
- * exercised only by `npm run seed` and by manual upload.
+ * This docblock used to claim extraction was impossible to run under jest and
+ * therefore had no coverage anywhere. That was wrong on both counts, and the
+ * belief concealed an intermittent production bug — see
+ * `apps/api/src/rag/pdf-extraction.service.ts`. Real extraction is now
+ * covered directly by `pdf-extraction.service.spec.ts` against
+ * pdfkit-generated PDFs.
  *
  * Specs set `pages` to the same text they rendered into the uploaded PDF, so
  * the content flowing through the rest of the pipeline still matches the

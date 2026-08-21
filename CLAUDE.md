@@ -52,10 +52,17 @@ E2E_POSTGRES_DB=bnp_e2e npm run test:e2e -w @bnp/api
 
 Only three things are faked, and each is a genuinely external boundary: S3
 storage (in-memory), SMTP (captured so specs can read the reset link), and PDF
-text extraction. That last one is **not** a choice — `pdf-parse`'s bundled
-pdf.js throws inside any jest process however it is loaded, so extraction is the
-one ingestion step with no automated coverage anywhere. It is exercised only by
-`npm run seed` and manual upload.
+text extraction. The extraction stub is a convenience for the *integration*
+suite — it lets a spec choose the text a document yields — not a limitation.
+
+An earlier version of this file claimed extraction could not be tested at all,
+because "`pdf-parse`'s bundled pdf.js throws inside any jest process however it
+is loaded". That was wrong, and it hid a real bug: pdf.js clones its input via
+`new value.constructor(value)`, which for a `Buffer` allocates out of Node's
+shared pool and then gets misread, so extraction failed intermittently for any
+document small enough to be pooled. Passing a plain `Uint8Array` fixes it, and
+`apps/api/src/rag/pdf-extraction.service.spec.ts` now covers extraction
+directly using real pdfkit-generated PDFs.
 
 Mobile (separate install, not an npm workspace):
 
