@@ -188,11 +188,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
       # apps/mobile is deliberately not an npm workspace (Expo/Metro resolve
       # hoisted dependencies badly), so it installs on its own.
       - name: Install mobile deps
         working-directory: apps/mobile
-        run: npm install
+        run: npm ci
       - name: Typecheck
         working-directory: apps/mobile
         run: npx tsc --noEmit
@@ -203,13 +205,17 @@ jobs:
         working-directory: apps/mobile
         run: npm test
       # The root `security` job's audit cannot see this tree — apps/mobile is
-      # not an npm workspace — so its dependencies were unscanned entirely.
-      # Reported, not gated: every current finding comes from the Expo/React
-      # Native toolchain, is build-time rather than shipped in the app bundle,
-      # and is unfixable without an Expo major. A hard gate here would block
-      # every PR on something no PR can fix; silence would hide it when that
-      # stops being true.
-      - name: Report mobile vulnerabilities (non-blocking)
+      # not an npm workspace — so it is scanned here. Gated at critical,
+      # matching the root job, since the Expo SDK 57 upgrade made fixes
+      # reachable in-band. Known accepted floor: image-size's two high
+      # advisories are vulnerable at every published version (<=2.0.2 ==
+      # latest), sit in Metro's build-time asset pipeline, and this app has no
+      # image assets — the high-level report below keeps them visible until a
+      # fixed release exists.
+      - name: Fail on critical mobile vulnerabilities
+        working-directory: apps/mobile
+        run: npm audit --audit-level=critical
+      - name: Report high/moderate mobile vulnerabilities (non-blocking)
         if: always()
         working-directory: apps/mobile
         run: npm audit --audit-level=high || true

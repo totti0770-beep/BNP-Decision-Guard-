@@ -33,7 +33,7 @@ docs/         Architecture, database schema, API reference
 ```
 
 **Stack**: PostgreSQL 16 + pgvector (embeddings + HNSW index), MinIO
-(S3-compatible PDF storage), NestJS 11, TypeORM, Next.js 16, Expo 51,
+(S3-compatible PDF storage), NestJS 11, TypeORM, Next.js 16, Expo 57,
 JWT auth (+ refresh, self-service TOTP MFA), Docker Compose.
 
 **RAG pipeline**: PDF → page-aware extraction → chunking → embeddings →
@@ -238,8 +238,9 @@ Continuous integration (`.github/workflows/ci.yml`) runs, on every push and PR:
 the dependency scan; lint; the API build + unit tests + migrations +
 **integration tests** against a real pgvector service; the web production
 build; a **full-stack browser smoke test** that brings the whole stack up with
-`docker compose` and drives it with Playwright; and the mobile typecheck plus
-its own unit tests.
+`docker compose` and drives it with Playwright; and the mobile typecheck,
+its own unit tests, and its own dependency-audit gate (critical severity —
+the mobile tree is not an npm workspace, so the root scan cannot see it).
 
 The browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives, in
 one session against a running stack:

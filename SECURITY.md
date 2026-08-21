@@ -74,15 +74,17 @@ production sign-off — see `docs/production-readiness.md`.
   `next` and its bundled `postcss`. The CI gate still hard-fails only on
   critical and reports high/moderate, so a new advisory surfaces without
   blocking.
-- **`apps/mobile` dependencies were entirely unscanned until Aug 2026.** It is
-  deliberately not an npm workspace, so the root `npm audit` gate never saw it.
-  CI now reports it (non-blocking) alongside the mobile tests: **1 critical, 21
-  high, 11 moderate**, every one of them reached through the Expo 51 / React
-  Native 0.74 toolchain (`@expo/cli`, `metro`, `tar`, `@xmldom/xmldom`) rather
-  than through app code. They are build-time dependencies, not shipped in the
-  app bundle, and none resolves without an Expo major — which is why this is
-  reported rather than gated: a hard gate would block every PR on something no
-  PR can fix. Revisit with the Expo upgrade.
+- **`apps/mobile` dependencies are scanned AND gated.** It is deliberately not
+  an npm workspace, so the root `npm audit` gate never sees it; the mobile CI
+  job scans it and hard-fails on critical, matching the root job. The Expo
+  51→57 upgrade (Aug 2026) took the tree from 1 critical / 21 high / 11
+  moderate to **8 high and nothing else** — and those 8 all chain from one
+  advisory pair on `image-size`, which is vulnerable at *every published
+  version* (`<=2.0.2`, which is latest), so no dependency graph anywhere can
+  clear it today. It sits in Metro's build-time asset pipeline; this app has
+  no image assets, and the exposure is a build-time DoS from a maliciously
+  crafted committed image. The non-blocking high-level report keeps it
+  visible until a fixed release exists.
 - Centralised secret management (Vault/KMS) instead of env vars.
 - Observability: API logs are structured JSON already (`/health` liveness,
   `/health/ready` checks Postgres + object storage) — still missing is

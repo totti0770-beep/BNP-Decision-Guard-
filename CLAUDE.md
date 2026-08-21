@@ -79,7 +79,7 @@ Migrations run automatically on API container boot; standalone: `node apps/api/d
 
 ## Architecture
 
-npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 16 App Router), `apps/mobile` (Expo, **not** a workspace), `packages/shared`.
+npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 16 App Router), `apps/mobile` (Expo 57 / React Native 0.86 / React 19, **not** a workspace), `packages/shared`.
 
 ### The clinical safety contract
 
@@ -151,4 +151,4 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 
 `README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`).
 
-CI (`.github/workflows/ci.yml`) runs a dependency-audit gate (hard-fails on critical), API build+test+migrations against a real pgvector service, web build, and mobile typecheck.
+CI (`.github/workflows/ci.yml`) runs dependency-audit gates (root and mobile, both hard-fail on critical), API build+test+migrations against a real pgvector service, web build, browser smoke, and mobile typecheck+tests.

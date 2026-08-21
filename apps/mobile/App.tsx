@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { SafeAreaView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { StatusBar, Text, TouchableOpacity, View } from 'react-native';
+// Core RN SafeAreaView is deprecated (and was iOS-only); with Android
+// edge-to-edge mandatory since targetSdk 36, insets must come from the
+// community provider on both platforms.
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getSession,
@@ -108,66 +112,68 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={s.screen}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaProvider>
+      <SafeAreaView style={s.screen}>
+        <StatusBar barStyle="dark-content" />
 
-      {/* Header (Figma): role · language · sign out, brand on the trailing side */}
-      <View
-        style={{
-          flexDirection: row(lang),
-          alignItems: 'center',
-          gap: space.sm,
-          paddingHorizontal: space.md,
-          paddingVertical: space.sm,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          backgroundColor: colors.card,
-        }}
-      >
-        <View style={s.chip}>
-          <Text style={s.chipText}>
-            {session.user.roles[0]?.replaceAll('_', ' ').toLowerCase() ?? 'user'}
+        {/* Header (Figma): role · language · sign out, brand on the trailing side */}
+        <View
+          style={{
+            flexDirection: row(lang),
+            alignItems: 'center',
+            gap: space.sm,
+            paddingHorizontal: space.md,
+            paddingVertical: space.sm,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            backgroundColor: colors.card,
+          }}
+        >
+          <View style={s.chip}>
+            <Text style={s.chipText}>
+              {session.user.roles[0]?.replaceAll('_', ' ').toLowerCase() ?? 'user'}
+            </Text>
+          </View>
+          <TouchableOpacity style={s.chip} onPress={toggleLang}>
+            <Text style={s.chipText}>{lang === 'ar' ? 'ع/EN' : 'EN/ع'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.chip} onPress={logout}>
+            <Text style={s.chipText}>{t(lang, 'signOut')}</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <Text style={{ fontWeight: '700', color: colors.text, fontSize: 14 }}>
+            DecisionGuard
           </Text>
         </View>
-        <TouchableOpacity style={s.chip} onPress={toggleLang}>
-          <Text style={s.chipText}>{lang === 'ar' ? 'ع/EN' : 'EN/ع'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.chip} onPress={logout}>
-          <Text style={s.chipText}>{t(lang, 'signOut')}</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-        <Text style={{ fontWeight: '700', color: colors.text, fontSize: 14 }}>
-          DecisionGuard
-        </Text>
-      </View>
 
-      <View style={{ flex: 1 }}>
-        {activeTab === 'home' && (
-          <HomeScreen session={session} lang={lang} onOpenCategory={openCategory} />
-        )}
-        {activeTab === 'chat' && (
-          <ChatScreen
-            key={`${scope.assistantType}-${scope.category ?? 'all'}`}
-            assistantType={scope.assistantType}
-            category={scope.category}
-            title={scope.title}
-            lang={lang}
-          />
-        )}
-        {activeTab === 'doses' && <DoseCalculatorScreen lang={lang} />}
-        {activeTab === 'audit' && <AuditScreen lang={lang} />}
-        {activeTab === 'sources' && <PoliciesScreen lang={lang} />}
-      </View>
+        <View style={{ flex: 1 }}>
+          {activeTab === 'home' && (
+            <HomeScreen session={session} lang={lang} onOpenCategory={openCategory} />
+          )}
+          {activeTab === 'chat' && (
+            <ChatScreen
+              key={`${scope.assistantType}-${scope.category ?? 'all'}`}
+              assistantType={scope.assistantType}
+              category={scope.category}
+              title={scope.title}
+              lang={lang}
+            />
+          )}
+          {activeTab === 'doses' && <DoseCalculatorScreen lang={lang} />}
+          {activeTab === 'audit' && <AuditScreen lang={lang} />}
+          {activeTab === 'sources' && <PoliciesScreen lang={lang} />}
+        </View>
 
-      <BottomNav
-        active={activeTab}
-        onChange={(next) => {
-          if (next === 'chat' && activeTab !== 'chat') setChatScope(null);
-          setTab(next);
-        }}
-        lang={lang}
-        permissions={permissions}
-      />
-    </SafeAreaView>
+        <BottomNav
+          active={activeTab}
+          onChange={(next) => {
+            if (next === 'chat' && activeTab !== 'chat') setChatScope(null);
+            setTab(next);
+          }}
+          lang={lang}
+          permissions={permissions}
+        />
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
