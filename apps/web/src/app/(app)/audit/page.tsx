@@ -3,6 +3,8 @@
 import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAsyncData, useDebounced } from '@/lib/async';
+import { useLanguage } from '@/lib/language';
+import { formatDateTime } from '@/lib/i18n';
 import {
   Badge,
   EmptyState,
@@ -40,6 +42,7 @@ function actionTone(action: string) {
 }
 
 export default function AuditPage() {
+  const { t, lang } = useLanguage();
   const [action, setAction] = useState('');
   const [actorEmail, setActorEmail] = useState('');
   const [offset, setOffset] = useState(0);
@@ -70,30 +73,30 @@ export default function AuditPage() {
   return (
     <>
       <PageHeader
-        title="Audit Logs"
-        subtitle="Every login, question, answer, document action and permission change."
+        title={t('auditTitle')}
+        subtitle={t('auditSubtitle')}
       />
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <Field label="Action" hint="e.g. AI:ANSWER_REFUSED" className="w-full sm:w-72">
+        <Field label={t('action')} hint={t('actionHint')} className="w-full sm:w-72">
           <Input
             value={action}
             onChange={(e) => setFilter(setAction, e.target.value)}
-            placeholder="Filter by action"
+            placeholder={t('filterByAction')}
           />
         </Field>
-        <Field label="Actor" hint="Email address" className="w-full sm:w-64">
+        <Field label={t('actor')} hint={t('actorHint')} className="w-full sm:w-64">
           <Input
             type="search"
             value={actorEmail}
             onChange={(e) => setFilter(setActorEmail, e.target.value)}
-            placeholder="Filter by actor"
+            placeholder={t('filterByActor')}
           />
         </Field>
       </div>
 
       {loading ? (
-        <SkeletonRows rows={6} label="Loading audit events" />
+        <SkeletonRows rows={6} label={t('loadingAuditEvents')} />
       ) : error ? (
         /* A compliance surface that renders blank on failure is worse than
            useless — an empty table reads as "no events occurred". */
@@ -101,12 +104,8 @@ export default function AuditPage() {
       ) : !data || data.items.length === 0 ? (
         <Panel>
           <EmptyState
-            title={filtered ? 'No events match these filters' : 'No audit events yet'}
-            description={
-              filtered
-                ? 'Try a broader action prefix such as AI: or DOC:, or clear the actor filter.'
-                : 'Events appear here as soon as users sign in, ask questions or act on documents.'
-            }
+            title={filtered ? t('noEventsMatch') : t('noAuditEvents')}
+            description={filtered ? t('noEventsMatchDesc') : t('noAuditEventsDesc')}
           />
         </Panel>
       ) : (
@@ -115,20 +114,20 @@ export default function AuditPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Time</Th>
-                  <Th>Actor</Th>
-                  <Th>Action</Th>
-                  <Th className="hidden md:table-cell">Resource</Th>
-                  <Th className="hidden lg:table-cell">Details</Th>
+                  <Th>{t('colTime')}</Th>
+                  <Th>{t('colActor')}</Th>
+                  <Th>{t('colAction')}</Th>
+                  <Th className="hidden md:table-cell">{t('colResource')}</Th>
+                  <Th className="hidden lg:table-cell">{t('colDetails')}</Th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((row) => (
                   <tr key={row.id} className="align-top">
                     <Td className="whitespace-nowrap text-xs text-subtle">
-                      {new Date(row.createdAt).toLocaleString()}
+                      {formatDateTime(lang, row.createdAt)}
                     </Td>
-                    <Td className="text-xs text-muted">{row.actorEmail ?? 'system'}</Td>
+                    <Td className="text-xs text-muted">{row.actorEmail ?? t('systemActor')}</Td>
                     <Td>
                       <Badge tone={actionTone(row.action)}>{row.action}</Badge>
                       {/* Resource moves inline once its column is hidden, so
@@ -164,7 +163,7 @@ export default function AuditPage() {
             limit={LIMIT}
             total={data.total}
             onChange={setOffset}
-            noun="events"
+            noun={t('eventsNoun')}
           />
         </>
       )}

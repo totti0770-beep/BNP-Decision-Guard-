@@ -8,15 +8,22 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { dirFor, isRtl, t as translate, type Key, type Lang } from './i18n';
+import {
+  dirFor,
+  isRtl,
+  t as translate,
+  type Key,
+  type Lang,
+  type Params,
+} from './i18n';
 
 export const LANG_KEY = 'bnp.lang';
 
 interface LanguageContextValue {
   lang: Lang;
   setLang: (lang: Lang) => void;
-  /** Translate a key in the active language. */
-  t: (key: Key) => string;
+  /** Translate a key in the active language, filling any {placeholders}. */
+  t: (key: Key, params?: Params) => string;
   rtl: boolean;
   /** False until the stored preference has been read — see ThemeToggle. */
   mounted: boolean;
@@ -25,7 +32,7 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue>({
   lang: 'en',
   setLang: () => undefined,
-  t: (key) => translate('en', key),
+  t: (key, params) => translate('en', key, params),
   rtl: false,
   mounted: false,
 });
@@ -75,7 +82,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   }, [lang, mounted]);
 
-  const t = useCallback((key: Key) => translate(lang, key), [lang]);
+  const t = useCallback(
+    (key: Key, params?: Params) => translate(lang, key, params),
+    [lang],
+  );
 
   return (
     <LanguageContext.Provider
@@ -91,6 +101,6 @@ export function useLanguage(): LanguageContextValue {
 }
 
 /** Shorthand for the common case of only needing the translate function. */
-export function useT(): (key: Key) => string {
+export function useT(): (key: Key, params?: Params) => string {
   return useContext(LanguageContext).t;
 }

@@ -1,16 +1,20 @@
+'use client';
+
 import { PageHeader } from '@/components/shell';
+import { useT } from '@/lib/language';
 import { AssistantChat } from '@/components/assistant-chat';
 
 export default function AssistantPage() {
+  const t = useT();
   return (
     <>
       <PageHeader
-        title="AI Nursing Assistant"
-        subtitle="Ask about policies, procedures, protocols and medications — answers cite approved documents only."
+        title={t('assistantTitle')}
+        subtitle={t('assistantSubtitle')}
       />
       <AssistantChat
         assistantType="NURSING"
-        placeholder="e.g. How long should I rub my hands with alcohol-based hand rub?"
+        placeholder={t('assistantPlaceholder')}
       />
     </>
   );

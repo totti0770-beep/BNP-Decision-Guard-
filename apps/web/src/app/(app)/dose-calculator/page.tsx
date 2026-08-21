@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAsyncData } from '@/lib/async';
+import { useT } from '@/lib/language';
 import {
   Alert,
   Badge,
@@ -43,6 +44,7 @@ interface CalcResult {
 const ROUTES = ['IV', 'IM', 'PO', 'SC', 'INHALATION', 'TOPICAL'];
 
 export default function DoseCalculatorPage() {
+  const t = useT();
   const fetchFormulas = useCallback(() => api<Formula[]>('/dose/formulas'), []);
   const {
     data: formulas,
@@ -94,7 +96,7 @@ export default function DoseCalculatorPage() {
         }),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Calculation failed');
+      setError(err instanceof Error ? err.message : t('calculationFailed'));
     } finally {
       setBusy(false);
     }
@@ -103,7 +105,7 @@ export default function DoseCalculatorPage() {
   if (loadError) {
     return (
       <>
-        <PageHeader title="Dose Calculator" />
+        <PageHeader title={t('doseCalculatorTitle')} />
         <ErrorState message={loadError} onRetry={reload} />
       </>
     );
@@ -112,8 +114,8 @@ export default function DoseCalculatorPage() {
   return (
     <>
       <PageHeader
-        title="Dose Calculator"
-        subtitle="Only formulas approved by a Pharmacist Reviewer can be used."
+        title={t('doseCalculatorTitle')}
+        subtitle={t('doseCalculatorSubtitle')}
       />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -126,13 +128,13 @@ export default function DoseCalculatorPage() {
             </div>
           ) : formulas.length === 0 ? (
             <EmptyState
-              title="No approved formulas yet"
-              description="A Pharmacist Reviewer must approve a dose formula before it can be used for calculation. Ask your pharmacy team to publish one."
+              title={t('noApprovedFormulas')}
+              description={t('noApprovedFormulasDesc')}
             />
           ) : (
             <form onSubmit={calculate} className="space-y-4" noValidate>
               <Field
-                label="Approved formula"
+                label={t('approvedFormula')}
                 hint={selected?.notes ?? undefined}
                 required
               >
@@ -147,11 +149,11 @@ export default function DoseCalculatorPage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label="Weight (kg)"
+                  label={t('weightKg')}
                   required
                   error={
                     weightKg !== '' && !weightValid
-                      ? 'Enter a weight greater than 0'
+                      ? t('weightInvalid')
                       : undefined
                   }
                 >
@@ -165,7 +167,7 @@ export default function DoseCalculatorPage() {
                   />
                 </Field>
 
-                <Field label="Age (years)" hint="Optional">
+                <Field label={t('ageYears')} hint={t('optional')}>
                   <Input
                     type="number"
                     step="0.1"
@@ -176,7 +178,7 @@ export default function DoseCalculatorPage() {
                   />
                 </Field>
 
-                <Field label="Concentration (mg/mL)" hint="Needed to compute volume">
+                <Field label={t('concentrationMgMl')} hint={t('concentrationHint')}>
                   <Input
                     type="number"
                     step="0.1"
@@ -187,7 +189,7 @@ export default function DoseCalculatorPage() {
                   />
                 </Field>
 
-                <Field label="Prescribed dose (mg)" hint="Compared against the calculation">
+                <Field label={t('prescribedDoseMg')} hint={t('prescribedDoseHint')}>
                   <Input
                     type="number"
                     step="0.1"
@@ -198,10 +200,11 @@ export default function DoseCalculatorPage() {
                   />
                 </Field>
 
-                <Field label="Route">
+                <Field label={t('route')}>
                   <Select value={route} onChange={(e) => setRoute(e.target.value)}>
                     <option value="">
-                      Formula default{selected?.defaultRoute ? ` (${selected.defaultRoute})` : ''}
+                      {t('formulaDefault')}
+                      {selected?.defaultRoute ? ` (${selected.defaultRoute})` : ''}
                     </option>
                     {ROUTES.map((r) => (
                       <option key={r}>{r}</option>
@@ -209,7 +212,7 @@ export default function DoseCalculatorPage() {
                   </Select>
                 </Field>
 
-                <Field label="Frequency (per day)">
+                <Field label={t('frequencyPerDay')}>
                   <Input
                     type="number"
                     min="1"
@@ -235,7 +238,7 @@ export default function DoseCalculatorPage() {
                 loading={busy}
                 disabled={!weightValid || !formulaId}
               >
-                Calculate dose
+                {t('calculateDose')}
               </Button>
             </form>
           )}
@@ -251,7 +254,7 @@ export default function DoseCalculatorPage() {
                 <h2 className="text-lg font-semibold tracking-tight">{result.drugName}</h2>
                 <p className="text-xs text-subtle">{result.formulaName}</p>
               </div>
-              <Badge tone="success">Approved formula</Badge>
+              <Badge tone="success">{t('approvedFormula')}</Badge>
             </div>
 
             <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -265,7 +268,7 @@ export default function DoseCalculatorPage() {
 
             <div className="mt-4 border-t border-border pt-3">
               <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
-                Calculation steps
+                {t('calculationSteps')}
               </p>
               <ol className="space-y-1 text-sm">
                 {result.steps.map((s, i) => (
@@ -282,7 +285,7 @@ export default function DoseCalculatorPage() {
             {result.warnings.length > 0 && (
               <div className="mt-3 rounded-control border border-danger/25 bg-danger-soft px-3 py-2.5">
                 <p className="text-2xs font-medium uppercase tracking-wide text-danger">
-                  Warnings
+                  {t('warningsLabel')}
                 </p>
                 <ul className="mt-1 space-y-1 text-sm text-text">
                   {result.warnings.map((w, i) => (
@@ -294,7 +297,10 @@ export default function DoseCalculatorPage() {
 
             {result.sourceDocument && (
               <p className="mt-3 text-xs text-subtle">
-                Source: <span className="text-muted">{result.sourceDocument.title}</span>
+                {t('sourceLabel')}{' '}
+                <span dir="auto" className="text-muted">
+                  {result.sourceDocument.title}
+                </span>
               </p>
             )}
 
@@ -310,8 +316,8 @@ export default function DoseCalculatorPage() {
         ) : (
           <div className="hidden lg:block">
             <EmptyState
-              title="No calculation yet"
-              description="Pick an approved formula and enter the patient weight. The result will show the dose, the volume to administer, and every step used to reach it."
+              title={t('noCalculationYet')}
+              description={t('noCalculationYetDesc')}
             />
           </div>
         )}
