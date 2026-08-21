@@ -237,6 +237,118 @@ export const dict = {
       'Pick an approved formula and enter the patient weight. The result will show the dose, the volume to administer, and every step used to reach it.',
     calculationFailed: 'Calculation failed',
 
+    // Users & roles
+    usersTitle: 'Users & Roles',
+    usersSubtitle:
+      'Role changes are fully audited. Disabling a user revokes their outstanding sessions.',
+    loadingUsers: 'Loading users',
+    noUsersYet: 'No users yet',
+    noUsersYetDesc:
+      'Seed the demo data or create the first account with the form beside this list.',
+    colName: 'Name',
+    colEmail: 'Email',
+    colRoles: 'Roles',
+    colLastLogin: 'Last login',
+    addUser: 'Add user',
+    fullName: 'Full name',
+    atLeast8CharsHint: 'At least 8 characters',
+    role: 'Role',
+    roleHint: 'Determines which screens and actions they get',
+    rolesSectionTitle: 'Roles',
+    rolesSectionDesc: 'Permission sets defined by the platform',
+    loadingRoles: 'Loading roles',
+
+    // Upload
+    uploadTitle: 'Upload Document',
+    uploadSubtitle:
+      'New documents start as DRAFT. They must pass review, approval and indexing before the assistant can cite them.',
+    pdfFile: 'PDF file',
+    titleLabel: 'Title',
+    uploadTitlePlaceholder: 'e.g. Vancomycin administration protocol',
+    descriptionLabel: 'Description',
+    descriptionHint: 'Optional — helps reviewers understand scope',
+    expiryDate: 'Expiry date',
+    expiryHint: 'Expired documents stop being answerable',
+
+    // Settings
+    settingsTitle: 'Settings',
+    settingsSubtitle:
+      'Platform configuration. Values are JSON and every change is audited.',
+    reindexLibrary: 'Reindex knowledge library',
+    loadingSettings: 'Loading settings',
+    noSettings: 'No settings defined',
+    noSettingsDesc:
+      'Platform settings are seeded on first run. If this list is empty, the seed step has not completed against this database.',
+    saved: 'Saved',
+
+    // Analytics
+    analyticsTitle: 'Analytics',
+    analyticsSubtitle: 'Knowledge-base health and assistant usage.',
+    loadingAnalytics: 'Loading analytics',
+    noAnalytics: 'No analytics available',
+    noAnalyticsDesc:
+      'The overview endpoint returned nothing. This usually means the database has not been seeded yet.',
+    documentsByCategory: 'Documents by category',
+    questionsLast14Days: 'Questions (last 14 days)',
+
+    // Answer review
+    answerReviewTitle: 'AI Answer Review',
+    answerReviewSubtitle:
+      'Scientific-committee sign-off on nurse-facing answers. Approve, or flag for follow-up.',
+    reviewStatus: 'Review status',
+    loadingAnswers: 'Loading answers',
+    sourcesCited: 'Sources cited',
+    approve: 'Approve',
+    flagForFollowUp: 'Flag for follow-up',
+
+    // Approvals workflow
+    approvalsTitle: 'Document Approval Workflow',
+    approvalsSubtitle:
+      'DRAFT → IN REVIEW → APPROVED → INDEXED → ACTIVE. Only ACTIVE documents are retrievable by the assistant.',
+    filterDocuments: 'Filter documents',
+    submitForReview: 'Submit for review',
+    reject: 'Reject',
+    indexIntoAi: 'Index into AI',
+    deactivate: 'Deactivate',
+    whyRejecting: 'Why is this being rejected?',
+    rejectionRecorded:
+      'The reason is recorded in the approval history and shown to the uploader.',
+    rejectionPlaceholder:
+      'e.g. Dosing table on page 4 contradicts the current protocol',
+    confirmRejection: 'Confirm rejection',
+    approvalHistory: 'Approval history',
+    loadingHistory: 'Loading history',
+    noWorkflowEvents: 'No workflow events yet.',
+
+    statusActive: 'Active',
+    statusDisabled: 'Disabled',
+    disableUser: 'Disable',
+    enableUser: 'Enable',
+    createUser: 'Create user',
+    permissionsCount: '{count} permissions',
+    kbGroupTitle: 'Knowledge base',
+    kbGroupDesc: 'How much approved material the assistant can draw on',
+    mActive: 'Active',
+    mTotalUploaded: 'Total uploaded',
+    mInReview: 'In review',
+    mNearExpiry: 'Near expiry (30d)',
+    mExpired: 'Expired',
+    mApprovedFormulas: 'Approved formulas',
+    usageGroupTitle: 'Assistant usage',
+    usageGroupDesc: 'What nurses asked and what came back',
+    mQuestionsAsked: 'Questions asked',
+    mAnswered: 'Answered',
+    mRefusedNoSource: 'Refused (no source)',
+    mDoseCalculations: 'Dose calculations',
+    govGroupTitle: 'Governance',
+    govGroupDesc: 'Accounts and the audit trail',
+    mActiveUsers: 'Active users',
+    mAuditEvents: 'Audit events',
+
+    noDocumentsUploaded: 'No documents have been uploaded yet.',
+    noQuestionsRecently: 'No questions in the last 14 days.',
+    noQuestionsYet: 'No questions asked yet.',
+
     // Generic
     loading: 'Loading…',
     retry: 'Retry',
@@ -435,6 +547,112 @@ export const dict = {
     noCalculationYetDesc:
       'اختر معادلة معتمدة وأدخل وزن المريض. ستُظهر النتيجة الجرعة والحجم المطلوب إعطاؤه وكل خطوة أدّت إليها.',
     calculationFailed: 'فشل الحساب',
+
+    usersTitle: 'المستخدمون والأدوار',
+    usersSubtitle:
+      'تُدقَّق تغييرات الأدوار بالكامل. وتعطيل المستخدم يُبطل جلساته القائمة.',
+    loadingUsers: 'جارٍ تحميل المستخدمين',
+    noUsersYet: 'لا يوجد مستخدمون بعد',
+    noUsersYetDesc:
+      'أضف بيانات العرض التجريبي أو أنشئ أول حساب من النموذج المجاور لهذه القائمة.',
+    colName: 'الاسم',
+    colEmail: 'البريد الإلكتروني',
+    colRoles: 'الأدوار',
+    colLastLogin: 'آخر دخول',
+    addUser: 'إضافة مستخدم',
+    fullName: 'الاسم الكامل',
+    atLeast8CharsHint: '8 أحرف على الأقل',
+    role: 'الدور',
+    roleHint: 'يحدد الشاشات والإجراءات المتاحة له',
+    rolesSectionTitle: 'الأدوار',
+    rolesSectionDesc: 'مجموعات الصلاحيات المعرّفة في المنصّة',
+    loadingRoles: 'جارٍ تحميل الأدوار',
+
+    uploadTitle: 'رفع وثيقة',
+    uploadSubtitle:
+      'تبدأ الوثائق الجديدة كمسودة. ويجب أن تجتاز المراجعة والاعتماد والفهرسة قبل أن يتمكن المساعد من الاستشهاد بها.',
+    pdfFile: 'ملف PDF',
+    titleLabel: 'العنوان',
+    uploadTitlePlaceholder: 'مثال: بروتوكول إعطاء الفانكومايسين',
+    descriptionLabel: 'الوصف',
+    descriptionHint: 'اختياري — يساعد المراجعين على فهم النطاق',
+    expiryDate: 'تاريخ انتهاء الصلاحية',
+    expiryHint: 'الوثائق المنتهية تتوقف عن كونها مصدراً للإجابات',
+
+    settingsTitle: 'الإعدادات',
+    settingsSubtitle:
+      'إعدادات المنصّة. القيم بصيغة JSON وكل تغيير يُدقَّق.',
+    reindexLibrary: 'إعادة فهرسة مكتبة المعرفة',
+    loadingSettings: 'جارٍ تحميل الإعدادات',
+    noSettings: 'لا توجد إعدادات معرّفة',
+    noSettingsDesc:
+      'تُزرع إعدادات المنصّة عند أول تشغيل. وإذا كانت هذه القائمة فارغة، فإن خطوة الزرع لم تكتمل على قاعدة البيانات هذه.',
+    saved: 'حُفظ',
+
+    analyticsTitle: 'التحليلات',
+    analyticsSubtitle: 'حالة قاعدة المعرفة واستخدام المساعد.',
+    loadingAnalytics: 'جارٍ تحميل التحليلات',
+    noAnalytics: 'لا تتوفر تحليلات',
+    noAnalyticsDesc:
+      'لم تُرجع واجهة النظرة العامة أي بيانات. وغالباً ما يعني ذلك أن قاعدة البيانات لم تُزرع بعد.',
+    documentsByCategory: 'الوثائق حسب التصنيف',
+    questionsLast14Days: 'الأسئلة (آخر 14 يوماً)',
+
+    answerReviewTitle: 'مراجعة إجابات الذكاء الاصطناعي',
+    answerReviewSubtitle:
+      'اعتماد اللجنة العلمية للإجابات الموجّهة للممرضين. اعتمد، أو ضع علامة للمتابعة.',
+    reviewStatus: 'حالة المراجعة',
+    loadingAnswers: 'جارٍ تحميل الإجابات',
+    sourcesCited: 'المصادر المستشهد بها',
+    approve: 'اعتماد',
+    flagForFollowUp: 'وضع علامة للمتابعة',
+
+    approvalsTitle: 'مسار اعتماد الوثائق',
+    approvalsSubtitle:
+      'مسودة ← قيد المراجعة ← معتمدة ← مفهرسة ← نشطة. الوثائق النشطة وحدها قابلة للاسترجاع من المساعد.',
+    filterDocuments: 'تصفية الوثائق',
+    submitForReview: 'إرسال للمراجعة',
+    reject: 'رفض',
+    indexIntoAi: 'فهرسة في الذكاء الاصطناعي',
+    deactivate: 'إلغاء التنشيط',
+    whyRejecting: 'ما سبب الرفض؟',
+    rejectionRecorded:
+      'يُسجَّل السبب في سجل الاعتماد ويُعرض على من رفع الوثيقة.',
+    rejectionPlaceholder:
+      'مثال: جدول الجرعات في الصفحة 4 يتعارض مع البروتوكول الحالي',
+    confirmRejection: 'تأكيد الرفض',
+    approvalHistory: 'سجل الاعتماد',
+    loadingHistory: 'جارٍ تحميل السجل',
+    noWorkflowEvents: 'لا توجد أحداث في المسار بعد.',
+
+    statusActive: 'نشط',
+    statusDisabled: 'معطّل',
+    disableUser: 'تعطيل',
+    enableUser: 'تفعيل',
+    createUser: 'إنشاء مستخدم',
+    permissionsCount: '{count} صلاحية',
+    kbGroupTitle: 'قاعدة المعرفة',
+    kbGroupDesc: 'حجم المادة المعتمدة التي يستند إليها المساعد',
+    mActive: 'نشطة',
+    mTotalUploaded: 'إجمالي المرفوع',
+    mInReview: 'قيد المراجعة',
+    mNearExpiry: 'تقترب من الانتهاء (30 يوماً)',
+    mExpired: 'منتهية',
+    mApprovedFormulas: 'معادلات معتمدة',
+    usageGroupTitle: 'استخدام المساعد',
+    usageGroupDesc: 'ما سأله الممرضون وما عاد إليهم',
+    mQuestionsAsked: 'الأسئلة المطروحة',
+    mAnswered: 'أُجيب عنها',
+    mRefusedNoSource: 'مرفوضة (لا مصدر)',
+    mDoseCalculations: 'حسابات الجرعات',
+    govGroupTitle: 'الحوكمة',
+    govGroupDesc: 'الحسابات وسجل التدقيق',
+    mActiveUsers: 'مستخدمون نشطون',
+    mAuditEvents: 'أحداث التدقيق',
+
+    noDocumentsUploaded: 'لم تُرفع أي وثائق بعد.',
+    noQuestionsRecently: 'لا توجد أسئلة خلال آخر 14 يوماً.',
+    noQuestionsYet: 'لم تُطرح أي أسئلة بعد.',
 
     loading: 'جارٍ التحميل…',
     retry: 'إعادة المحاولة',

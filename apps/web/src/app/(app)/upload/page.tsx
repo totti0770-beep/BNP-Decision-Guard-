@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/language';
 import {
   Alert, Button, Card, Field, Input, PageHeader, Select, Textarea } from '@/components/ui';
 
@@ -16,6 +17,7 @@ function formatSize(bytes: number) {
 }
 
 export default function UploadPage() {
+  const t = useT();
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -71,14 +73,14 @@ export default function UploadPage() {
   return (
     <>
       <PageHeader
-        title="Upload Document"
-        subtitle="New documents start as DRAFT. They must pass review, approval and indexing before the assistant can cite them."
+        title={t('uploadTitle')}
+        subtitle={t('uploadSubtitle')}
       />
 
       <form onSubmit={submit} className="max-w-xl">
         <Card className="space-y-4">
           <Field
-            label="PDF file"
+            label={t('pdfFile')}
             required
             error={fileError || undefined}
             hint={
@@ -96,16 +98,16 @@ export default function UploadPage() {
             />
           </Field>
 
-          <Field label="Title" required>
+          <Field label={t('titleLabel')} required>
             <Input
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Vancomycin administration protocol"
+              placeholder={t('uploadTitlePlaceholder')}
             />
           </Field>
 
-          <Field label="Description" hint="Optional — helps reviewers understand scope">
+          <Field label={t('descriptionLabel')} hint={t('descriptionHint')}>
             <Textarea
               rows={3}
               value={description}
@@ -114,7 +116,7 @@ export default function UploadPage() {
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Category" required>
+            <Field label={t('category')} required>
               <Select value={category} onChange={(e) => setCategory(e.target.value)}>
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -125,8 +127,8 @@ export default function UploadPage() {
             </Field>
 
             <Field
-              label="Expiry date"
-              hint="Expired documents stop being answerable"
+              label={t('expiryDate')}
+              hint={t('expiryHint')}
               error={expiryInvalid ? 'Expiry must be in the future' : undefined}
             >
               <Input

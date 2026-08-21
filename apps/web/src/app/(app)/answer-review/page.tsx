@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAsyncData } from '@/lib/async';
+import { useT } from '@/lib/language';
 import {
   Alert,
   Badge,
@@ -64,6 +65,7 @@ const EMPTY_COPY: Record<Status, { title: string; description: string }> = {
 };
 
 export default function AnswerReviewPage() {
+  const t = useT();
   const [status, setStatus] = useState<Status>('UNREVIEWED');
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -99,13 +101,13 @@ export default function AnswerReviewPage() {
   return (
     <>
       <PageHeader
-        title="AI Answer Review"
-        subtitle="Scientific-committee sign-off on nurse-facing answers. Approve, or flag for follow-up."
+        title={t('answerReviewTitle')}
+        subtitle={t('answerReviewSubtitle')}
       />
 
       <div className="mb-4">
         <SegmentedControl<Status>
-          label="Review status"
+          label={t('reviewStatus')}
           value={status}
           onChange={setStatus}
           options={[
@@ -119,7 +121,7 @@ export default function AnswerReviewPage() {
       {error && <Alert className="mb-4">{error}</Alert>}
 
       {loading ? (
-        <SkeletonRows rows={3} label="Loading answers" />
+        <SkeletonRows rows={3} label={t('loadingAnswers')} />
       ) : loadError ? (
         <ErrorState message={loadError} onRetry={reload} />
       ) : items.length === 0 ? (
@@ -166,7 +168,7 @@ export default function AnswerReviewPage() {
               {item.warnings.length > 0 && (
                 <div className="mt-3 rounded-control border border-warning/25 bg-warning-soft px-3 py-2">
                   <p className="text-2xs font-medium uppercase tracking-wide text-warning">
-                    Warnings
+                    {t('warningsLabel')}
                   </p>
                   <ul className="mt-1 space-y-1 text-sm text-text">
                     {item.warnings.map((w, i) => (
@@ -181,7 +183,7 @@ export default function AnswerReviewPage() {
               {item.citations.length > 0 && (
                 <div className="mt-3 border-t border-border pt-3">
                   <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
-                    Sources cited
+                    {t('sourcesCited')}
                   </p>
                   <ul className="space-y-1">
                     {item.citations.map((c, i) => (
@@ -209,14 +211,14 @@ export default function AnswerReviewPage() {
                     loading={busyId === item.answerId}
                     onClick={() => review(item.answerId, 'APPROVED')}
                   >
-                    Approve
+                    {t('approve')}
                   </Button>
                   <Button
                     size="sm"
                     disabled={busyId === item.answerId}
                     onClick={() => review(item.answerId, 'FLAGGED')}
                   >
-                    Flag for follow-up
+                    {t('flagForFollowUp')}
                   </Button>
                 </div>
               )}
