@@ -24,7 +24,8 @@ trail are non-negotiable.
 | **Enumeration-safe delivery** | `auth.service.ts` | `sendQuietly()` swallows relay failures so the response *status* is identical whether or not the account exists, and the send is **not awaited**, so the response *timing* is identical too — an awaited SMTP round trip only happens for accounts that exist, which is an oracle in itself. |
 | **Upload content validation** | `documents.service.ts` | Uploads must carry a real `%PDF-` signature, not merely a PDF `Content-Type` header, which the client controls. |
 | **Refusal-first AI** | `apps/api/src/rag/*` | Retrieval hard-filtered to `ACTIVE`, non-expired documents; sub-threshold matches refuse with the exact governed message; the mock LLM is extractive and cannot generate beyond context. |
-| **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. |
+| **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. The client-safe reason is carried under both `message` and `error` — clients read `message`, and emitting only `error` meant every rejection reached users as "Request failed (400)" with the reason discarded. |
+| **Secret redaction in provider logs** | `rag/openai-http.ts` | The upstream error body is logged to diagnose a rejected AI request, with key-shaped substrings (`sk-…`, `Bearer …`, `api_key=…`) stripped first. `OPENAI_BASE_URL` may point at a self-hosted OpenAI-compatible endpoint whose error handler reflects request headers back. Patterns are pinned by tests on both sides: they redact the credential and leave real provider messages intact. |
 | **Full audit trail** | global `AuditInterceptor` + `AuditService` | Every login, question, answer (incl. refusals), document action, dose calculation, permission change and error is recorded with actor, IP and metadata. |
 | **MFA (TOTP)** | `otplib`, `/auth/mfa/{enroll,enable,disable,verify}` | Self-service two-step enrolment: `enroll` mints a secret without arming it, `enable` arms it only after verifying a live code, `disable` requires the account password. Login then issues a half-authenticated token exchangeable only at `/auth/mfa/verify`. |
 | **Answer governance review** | `GET /chat/answers`, `POST /chat/answers/:id/review`, `/answer-review` web screen | Pharmacist/quality/knowledge-manager roles review AI answers across all nurses (not just their own) and approve or flag them. Verified end-to-end incl. RBAC (nurse: 403 on both endpoints). |
@@ -68,21 +69,30 @@ production sign-off — see `docs/production-readiness.md`.
   administrator *require* it for a role — there is no org-wide MFA policy, so
   adoption is voluntary per user.
 - **Two high-severity dependency advisories pass CI**, because the gate only
-  hard-fails on critical (0 critical, 2 high, 9 moderate as of Aug 2026 — down
-  from 5 high / 10 moderate; every remaining finding is blocked on the
-  NestJS 11 / Next.js 16 majors).
+  hard-fails on critical. Root workspaces: **0 critical, 2 high, 9 moderate**
+  (re-run 21 Aug 2026, down from 5 high / 10 moderate). Both highs are `next`
+  and its bundled `postcss`, resolvable only by the Next.js 14→16 major; the
+  9 moderates all resolve via the single NestJS 10→11 bump.
+- **`apps/mobile` dependencies were entirely unscanned until Aug 2026.** It is
+  deliberately not an npm workspace, so the root `npm audit` gate never saw it.
+  CI now reports it (non-blocking) alongside the mobile tests: **1 critical, 21
+  high, 11 moderate**, every one of them reached through the Expo 51 / React
+  Native 0.74 toolchain (`@expo/cli`, `metro`, `tar`, `@xmldom/xmldom`) rather
+  than through app code. They are build-time dependencies, not shipped in the
+  app bundle, and none resolves without an Expo major — which is why this is
+  reported rather than gated: a hard gate would block every PR on something no
+  PR can fix. Revisit with the Expo upgrade.
 - Centralised secret management (Vault/KMS) instead of env vars.
 - Observability: API logs are structured JSON already (`/health` liveness,
   `/health/ready` checks Postgres + object storage) — still missing is
   shipping those logs anywhere, metrics, error tracking, and alerting.
 - Formal penetration test and CBAHI/HIPAA compliance review.
-- **NestJS 10→11 / Next.js 14→15 migration.** The critical Next.js middleware
+- **NestJS 10→11 / Next.js 14→16 migration.** The critical Next.js middleware
   auth-bypass CVE (CVE-2025-29927) and the exploitable multer/lodash CVEs were
-  patched without a major-version bump. The current count is **14 findings (5
-  high, 9 moderate, 0 critical)** — higher than the "1 high / 11 moderate"
-  recorded earlier, as new advisories have since landed. Not all of them are
-  gated on the majors; re-run resolution and pin what moves before assuming
-  otherwise. See `docs/production-readiness.md`.
+  patched without a major-version bump, and everything closeable without a
+  major has since been closed. What remains — 2 high, 9 moderate — is gated on
+  those two majors, and Next.js is now a **two**-major jump (14→16), not the
+  14→15 assumed earlier. See `docs/production-readiness.md`.
 
 ## Reporting
 

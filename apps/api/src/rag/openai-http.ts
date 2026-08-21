@@ -5,6 +5,38 @@ const logger = new Logger('OpenAiHttp');
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
 /**
+ * Credential shapes stripped from an upstream error body before it is logged.
+ *
+ * OpenAI itself does not echo credentials, but OPENAI_BASE_URL can point at any
+ * OpenAI-compatible endpoint — including a self-hosted one whose error handler
+ * reflects the request headers back. The logged body exists to diagnose *why*
+ * the provider rejected a request, so the patterns are deliberately narrow:
+ * a redactor that swallowed "invalid_api_key" or "check the API reference"
+ * would quietly undo the logging it is meant to protect. Each pattern is
+ * pinned by a test on both sides — it redacts the secret, and it leaves the
+ * real provider messages byte-for-byte intact.
+ */
+const SECRET_PATTERNS: [RegExp, string][] = [
+  // Provider-issued key literals (sk-…, rk-…, pk-…).
+  [/\b(?:sk|rk|pk)-[A-Za-z0-9_-]{16,}/g, '[REDACTED]'],
+  // An Authorization header echoed back verbatim.
+  [/\b(Bearer)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 [REDACTED]'],
+  // name=value / "name": "value" forms. The field name is kept — knowing
+  // *which* credential was rejected is part of the diagnostic.
+  [
+    /\b(api[-_]?key|secret[-_]?key|access[-_]?token|refresh[-_]?token|client[-_]?secret|secret|token|password|authorization)("?\s*[:=]\s*"?)[A-Za-z0-9._~+/=-]{8,}/gi,
+    '$1$2[REDACTED]',
+  ],
+];
+
+export function redactSecrets(text: string): string {
+  return SECRET_PATTERNS.reduce(
+    (acc, [pattern, replacement]) => acc.replace(pattern, replacement),
+    text,
+  );
+}
+
+/**
  * POST to an OpenAI-compatible endpoint with a hard timeout and a single
  * retry on transient failures (429/5xx/network). Clinical requests must not
  * hang indefinitely on an upstream provider; on final failure the caller's
@@ -37,7 +69,7 @@ export async function openAiPost<T>(path: string, body: unknown): Promise<T> {
       // the global exception filter still returns its own safe envelope.
       const detail = await res.text().catch(() => '');
       lastError = new Error(`AI provider returned ${res.status} for ${path}`);
-      logger.warn(`${path} → ${res.status}: ${detail.slice(0, 2000)}`);
+      logger.warn(`${path} → ${res.status}: ${redactSecrets(detail.slice(0, 2000))}`);
       if (!RETRYABLE_STATUS.has(res.status)) break;
       logger.warn(`Attempt ${attempt}: ${path} → ${res.status}, ${attempt === 1 ? 'retrying' : 'giving up'}`);
     } catch (err) {
