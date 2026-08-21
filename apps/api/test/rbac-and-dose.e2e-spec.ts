@@ -128,6 +128,44 @@ describe('RBAC enforced on real routes', () => {
       .send({ email: 'x@e2e.health', password: 'Password123!', fullName: 'X', roles: [] })
       .expect(403);
   });
+
+  /**
+   * AllExceptionsFilter used to emit the reason under `error` only, while the
+   * web and mobile fetch wrappers — and Nest's own convention — read `message`.
+   * Every rejection therefore reached the user as "Request failed (400)" with
+   * the actual reason silently dropped. A browser test found this and no API
+   * test could, because the API tests read the response body directly rather
+   * than through a client. Both keys now carry the reason; this pins that.
+   */
+  it('puts the client-safe reason under `message`, not only `error`', async () => {
+    const validation = await ctx
+      .http()
+      .post('/users')
+      .set(auth(t[RoleName.HOSPITAL_ADMIN]))
+      .send({
+        email: 'not-an-email',
+        password: 'x',
+        fullName: 'Bad Input',
+        roles: [RoleName.NURSE_USER],
+      })
+      .expect(400);
+    expect(validation.body.message).toBeDefined();
+    expect(JSON.stringify(validation.body.message)).toMatch(/email/i);
+    expect(validation.body.error).toEqual(validation.body.message);
+
+    const domain = await ctx
+      .http()
+      .post('/users')
+      .set(auth(t[RoleName.HOSPITAL_ADMIN]))
+      .send({
+        email: ADMIN.email,
+        password: 'Password123!',
+        fullName: 'Duplicate',
+        roles: [RoleName.NURSE_USER],
+      })
+      .expect(400);
+    expect(domain.body.message).toBe('Email already registered');
+  });
 });
 
 describe('Dose calculator safety gates over real HTTP', () => {
@@ -238,4 +276,5 @@ describe('Dose calculator safety gates over real HTTP', () => {
       .send({ formulaId: approvedFormulaId, weightKg: 900 })
       .expect(400);
   });
+
 });

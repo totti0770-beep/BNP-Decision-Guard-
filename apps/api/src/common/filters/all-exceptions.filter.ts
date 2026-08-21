@@ -58,8 +58,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (isProduction) message = 'Internal server error';
     }
 
+    // `message` and `error` deliberately carry the same value.
+    //
+    // This filter originally emitted only `error`, but Nest's own envelope —
+    // and therefore every client written against it, including this repo's web
+    // and mobile fetch wrappers — reads `message`. The result was that no
+    // client-safe error ever reached a user: a duplicate email or a failed
+    // validation surfaced in the browser as "Request failed (400)", with the
+    // real reason discarded. `error` stays because it is what the API has
+    // always returned and something outside this repo may read it.
     res.status(status).json({
       statusCode: status,
+      message,
       error: message,
       timestamp: new Date().toISOString(),
       path: req.url,

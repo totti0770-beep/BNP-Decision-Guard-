@@ -225,16 +225,35 @@ and has no automated coverage anywhere. There are also no web or mobile unit
 tests.
 
 Continuous integration (`.github/workflows/ci.yml`) runs, on every push and PR:
-the dependency scan; the API build + unit tests + migrations + **integration
-tests** against a real pgvector service; the web production build; a **full-stack
-browser smoke test** that brings the whole stack up with `docker compose` and
-drives it with Playwright; and the mobile typecheck.
+the dependency scan; lint; the API build + unit tests + migrations +
+**integration tests** against a real pgvector service; the web production
+build; a **full-stack browser smoke test** that brings the whole stack up with
+`docker compose` and drives it with Playwright; and the mobile typecheck plus
+its own unit tests.
 
-The browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives
-login → cited answer → refusal → dose calculation → copy-protection →
-role-aware navigation against a running stack. CI runs it against a stack
-started with `docker compose up -d --build`, so it also guards the quickstart
-above from regressing. To run it locally, bring the stack up and:
+The browser end-to-end script (`apps/web/e2e-smoke.mjs`, Playwright) drives, in
+one session against a running stack:
+
+- login → cited answer → Arabic refusal → dose calculation
+- copy protection and role-aware navigation, each checked in **both**
+  directions — a nurse sees no download buttons and no admin nav, an admin and
+  a knowledge manager see exactly those, so a locator that quietly matched
+  nothing cannot make the nurse's checks pass for the wrong reason
+- language switching: `dir`/`lang` on `<html>`, an Arabic nav label, the
+  sidebar physically mirroring, and the preference surviving a reload
+- responsive layout at phone/tablet/laptop widths in both reading directions,
+  asserting no horizontal overflow
+- rejected sign-in staying on `/login`
+- search and category filtering on the policy library, including the
+  no-matches empty state
+- the user lifecycle: client-side validation gating submission, create,
+  duplicate-email rejection surfaced in the form, and deactivation
+- audit filtering, which doubles as the only end-to-end proof that those user
+  changes were actually written to the audit trail
+
+CI runs it against a stack started with `docker compose up -d --build`, so it
+also guards the quickstart above from regressing. To run it locally, bring the
+stack up and:
 
 ```bash
 npx playwright install chromium
