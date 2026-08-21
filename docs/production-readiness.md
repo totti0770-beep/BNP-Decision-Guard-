@@ -296,9 +296,24 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    logging shipped, so the logs hold no instance of the error. The remaining
    candidates — an invalid or unfunded `OPENAI_API_KEY`, or a project without
    access to the configured embedding model — are operator-owned and settable
-   only in the Railway dashboard. **Next step for whoever runs the pilot:**
-   retry the indexing action once, then read the `OpenAiHttp` warning in the
-   API service logs; it now names the reason.
+   only in the Railway dashboard.
+
+   **Next step for whoever runs the pilot: `POST /rag/provider-check`** (needs
+   `documents:index`, so the knowledge-manager or super-admin login). It
+   embeds one throwaway string through the identical code path, writes
+   nothing, and changes no document state — so unlike indexing a test
+   document it does not put anything into the corpus where the assistant
+   could cite it. The response names the reason, and the same call reports
+   whether the corpus is split across embedding providers, which is the other
+   cause of "the assistant refuses everything".
+
+   One limit worth knowing: the probe sends a single short input, so it
+   reproduces a 400 from model access, an invalid key, a bad base URL or an
+   unsupported `dimensions` value — but *not* one caused purely by request
+   size, which is the cause already fixed by request batching. If the probe
+   comes back `ok: true` and indexing still fails, size is the remaining
+   suspect and the `[OpenAiHttp]` warning from the real attempt is the thing
+   to read.
 2. **Ingest the real approved corpus** — upload actual hospital PDFs and run
    them through the governed `DRAFT → … → ACTIVE` workflow with real reviewers.
 3. ~~**Mobile build config**~~ — ✅ `apps/mobile/eas.json` (development /
