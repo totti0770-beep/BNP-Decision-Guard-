@@ -137,6 +137,38 @@ describe('RBAC enforced on real routes', () => {
    * test could, because the API tests read the response body directly rather
    * than through a client. Both keys now carry the reason; this pins that.
    */
+  /**
+   * The provider check is the operator's way to diagnose a failing
+   * embeddings provider without pushing a throwaway document through the
+   * approval workflow into a live corpus. It must be reachable by exactly
+   * the roles that can already trigger that path, and by nobody else.
+   */
+  it('gates the embeddings provider check behind documents:index', async () => {
+    const allowed = await ctx
+      .http()
+      .post('/rag/provider-check')
+      .set(auth(t[RoleName.NURSING_KNOWLEDGE_MANAGER]))
+      .expect(201);
+
+    // Under the e2e mock provider the probe makes no network call, so this
+    // asserts the wiring and the shape, not upstream reachability.
+    expect(allowed.body.ok).toBe(true);
+    expect(allowed.body.provider).toBe('mock-hash-embedding');
+    expect(allowed.body.corpus.activeProvider).toBe('mock-hash-embedding');
+    expect(allowed.body.error).toBeNull();
+
+    await ctx
+      .http()
+      .post('/rag/provider-check')
+      .set(auth(t[RoleName.NURSE_USER]))
+      .expect(403);
+    await ctx
+      .http()
+      .post('/rag/provider-check')
+      .set(auth(t[RoleName.AUDITOR]))
+      .expect(403);
+  });
+
   it('puts the client-safe reason under `message`, not only `error`', async () => {
     const validation = await ctx
       .http()

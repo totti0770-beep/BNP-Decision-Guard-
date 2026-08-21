@@ -93,6 +93,8 @@ roles travel in the JWT: use `POST /users` and `PATCH /users/:id`.
 | `POST /chat/ask` `{question, assistantType?: NURSING\|DRUG_PREPARATION\|CBAHI, category?, channel?}` — persisted + audited | `ai:ask` |
 | `GET /chat/history?limit=` — own Q&A history | `ai:ask` |
 | `POST /chat/answers/:id/review` `{status: APPROVED\|FLAGGED}` — committee review | `ai:review-answers` |
+| `POST /rag/reindex` — re-embed every ACTIVE document with the current provider | `documents:index` |
+| `POST /rag/provider-check` — one-vector probe of the embeddings provider | `documents:index` |
 
 Answer shape:
 
@@ -113,6 +115,39 @@ Answer shape:
 When refused, `shortAnswer` is exactly
 `لا توجد وثيقة معتمدة كافية للإجابة. الرجاء الرجوع للمسؤول المختص.` with
 `confidence: "NONE"` and zero citations.
+
+### Diagnosing a failing embeddings provider
+
+`POST /rag/provider-check` embeds one throwaway string and reports the result.
+It writes nothing and changes no document state, so it is safe to run against
+a live corpus — unlike indexing a test document, which would put that document
+where the assistant can cite it.
+
+```json
+{
+  "provider": "openai-embedding",
+  "ok": false,
+  "probe": { "dimensions": null, "expectedDimensions": 384, "durationMs": 412 },
+  "error": "AI provider returned 400 for /embeddings",
+  "corpus": {
+    "activeProvider": "openai-embedding",
+    "byProvider": [{ "provider": "mock-hash-embedding", "chunks": 128 }],
+    "staleChunks": 128
+  }
+}
+```
+
+`error` is the API's own message, never the provider's response body — that is
+logged server-side (already redacted) as `[OpenAiHttp] WARN /embeddings → 400`.
+`ok` is false on a dimension mismatch too, because the `vector(384)` column is
+fixed-width and a differently-sized vector fails at INSERT rather than here.
+
+`corpus` is reported even when the probe fails, because "the assistant refuses
+everything" has two unrelated causes: a provider that is down, or a corpus
+embedded by a *different* provider (`staleChunks` above zero), which retrieval
+filters out until `POST /rag/reindex` runs. Deliberately not part of
+`/health/ready`: that is polled continuously and would bill an API call per
+poll for a dependency that only affects ingestion.
 
 ## Dose calculator
 

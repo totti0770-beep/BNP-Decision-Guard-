@@ -8,6 +8,14 @@ import { PdfExtractionService } from './pdf-extraction.service';
 import { ChunkingService } from './chunking.service';
 import { EmbeddingService } from './embedding.service';
 
+export interface ProviderCoverage {
+  /** The provider retrieval currently filters on. */
+  activeProvider: string;
+  byProvider: { provider: string; chunks: number }[];
+  /** Chunks stamped with any other provider — invisible to retrieval. */
+  staleChunks: number;
+}
+
 export interface ReindexResult {
   documentId: string;
   title: string;
@@ -36,17 +44,13 @@ export class IndexingService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      const rows: { embedding_provider: string; n: string }[] =
-        await this.dataSource.query(
-          `SELECT embedding_provider, count(*) AS n
-             FROM document_chunks GROUP BY embedding_provider`,
-        );
-      const stale = rows.filter((r) => r.embedding_provider !== this.embeddings.name);
-      if (stale.length > 0) {
+      const { byProvider, staleChunks } = await this.providerCoverage();
+      const stale = byProvider.filter((r) => r.provider !== this.embeddings.name);
+      if (staleChunks > 0) {
         this.logger.warn(
           `Embedding provider is "${this.embeddings.name}" but ` +
             stale
-              .map((r) => `${r.n} chunk(s) were indexed with "${r.embedding_provider}"`)
+              .map((r) => `${r.chunks} chunk(s) were indexed with "${r.provider}"`)
               .join(', ') +
             `. Those documents are EXCLUDED from AI retrieval until you run POST /rag/reindex.`,
         );
@@ -55,6 +59,34 @@ export class IndexingService implements OnApplicationBootstrap {
       // Table may not exist yet (pre-migration boot); never block startup.
       this.logger.debug(`Provider consistency check skipped: ${err}`);
     }
+  }
+
+  /**
+   * How the indexed corpus is split across embedding providers.
+   *
+   * Retrieval filters on the *active* provider, so any chunk stamped with a
+   * different one is invisible to the assistant. That makes `staleChunks` the
+   * number to look at when everything suddenly refuses: a non-zero value
+   * means the corpus needs POST /rag/reindex, not that the question was bad.
+   */
+  async providerCoverage(): Promise<ProviderCoverage> {
+    const rows: { embedding_provider: string; n: string }[] =
+      await this.dataSource.query(
+        `SELECT embedding_provider, count(*) AS n
+           FROM document_chunks GROUP BY embedding_provider`,
+      );
+    const byProvider = rows.map((r) => ({
+      provider: r.embedding_provider,
+      // count(*) comes back as a string from pg for bigint.
+      chunks: Number(r.n),
+    }));
+    return {
+      activeProvider: this.embeddings.name,
+      byProvider,
+      staleChunks: byProvider
+        .filter((r) => r.provider !== this.embeddings.name)
+        .reduce((sum, r) => sum + r.chunks, 0),
+    };
   }
 
   /** Full ingestion: PDF -> pages -> chunks -> embeddings -> pgvector. */
