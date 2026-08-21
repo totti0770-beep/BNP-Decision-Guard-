@@ -17,7 +17,8 @@
     "seed": "npm run seed -w @bnp/api",
     "test": "npm run test -w @bnp/api",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test:eval": "npm run test:eval -w @bnp/api"
   },
   "engines": {
     "node": ">=20"

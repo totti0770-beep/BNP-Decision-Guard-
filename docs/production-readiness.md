@@ -273,8 +273,16 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
    restart, then `POST /rag/reindex`. Chunks are provider-stamped and
    retrieval filters on the active provider, so a switch refuses safely until
    the corpus is re-embedded; provider calls have timeouts + retry.
-   Remaining: supply the actual API key and run an answer-quality eval
-   against a gold set of nurse questions.
+   Remaining: supply the actual API key, and run the answer-quality gold set
+   against the **real** providers. A gold set now exists
+   (`apps/api/test/answer-quality.e2e-spec.ts`, `npm run test:eval`) and runs
+   in CI, but under the mock providers — so it measures lexical retrieval over
+   four demo documents, and gates that questions route to the document holding
+   their answer while out-of-corpus questions refuse. That is a regression net,
+   **not** clinical validation: the set a pilot needs is one a nurse educator
+   writes from questions staff actually ask, including the ones the corpus
+   cannot answer, scored by a clinician. The generated report states this
+   plainly so a green run is not mistaken for sign-off.
 
    **Open incident (partially addressed).** On the live Railway deployment,
    indexing an uploaded document has failed with

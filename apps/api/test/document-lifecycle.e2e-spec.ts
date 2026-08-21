@@ -67,9 +67,11 @@ describe('Document governance lifecycle (upload -> approve -> index -> cite)', (
     ];
     const pdf = await buildPdf('IV Paracetamol Preparation and Administration Guide', pages);
 
-    // Extraction itself cannot run under jest (see StubPdfExtractionService);
-    // feed the pipeline the same text this PDF contains so everything
-    // downstream is still operating on the document under test.
+    // The extraction stub is a convenience here, not a limitation — this
+    // suite is about the approval lifecycle, so it states the text outright
+    // rather than depending on PDF rendering. Real extraction is covered by
+    // pdf-extraction.service.spec.ts. Feed it the same text this PDF
+    // contains so everything downstream operates on the document under test.
     ctx.pdf.pages = pages.map((paragraphs, i) => ({
       pageNumber: i + 1,
       text: paragraphs.join(' '),
