@@ -309,6 +309,8 @@ See `.env.example`. Key ones:
 | `RAG_TOP_K` / `RAG_FINAL_K` | `8` / `4` | retrieval / rerank depth |
 | `MAIL_PROVIDER` | `log` | `log` writes reset links to the app log; set `smtp` before real users |
 | `MAIL_HOST` / `MAIL_FROM` / `APP_BASE_URL` | — | `MAIL_HOST` required for `smtp`; reset links resolve against `APP_BASE_URL` (defaults to the first `CORS_ORIGINS` entry) |
+| `NODE_ENV` | `development` | `production`, `development` or `test`. An unrecognised value refuses to boot rather than silently selecting the development security posture |
+| `RAG_MIN_SIMILARITY` | `0.25` | refusal threshold; must be a finite number in `[0, 1]` or the API refuses to boot |
 | `SEED_ON_BOOT` | `true` (docker) | seed demo data on API start — ignored when `NODE_ENV=production` |
 | `SEED_ALLOW_PRODUCTION` | unset | allow seeding published demo accounts in production |
 | `ALLOW_DEMO_ACCOUNTS` | unset | keep default-password demo accounts enabled in production |

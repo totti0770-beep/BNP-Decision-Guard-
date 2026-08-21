@@ -3,6 +3,7 @@ import { ConfidenceLevel, REFUSAL_MESSAGE_AR } from '@bnp/shared';
 import { RetrievalService, RetrievedChunk } from './retrieval.service';
 import { RerankService } from './rerank.service';
 import { LlmService } from './llm.service';
+import { ragMinSimilarity } from '../config/env';
 
 export interface RagCitation {
   documentId: string;
@@ -110,7 +111,10 @@ export class RagQueryService {
    * 4. every non-refused answer carries citations (document, page, approval date)
    */
   async ask(question: string, opts: { category?: string } = {}): Promise<RagResult> {
-    const minScore = parseFloat(process.env.RAG_MIN_SIMILARITY ?? '0.25');
+    // Validated on every call rather than parsed. `parseFloat('abc')` gave
+    // NaN, every `score >= NaN` is false, and the assistant refused every
+    // question with nothing in the logs to say why.
+    const minScore = ragMinSimilarity();
 
     const candidates = await this.retrieval.search(question, {
       category: opts.category,

@@ -19,7 +19,6 @@ function loadGuard(nodeEnv: string) {
 
   jest.isolateModules(() => {
     jest.doMock('../config/env', () => ({ isProduction: nodeEnv === 'production' }));
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DemoAccountGuardService } = require('./demo-account-guard.service');
     service = new DemoAccountGuardService(users, audit);
   });

@@ -193,7 +193,10 @@ export class AuthService {
     let payload: JwtPayload;
     try {
       payload = this.jwt.verify<JwtPayload>(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET ?? 'change-me-too-in-production',
+        // issueTokens() already signs with loadEnv().jwt.refreshSecret; this
+        // verified against a raw process.env read with its own fallback, so
+        // the two halves of the same token could resolve differently.
+        secret: loadEnv().jwt.refreshSecret,
       });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');

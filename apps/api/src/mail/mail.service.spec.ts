@@ -40,6 +40,7 @@ describe('MailService.onApplicationBootstrap — log-provider-in-production visi
     process.env.JWT_REFRESH_SECRET = 'test-non-default-refresh';
     process.env.POSTGRES_PASSWORD = 'test-non-default-db';
     process.env.S3_SECRET_KEY = 'test-non-default-s3';
+    process.env.S3_ACCESS_KEY = 'test-non-default-s3-key';
     delete process.env.MAIL_PROVIDER; // defaults to "log"
 
     await jest.isolateModulesAsync(async () => {
@@ -71,6 +72,7 @@ describe('MailService.onApplicationBootstrap — log-provider-in-production visi
     process.env.JWT_REFRESH_SECRET = 'test-non-default-refresh';
     process.env.POSTGRES_PASSWORD = 'test-non-default-db';
     process.env.S3_SECRET_KEY = 'test-non-default-s3';
+    process.env.S3_ACCESS_KEY = 'test-non-default-s3-key';
     process.env.MAIL_PROVIDER = 'smtp';
     process.env.MAIL_HOST = 'smtp.hospital.example';
 
