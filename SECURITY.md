@@ -92,6 +92,24 @@ is logged and swallowed rather than blocking startup — a control that can take
 the clinical API offline is a denial of service against itself.
 `ALLOW_DEMO_ACCOUNTS=true` opts out and logs an error at every boot.
 
+**Provisioning and sweeping must succeed or fail together.** When
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, the container runs `create-admin`
+*before* the API starts, so the administrator exists by the time the sweep
+runs. If that step fails the container now **exits non-zero and the API does
+not start**, leaving the previous deployment serving.
+
+That is a correction, not caution. It first shipped as warn-and-continue, and
+on 2026-08-22 an `ADMIN_PASSWORD` of 9 characters was rejected by the password
+policy — so no administrator was created, the API booted anyway, and the sweep
+disabled all seven demo accounts: **zero active users on a live system, from a
+typo in a variable**. Failing the deploy instead leaves the published demo
+credentials live for the few minutes it takes to fix the variable — an
+exposure that was already ongoing — rather than trading it for a total outage.
+
+Set `ADMIN_PASSWORD` to at least 12 characters with an upper-case letter, a
+lower-case letter, a digit and a symbol, and not to any password in the demo
+table; `create-admin` rejects anything else.
+
 **Break-glass.** On an environment that only ever held demo accounts, the sweep
 disables all seven and locks everyone out. `node dist/scripts/create-admin.js`
 (`ADMIN_EMAIL`, `ADMIN_PASSWORD`, optional `ADMIN_NAME`) creates a SUPER_ADMIN,
