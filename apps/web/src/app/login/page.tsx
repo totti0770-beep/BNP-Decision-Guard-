@@ -7,9 +7,26 @@ import { LanguageToggle } from '@/components/language-toggle';
 import {
   Alert, Button, Field, Input } from '@/components/ui';
 
+/**
+ * Opt-in demo affordance for local walkthroughs, supplied entirely by the
+ * environment. Unset in every deployment config, so a production build gets
+ * an empty string and renders nothing.
+ *
+ * Previously the demo email was prefilled and its password rendered in plain
+ * text on the login page — shipped in every build, visible to any
+ * unauthenticated visitor of a live clinical system. You did not even need to
+ * find the repository to sign in.
+ *
+ * Taking the address from an env var rather than gating a hardcoded literal
+ * is deliberate: `NEXT_PUBLIC_*` is inlined into the client bundle, so a
+ * literal behind an `if` is still a credential shipped to every browser. No
+ * password appears here in any form.
+ */
+const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? '';
+
 export default function LoginPage() {
   const t = useT();
-  const [email, setEmail] = useState('nurse@bnp.health');
+  const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState('');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -144,9 +161,12 @@ export default function LoginPage() {
             {t('forgotPassword')}
           </a>
         </p>
-        <p className="mt-2 text-center text-xs text-subtle">
-          Demo: nurse@bnp.health / NurseUser123! — see README for all roles
-        </p>
+        {DEMO_EMAIL && (
+          <p className="mt-2 text-center text-xs text-subtle">
+            Demo sign-in: {DEMO_EMAIL} — see README for the password and the
+            other roles.
+          </p>
+        )}
       </div>
     </main>
   );

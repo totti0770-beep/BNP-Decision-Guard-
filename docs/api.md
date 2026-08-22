@@ -94,6 +94,8 @@ roles travel in the JWT: use `POST /users` and `PATCH /users/:id`.
 | `GET /chat/history?limit=` — own Q&A history | `ai:ask` |
 | `POST /chat/answers/:id/review` `{status: APPROVED\|FLAGGED}` — committee review | `ai:review-answers` |
 | `POST /rag/reindex` — re-embed every ACTIVE document with the current provider | `documents:index` |
+| `POST /rag/reindex/stale` — re-embed only documents whose chunks retrieval cannot currently see | `documents:index` |
+| `POST /rag/reindex/:documentId` — re-embed one document in place, no approval transition | `documents:index` |
 | `POST /rag/provider-check` — one-vector probe of the embeddings provider | `documents:index` |
 
 Answer shape:
@@ -119,6 +121,23 @@ When refused, `shortAnswer` is exactly
 ### Diagnosing a failing embeddings provider
 
 `POST /rag/provider-check` embeds one throwaway string and reports the result.
+The probe is compared against the width the `document_chunks.embedding` column
+is *actually declared with*, read from `pg_attribute` — not against
+`EMBEDDING_DIM`. The column width is fixed by the initial migration, which
+carries its own copy of that constant, so the two can disagree: with
+`EMBEDDING_DIM=1536` and a genuine 1536-dimension provider, comparing against
+the env var reports success while every INSERT fails against `vector(384)`.
+A disagreement between the column and `EMBEDDING_DIM` is reported separately as
+`dimensionConfigMismatch`, because it is a different thing to fix.
+
+`corpus` splits stale chunks two ways. `staleRetrievable` counts chunks from
+another provider on documents that are ACTIVE, unexpired and current-version —
+the ones the assistant would otherwise be able to cite. **That is the number
+that should be zero, and the only one reindexing can move.** `staleOrphaned`
+counts chunks on expired or superseded documents: retrieval already excludes
+them for unrelated reasons and `reindexAll()` never visits them, so they stay
+counted forever. Setting a target against the combined total made "stale
+chunks = 0" unreachable on any corpus containing one expired document.
 It writes nothing and changes no document state, so it is safe to run against
 a live corpus — unlike indexing a test document, which would put that document
 where the assistant can cite it.

@@ -9,7 +9,11 @@ trail are non-negotiable.
 
 | Control | Where | Notes |
 | --- | --- | --- |
-| **Production secret fail-fast** | `apps/api/src/config/env.ts` | The API refuses to boot with `NODE_ENV=production` if any of `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, `S3_SECRET_KEY` is missing or left at its shipped default. |
+| **Production secret fail-fast** | `apps/api/src/config/env.ts` | The API refuses to boot with `NODE_ENV=production` if any of `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` is missing or left at its shipped default. `S3_ACCESS_KEY` was omitted for a while, which only moved the failure from boot to the first document upload. |
+| **Demo credentials neutralised in production** | `auth/demo-account-guard.service.ts`, `seed/seed-policy.ts`, `infra/docker/Dockerfile.api` | The seed refuses to run under `NODE_ENV=production` (in the script *and* in the container start command), and any existing account still using a password published in `README.md` is disabled at boot with its refresh tokens revoked and a `SECURITY:DEMO_ACCOUNT_DISABLED` audit row. Compares against the shipped literal only, so a rotated account is never touched. See *Demo credentials*. |
+| **Single secret-resolution path** | `config/env.ts` consumed by `jwt.strategy.ts`, `auth.module.ts`, `auth.service.ts`, `data-source.ts`, `storage.service.ts` | Six call sites previously resolved secrets as `process.env.X ?? '<shipped literal>'`, bypassing the fail-fast. `data-source.ts` was the sharp one: the container runs `dist/scripts/migrate.js` **before** `main.js`, an entrypoint that never called `loadEnv()` — so a deployment missing `POSTGRES_PASSWORD` silently used the demo value. Outside an environment labelled exactly `production` a missing `JWT_SECRET` resolved to a literal published in this repository, making tokens forgeable. |
+| **`NODE_ENV` validation** | `config/env.ts` | `isProduction` gates the secret fail-fast, the CORS fail-closed default, 5xx suppression, the reset-token refusal, the seed refusal and the demo-account sweep. An unrecognised value — `Production`, `staging`, a typo — silently selected all of their permissive forms at once. Unset still means development (the documented local default); anything unrecognised now refuses to boot. |
+| **Refusal-threshold validation** | `config/env.ts` (`ragMinSimilarity()`) | `RAG_MIN_SIMILARITY` had no validation. `abc` produced `NaN`, every `score >= NaN` is false, and the assistant **refused every question** — indistinguishable from an empty corpus, with nothing logged. A negative value disabled the threshold entirely and let unqualified chunks answer clinical questions. Both failures were silent and failed in opposite directions. Now must be a finite number in `[0, 1]`, checked at boot and on every query. |
 | **Security headers** | `helmet` in `apps/api/src/main.ts` | HSTS, `X-Content-Type-Options`, `X-Frame-Options`, COOP/CORP, etc. |
 | **Rate limiting** | `@nestjs/throttler`, `app.module.ts` | Global per-IP limit; a stricter limit on all `/auth/*` endpoints (`AUTH_RATE_LIMIT_MAX`) blunts credential brute-force. Verified: 6th rapid login returns HTTP 429. |
 | **Per-account lockout** | `users.locked_until` + `auth.service.ts` | After `AUTH_MAX_FAILED_ATTEMPTS` consecutive failed logins the account is locked for `AUTH_LOCKOUT_MINUTES` — blocking even a correct password, so an attacker rotating IPs past the rate limiter is still stopped. Cleared on success or password reset. Verified end-to-end. |
@@ -45,11 +49,68 @@ trail are non-negotiable.
    `CORS_ORIGINS` entry.
 4. **Terminate TLS** in front of the API and web (Ingress/load balancer). All
    cookies/tokens must travel over HTTPS only.
-5. **Set `SEED_ON_BOOT=false`** in any shared/production environment (the K8s
+5. **Provision a real administrator before the first production boot.**
+   `ADMIN_EMAIL=... ADMIN_PASSWORD=... node dist/scripts/create-admin.js`
+   creates (or resets and reactivates) a SUPER_ADMIN. This is not optional on
+   an environment that was previously seeded — see *Demo credentials* below,
+   which can otherwise disable every account you have.
+6. **Set `SEED_ON_BOOT=false`** in any shared/production environment (the K8s
    manifest already does; Docker Compose defaults to `true` for local demos).
-6. **Enable encryption at rest** — SSE/KMS on the object store and disk/TDE
+   Since the demo-credential fix this is defence in depth rather than the only
+   protection: both the container start command and `seed.ts` refuse to seed
+   when `NODE_ENV=production`, regardless of the flag.
+7. **Enable encryption at rest** — SSE/KMS on the object store and disk/TDE
    encryption on PostgreSQL.
-7. **Restrict network egress** if using an external LLM/embedding provider.
+8. **Restrict network egress** if using an external LLM/embedding provider.
+
+## Demo credentials
+
+The seeded demo accounts in `README.md` — including `superadmin@bnp.health` —
+use passwords published in this repository. Three controls now bound that:
+
+**The seed will not create them in production.** `assertSeedingAllowed()`
+(`apps/api/src/seed/seed-policy.ts`) throws when `NODE_ENV=production`, and the
+container start command (`infra/docker/Dockerfile.api`) no longer gates on
+`SEED_ON_BOOT` alone — it checks `NODE_ENV` too. The runtime image sets
+`NODE_ENV=production`, so a flag left `true` on a real deployment is no longer
+sufficient to create known-credential accounts. `SEED_ALLOW_PRODUCTION=true`
+overrides both, for a throwaway demo holding no real data.
+
+**Accounts that already exist are disabled at boot.**
+`DemoAccountGuardService` (`apps/api/src/auth/demo-account-guard.service.ts`)
+runs on every production start. For each demo email it `bcrypt.compare`s the
+*shipped default* against the stored hash; on a match it sets `is_active =
+false`, increments `token_version` (revoking every outstanding refresh token
+for that account), writes a `SECURITY:DEMO_ACCOUNT_DISABLED` audit row, and
+logs at error level.
+
+The comparison is deliberately against the shipped literal and never against
+`SEED_PASSWORD_<ROLE>`. That is what makes it incapable of a false positive: an
+account whose password was rotated, or that was seeded from an operator's
+override, does not match and is left alone. A database failure inside the sweep
+is logged and swallowed rather than blocking startup — a control that can take
+the clinical API offline is a denial of service against itself.
+`ALLOW_DEMO_ACCOUNTS=true` opts out and logs an error at every boot.
+
+**Break-glass.** On an environment that only ever held demo accounts, the sweep
+disables all seven and locks everyone out. `node dist/scripts/create-admin.js`
+(`ADMIN_EMAIL`, `ADMIN_PASSWORD`, optional `ADMIN_NAME`) creates a SUPER_ADMIN,
+or resets the password, reactivates and re-roles an existing email while
+revoking its outstanding tokens. It refuses passwords under 12 characters,
+passwords missing a character class, and every password published in the demo
+table. It never echoes the password to stdout.
+
+**Verifying it fired.** After the next production deploy, the application log
+carries one `Disabled "<email>"` line per affected account plus a summary
+naming how many active accounts remain, and `GET /audit?action=SECURITY:DEMO_ACCOUNT_DISABLED`
+returns the corresponding rows.
+
+**Web UI.** The login page no longer prefills a demo email or renders a demo
+password. The optional prefill now comes from `NEXT_PUBLIC_DEMO_EMAIL`, which is
+set in no deployment config. It is supplied by the environment rather than
+gated behind a flag because `NEXT_PUBLIC_*` values are inlined into the client
+bundle — a hardcoded literal behind an `if` would still ship the address to
+every browser. No password appears in the web source in any form.
 
 ## Known gaps (tracked, not yet implemented)
 

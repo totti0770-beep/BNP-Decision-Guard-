@@ -122,6 +122,7 @@ describe('Password reset', () => {
     process.env.JWT_REFRESH_SECRET = 'test-non-default-refresh';
     process.env.POSTGRES_PASSWORD = 'test-non-default-db';
     process.env.S3_SECRET_KEY = 'test-non-default-s3';
+    process.env.S3_ACCESS_KEY = 'test-non-default-s3-key';
     process.env.MAIL_PROVIDER = 'none'; // production must declare one
     try {
       let res: unknown;
@@ -144,6 +145,7 @@ describe('Password reset', () => {
       delete process.env.JWT_REFRESH_SECRET;
       delete process.env.POSTGRES_PASSWORD;
       delete process.env.S3_SECRET_KEY;
+      delete process.env.S3_ACCESS_KEY;
       delete process.env.MAIL_PROVIDER;
     }
   });

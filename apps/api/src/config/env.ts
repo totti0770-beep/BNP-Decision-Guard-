@@ -12,8 +12,75 @@ const DEFAULT_JWT_SECRET = 'change-me-in-production';
 const DEFAULT_JWT_REFRESH_SECRET = 'change-me-too-in-production';
 const DEMO_DB_PASSWORD = 'bnp_secret';
 const DEMO_S3_SECRET = 'bnp_minio_secret';
+const DEMO_S3_ACCESS_KEY = 'bnp_minio';
 
 export const isProduction = process.env.NODE_ENV === 'production';
+
+/**
+ * `NODE_ENV` is the single input to `isProduction`, and `isProduction` gates
+ * the secret fail-fast, the CORS fail-closed default, 5xx suppression, the
+ * reset-token refusal, the seed refusal and the demo-account sweep. Every one
+ * of those degrades to its permissive form together if the value is unset or
+ * misspelled — `NODE_ENV=Production` silently yields a development posture on
+ * a production host. Nothing used to notice.
+ *
+ * Unset is still allowed and still means development: that is the documented
+ * local default and failing there would break `npm test` and a bare
+ * `ts-node src/main.ts`. An *unrecognised* value is the actual footgun, and
+ * that is what this refuses.
+ */
+const KNOWN_NODE_ENVS = ['production', 'development', 'test'];
+
+function validatedNodeEnv(): string {
+  const raw = process.env.NODE_ENV?.trim();
+  if (!raw) return 'development';
+  if (!KNOWN_NODE_ENVS.includes(raw)) {
+    throw new Error(
+      `[env] NODE_ENV="${raw}" is not recognised. Use one of ` +
+        `${KNOWN_NODE_ENVS.join(', ')}. Anything else silently selects the ` +
+        `development security posture — no secret fail-fast, an open CORS ` +
+        `default, and internal errors returned to clients.`,
+    );
+  }
+  return raw;
+}
+
+export const DEFAULT_RAG_MIN_SIMILARITY = 0.25;
+
+/**
+ * The similarity floor a reranked chunk must clear before it can support an
+ * answer — the softest control in the clinical safety contract, and the one
+ * that was least protected.
+ *
+ * `parseFloat(process.env.RAG_MIN_SIMILARITY ?? '0.25')` accepted anything.
+ * `RAG_MIN_SIMILARITY=abc` produced `NaN`, every `score >= NaN` comparison is
+ * false, and the assistant refused **every question** — indistinguishable
+ * from an empty corpus, with no error anywhere. A negative value disabled the
+ * threshold entirely and let unqualified chunks answer clinical questions.
+ * Both failures are silent, and they fail in opposite directions.
+ *
+ * Deliberately **not** cached, and deliberately read per call rather than
+ * bound once: `RagQueryService.ask()` re-reads it so the answer-quality
+ * harness can sweep the answer-vs-refuse trade-off in a single process.
+ * `loadEnv()` calls this too, so a bad value fails the boot rather than
+ * waiting for the first question.
+ */
+export function ragMinSimilarity(): number {
+  const raw = process.env.RAG_MIN_SIMILARITY?.trim();
+  if (!raw) return DEFAULT_RAG_MIN_SIMILARITY;
+  // `Number` rather than `parseFloat`: parseFloat("0.3-oops") is 0.3, which
+  // would silently accept a typo'd threshold.
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(
+      `[env] RAG_MIN_SIMILARITY="${raw}" is not a similarity. It must be a ` +
+        `number in [0, 1] — cosine similarity cannot fall outside that range. ` +
+        `A non-numeric value makes the assistant refuse every question; a ` +
+        `negative one disables the refusal threshold.`,
+    );
+  }
+  return value;
+}
 
 /**
  * A `jsonwebtoken` lifetime: seconds as a number, or an `ms`-parseable string
@@ -84,6 +151,12 @@ export interface AppEnv {
     forcePathStyle: boolean;
   };
   cors: { origins: string[] };
+  /**
+   * Snapshot of the refusal threshold at boot. The query path calls
+   * `ragMinSimilarity()` directly so a sweep can move it; this field exists so
+   * a bad value fails the boot and so diagnostics can report what was configured.
+   */
+  rag: { minSimilarity: number };
   bodyLimit: string;
   rateLimit: { ttlSeconds: number; limit: number; authLimit: number };
   lockout: { maxFailedAttempts: number; lockoutMinutes: number };
@@ -105,11 +178,23 @@ let cached: AppEnv | null = null;
 export function loadEnv(): AppEnv {
   if (cached) return cached;
 
+  // NODE_ENV first: every check below keys off it, so validating it after
+  // them would let a misspelled value skip the very checks it selects.
+  const nodeEnv = validatedNodeEnv();
+
   // Fail-fast on secrets before anything else initialises.
   required('JWT_SECRET', DEFAULT_JWT_SECRET);
   required('JWT_REFRESH_SECRET', DEFAULT_JWT_REFRESH_SECRET);
   required('POSTGRES_PASSWORD', DEMO_DB_PASSWORD);
   required('S3_SECRET_KEY', DEMO_S3_SECRET);
+  // Paired with the secret. A demo access key plus a real secret cannot reach
+  // the bucket at all, so leaving it out of the fail-fast only moved the
+  // failure from boot to the first document upload.
+  required('S3_ACCESS_KEY', DEMO_S3_ACCESS_KEY);
+  // Paired with the secret. A demo access key plus a real secret cannot reach
+  // the bucket at all, so leaving it out of the fail-fast only moved the
+  // failure from boot to the first document upload.
+
 
   // Mail is deliberately NOT part of the secret fail-fast. A missing secret is
   // a security hole that must stop the boot; log-only mail is a degraded
@@ -136,7 +221,7 @@ export function loadEnv(): AppEnv {
       : ['http://localhost:3000'];
 
   cached = {
-    nodeEnv: process.env.NODE_ENV ?? 'development',
+    nodeEnv,
     port: parseInt(process.env.API_PORT ?? '4000', 10),
     db: {
       host: process.env.POSTGRES_HOST ?? 'localhost',
@@ -154,12 +239,13 @@ export function loadEnv(): AppEnv {
     s3: {
       endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
       region: process.env.S3_REGION ?? 'us-east-1',
-      accessKey: process.env.S3_ACCESS_KEY ?? 'bnp_minio',
+      accessKey: process.env.S3_ACCESS_KEY ?? DEMO_S3_ACCESS_KEY,
       secretKey: process.env.S3_SECRET_KEY ?? DEMO_S3_SECRET,
       bucket: process.env.S3_BUCKET ?? 'bnp-documents',
       forcePathStyle: (process.env.S3_FORCE_PATH_STYLE ?? 'true') === 'true',
     },
     cors: { origins },
+    rag: { minSimilarity: ragMinSimilarity() },
     bodyLimit: process.env.REQUEST_BODY_LIMIT ?? '25mb',
     rateLimit: {
       ttlSeconds: parseInt(process.env.RATE_LIMIT_TTL ?? '60', 10),

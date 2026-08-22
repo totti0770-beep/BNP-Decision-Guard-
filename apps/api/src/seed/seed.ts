@@ -1,4 +1,8 @@
 import 'reflect-metadata';
+// Must stay above every other import: it refuses to seed a production
+// database, and the secret fail-fast inside app.module would otherwise throw
+// first with an unrelated message. See refuse-in-production.ts.
+import './refuse-in-production';
 import { NestFactory } from '@nestjs/core';
 import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -26,34 +30,30 @@ import { DocumentsService } from '../documents/documents.service';
 import { ApprovalService } from '../approval/approval.service';
 import { StorageService } from '../storage/storage.service';
 import { AppDataSource } from '../config/data-source';
+import { DEMO_ACCOUNTS, seedPasswordFor } from './demo-accounts';
 import { SAMPLE_DOCS } from './sample-docs';
 import { buildPdf } from './pdf';
 
 /**
  * Demo passwords are overridable per role via SEED_PASSWORD_<ROLE> (e.g.
- * SEED_PASSWORD_NURSE_USER). The shipped defaults are published in README,
- * so any internet-facing install must either set these overrides before
- * first boot or rotate every account from the /users screen right after —
- * seeding is skip-if-present, so env changes never touch an existing DB.
+ * SEED_PASSWORD_NURSE_USER). The shipped defaults in `demo-accounts.ts` are
+ * published in README, so any internet-facing install must either set these
+ * overrides before first boot or rotate every account from the /users screen
+ * right after — seeding is skip-if-present, so env changes never touch an
+ * existing DB. In production `DemoAccountGuardService` disables any account
+ * still carrying a shipped default on the next boot.
  */
-function seedPassword(role: RoleName, fallback: string): string {
-  return process.env[`SEED_PASSWORD_${role}`] || fallback;
-}
-
 export const DEMO_USERS: {
   email: string;
   password: string;
   fullName: string;
   role: RoleName;
-}[] = [
-  { email: 'superadmin@bnp.health', password: seedPassword(RoleName.SUPER_ADMIN, 'SuperAdmin123!'), fullName: 'Sara Al-Otaibi', role: RoleName.SUPER_ADMIN },
-  { email: 'admin@bnp.health', password: seedPassword(RoleName.HOSPITAL_ADMIN, 'HospAdmin123!'), fullName: 'Mohammed Al-Harbi', role: RoleName.HOSPITAL_ADMIN },
-  { email: 'knowledge@bnp.health', password: seedPassword(RoleName.NURSING_KNOWLEDGE_MANAGER, 'Knowledge123!'), fullName: 'Noura Al-Qahtani', role: RoleName.NURSING_KNOWLEDGE_MANAGER },
-  { email: 'pharmacist@bnp.health', password: seedPassword(RoleName.PHARMACIST_REVIEWER, 'Pharmacist123!'), fullName: 'Khalid Al-Zahrani', role: RoleName.PHARMACIST_REVIEWER },
-  { email: 'quality@bnp.health', password: seedPassword(RoleName.CBAHI_QUALITY_OFFICER, 'Quality123!'), fullName: 'Amal Al-Shehri', role: RoleName.CBAHI_QUALITY_OFFICER },
-  { email: 'nurse@bnp.health', password: seedPassword(RoleName.NURSE_USER, 'NurseUser123!'), fullName: 'Fatimah Al-Ghamdi', role: RoleName.NURSE_USER },
-  { email: 'auditor@bnp.health', password: seedPassword(RoleName.AUDITOR, 'Auditor123!'), fullName: 'Yousef Al-Dossary', role: RoleName.AUDITOR },
-];
+}[] = DEMO_ACCOUNTS.map((account) => ({
+  email: account.email,
+  password: seedPasswordFor(account),
+  fullName: account.fullName,
+  role: account.role,
+}));
 
 function asActor(user: User): AuthenticatedUser {
   const roles = user.roles.map((r) => r.name);
@@ -95,8 +95,15 @@ async function main() {
   const approvalService = app.get(ApprovalService);
   const storage = app.get(StorageService);
 
-  if (await users.findOne({ where: { email: DEMO_USERS[0].email } })) {
-    console.log('Seed data already present — skipping.');
+  // Keyed on *any* demo account, not just the first. Keying on one email
+  // meant deleting only that user re-ran the whole seed, which then hit the
+  // unique-email constraint on the remaining six and left the database
+  // half-applied — a failure the container CMD swallows with `|| echo`.
+  const existing = await users.findOne({
+    where: DEMO_USERS.map((u) => ({ email: u.email })),
+  });
+  if (existing) {
+    console.log(`Seed data already present (${existing.email}) — skipping.`);
     await app.close();
     return;
   }
@@ -240,12 +247,21 @@ async function main() {
     }),
   );
 
-  console.log('\nSeed complete. Demo users:');
-  for (const u of DEMO_USERS) console.log(`  ${u.role.padEnd(28)} ${u.email}  /  ${u.password}`);
+  // Emails and roles only. Printing passwords put every credential into the
+  // deployment log stream — and if an operator had set SEED_PASSWORD_<ROLE>
+  // to a real secret, it was *that* which got printed, so the documented
+  // mitigation leaked itself.
+  console.log('\nSeed complete. Demo users (passwords: see README, or the');
+  console.log('SEED_PASSWORD_<ROLE> values you supplied):');
+  for (const u of DEMO_USERS) console.log(`  ${u.role.padEnd(28)} ${u.email}`);
   await app.close();
 }
 
-main().catch((err) => {
-  console.error('Seed failed:', err);
-  process.exit(1);
-});
+// Guarded so the module can be imported by tests without seeding a database.
+// `ts-node src/seed/seed.ts` and `node dist/seed/seed.js` both enter here.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Seed failed:', err);
+    process.exit(1);
+  });
+}

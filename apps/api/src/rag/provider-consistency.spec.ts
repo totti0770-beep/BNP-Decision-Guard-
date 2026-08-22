@@ -93,3 +93,65 @@ describe('RetrievalService provider filtering', () => {
     expect(captured!.params).toContain('MEDICATIONS');
   });
 });
+
+describe('IndexingService boot summary', () => {
+  function makeService(coverage: Record<string, unknown>) {
+    const service = new IndexingService(
+      { query: jest.fn() } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      fakeEmbeddings as never,
+    );
+    jest.spyOn(service, 'providerCoverage').mockResolvedValue(coverage as never);
+    const logged: string[] = [];
+    jest
+      .spyOn(service['logger'], 'log')
+      .mockImplementation((m: unknown) => void logged.push(String(m)));
+    jest
+      .spyOn(service['logger'], 'warn')
+      .mockImplementation((m: unknown) => void logged.push(String(m)));
+    return { service, logged };
+  }
+
+  // On a deployment whose HTTP surface is unreachable from the operator's
+  // tooling, this boot line is the only way to read the index state. Absence
+  // of a warning is not evidence, so the summary must appear on a perfectly
+  // healthy corpus too.
+  it('logs the coverage summary even when nothing is stale', async () => {
+    const { service, logged } = makeService({
+      activeProvider: 'mock-hash-embedding',
+      byProvider: [{ provider: 'mock-hash-embedding', chunks: 9 }],
+      staleRetrievable: 0,
+      staleOrphaned: 0,
+      staleChunks: 0,
+      columnDimensions: 384,
+    });
+
+    await service.onApplicationBootstrap();
+
+    const summary = logged.find((l) => l.startsWith('Embedding index:'));
+    expect(summary).toBeDefined();
+    expect(summary).toContain('chunks=9');
+    expect(summary).toContain('staleRetrievable=0');
+    expect(summary).toContain('staleOrphaned=0');
+    expect(summary).toContain('columnDimensions=384');
+  });
+
+  it('reports an unreadable column as unknown, never as a number', async () => {
+    const { service, logged } = makeService({
+      activeProvider: 'mock-hash-embedding',
+      byProvider: [],
+      staleRetrievable: 0,
+      staleOrphaned: 0,
+      staleChunks: 0,
+      columnDimensions: null,
+    });
+
+    await service.onApplicationBootstrap();
+
+    expect(logged.find((l) => l.startsWith('Embedding index:'))).toContain(
+      'columnDimensions=unknown',
+    );
+  });
+});

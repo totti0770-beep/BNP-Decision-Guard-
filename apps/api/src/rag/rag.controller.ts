@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { Permission } from '@bnp/shared';
 import {
@@ -67,20 +75,41 @@ export class RagController {
     let dimensions: number | null = null;
     let error: string | null = null;
 
+    // The width the database actually declares, which is the only number an
+    // INSERT is checked against.
+    const columnDimensions = await this.indexing.embeddingColumnDimension();
+    const expected = columnDimensions ?? EMBEDDING_DIM;
+
     try {
       const vector = await this.embeddings.embedOne(
         'embedding provider connectivity probe',
       );
       dimensions = vector.length;
-      ok = dimensions === EMBEDDING_DIM;
+      ok = dimensions === expected;
       if (!ok) {
         error =
-          `Provider returned ${dimensions}-dimension vectors but EMBEDDING_DIM ` +
-          `is ${EMBEDDING_DIM}; inserts into the vector(${EMBEDDING_DIM}) column will fail.`;
+          `Provider returned ${dimensions}-dimension vectors but the ` +
+          `document_chunks.embedding column is vector(${expected}); every ` +
+          `INSERT will fail.` +
+          (columnDimensions === null
+            ? ` (Column width could not be read; compared against EMBEDDING_DIM=${EMBEDDING_DIM} instead.)`
+            : '');
       }
     } catch (err) {
       error = redactSecrets(err instanceof Error ? err.message : String(err));
     }
+
+    // A configured EMBEDDING_DIM that disagrees with the column is its own
+    // fault, independent of what the provider returned: the mock embedder
+    // builds vectors of EMBEDDING_DIM length, so it would start failing at
+    // INSERT too. Reported rather than folded into `ok`, because it is a
+    // different thing to fix.
+    const dimensionConfigMismatch =
+      columnDimensions !== null && columnDimensions !== EMBEDDING_DIM
+        ? `EMBEDDING_DIM is ${EMBEDDING_DIM} but the column is vector(${columnDimensions}). ` +
+          `The column width is fixed by the initial migration and does not follow ` +
+          `this variable; re-create the column to change it.`
+        : null;
 
     const durationMs = Date.now() - startedAt;
     // Corpus coverage is reported even when the probe fails: "everything
@@ -96,15 +125,24 @@ export class RagController {
         provider: this.embeddings.name,
         ok,
         durationMs,
-        staleChunks: corpus.staleChunks,
+        staleRetrievable: corpus.staleRetrievable,
+        staleOrphaned: corpus.staleOrphaned,
       },
     });
 
     return {
       provider: this.embeddings.name,
       ok,
-      probe: { dimensions, expectedDimensions: EMBEDDING_DIM, durationMs },
+      probe: {
+        dimensions,
+        // What an INSERT will actually be checked against.
+        expectedDimensions: expected,
+        columnDimensions,
+        configuredDimensions: EMBEDDING_DIM,
+        durationMs,
+      },
       error,
+      dimensionConfigMismatch,
       corpus,
     };
   }
@@ -131,6 +169,61 @@ export class RagController {
       },
     });
     return outcome;
+  }
+
+  /**
+   * Re-embeds only the documents whose chunks the assistant currently cannot
+   * see. Same effect as `/rag/reindex` for a stale corpus, without paying to
+   * re-embed documents that are already correct.
+   */
+  @Post('reindex/stale')
+  @Permissions(Permission.DOCUMENTS_INDEX)
+  async reindexStale(@CurrentUser() actor: AuthenticatedUser) {
+    const outcome = await this.indexing.reindexStale();
+    this.audit.record({
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      action: 'RAG:REINDEX_STALE',
+      resourceType: 'rag_index',
+      metadata: {
+        provider: outcome.provider,
+        reindexed: outcome.results.filter((r) => r.status === 'REINDEXED').length,
+        failed: outcome.results.filter((r) => r.status === 'FAILED').length,
+      },
+    });
+    return outcome;
+  }
+
+  /**
+   * Re-embeds one document in place.
+   *
+   * Deliberately here rather than on `/documents/:id`: `POST
+   * /documents/:id/index` is an approval-workflow transition and refuses an
+   * ACTIVE document, so repairing a single live document previously meant
+   * deactivate → re-approve → re-index — three approval-history audit events
+   * for an infrastructure operation, and a window where the document is out
+   * of the corpus. This changes no status and no approval state.
+   */
+  @Post('reindex/:documentId')
+  @Permissions(Permission.DOCUMENTS_INDEX)
+  async reindexOne(
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    const result = await this.indexing.reindexDocument(documentId);
+    this.audit.record({
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      action: 'RAG:REINDEX_DOCUMENT',
+      resourceType: 'Document',
+      resourceId: documentId,
+      metadata: {
+        provider: this.embeddings.name,
+        status: result.status,
+        chunkCount: result.chunkCount,
+      },
+    });
+    return result;
   }
 
   /** Raw governed RAG answer (no persistence). Chat /ask persists + audits. */
