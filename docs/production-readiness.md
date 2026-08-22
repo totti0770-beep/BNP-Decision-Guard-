@@ -230,13 +230,17 @@ production. Use this as the launch checklist.
 | --- | --- | --- | --- |
 | Core features (RAG, RBAC, audit, dose, workflow) | ✅ | ✅ | ✅ |
 | Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr; set `MAIL_PROVIDER=smtp`) |
+| Demo credentials neutralised in production | ✅ | ✅ | ✅ **verified live** — 7 accounts disabled on the 2026-08-22 deploy with matching audit rows |
+| Single validated secret-resolution path (`loadEnv()`) | ✅ | ✅ | ✅ |
+| Index integrity (advisory lock + UNIQUE constraint, real column-width check) | ✅ | ✅ | ✅ `staleRetrievable=0` on 725 chunks |
+| **Clinical validation of answers** | 🔴 | 🔴 **blocker** | 🔴 — protocol in `docs/clinical-validation.md`, awaiting reviewer |
 | Dependency vulnerability posture | ✅ 0 critical | 🟡 5 high pass CI | 🟡 (14 findings: 5 high, 9 moderate — see below) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
-| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 32 API + 7-step browser flow, both gate CI | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 211 unit + 68 e2e + 13-step browser flow, all gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
-| Approved clinical content corpus | 🔴 synthetic | ✅ real, governed | ✅ |
+| Approved clinical content corpus | 🔴 synthetic | ✅ real, governed (725 chunks indexed in production) | ✅ |
 | High availability (HA Postgres, replicas, HPA, Ingress+TLS) | ➖ | 🟡 | ✅ required |
 | Observability (logs/metrics/traces/alerts) | 🟡 structured JSON logs + liveness/readiness | 🟡 | ✅ required |
 | Compliance (CBAHI/HIPAA, pen-test, DPIA, BAA) | ➖ | 🟡 in progress | ✅ signed off |
@@ -265,6 +269,38 @@ Legend: ✅ done · 🟡 partial · 🔴 missing/blocker · ➖ not started
       cross-user) plus the web screen. Verified live end-to-end incl. RBAC
       (nurse gets 403 on both endpoints; pharmacist can list and decide).
 - [x] Security & readiness documentation
+
+## Go-live executed — 2026-08-22
+
+The production deployment was taken through a full security remediation and
+go-live on 2026-08-22. Each step below is recorded against the evidence that
+established it, from the Railway deploy log or the HTTP request log — not from
+assertion.
+
+| Step | Evidence |
+| --- | --- |
+| Merge + deploy | `15a95e3`; Railway deploy SUCCESS |
+| Administrator provisioned at boot | `Reset admin@bnp.health: password changed, account reactivated, SUPER_ADMIN attached…` |
+| Demo credentials neutralised | 7 × `Disabled "<email>"` + `SECURITY:DEMO_ACCOUNT_DISABLED` audit rows |
+| Administrator authenticates | `POST /auth/login → 201`, followed by permission-gated `GET /analytics/overview → 200` and `GET /settings → 200` |
+| Index integrity | `Embedding index: provider="openai-embedding" chunks=725 staleRetrievable=0 staleOrphaned=0 columnDimensions=384` |
+| Real accounts provisioned | 2 × `POST /users → 201` |
+| Break-glass variables removed | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` absent from the service; subsequent boot correctly skips `create-admin` |
+
+**Confirmed by that deploy:** all seven seeded accounts — `superadmin@bnp.health`
+among them — were still carrying passwords published in `README.md` in the live
+database. The sweep's own bcrypt comparisons established this; it was not an
+inference. They are now disabled with their refresh tokens revoked.
+
+**One incident, and its fix.** The first deploy's `ADMIN_PASSWORD` was 9
+characters. `create-admin` correctly refused it, but the failure was non-fatal,
+so the API booted anyway and the sweep disabled all seven accounts — zero active
+users, from a typo in a variable. Recovery took one corrected variable and one
+redeploy. A `create-admin` failure is now fatal to container start, so
+provisioning and sweeping succeed or fail together (see `SECURITY.md`).
+
+**Remaining blocker: clinical validation.** See `docs/clinical-validation.md`.
+No engineering work substitutes for it.
 
 ## Fastest path to FULLY FUNCTIONAL (real clinical use)
 
