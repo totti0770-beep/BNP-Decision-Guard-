@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, In } from 'typeorm';
 import { DocumentStatus } from '@bnp/shared';
 import { Document } from '../entities';
+import { ragMinSimilarity } from '../config/env';
 import { StorageService } from '../storage/storage.service';
 import { PdfExtractionService } from './pdf-extraction.service';
 import { ChunkingService } from './chunking.service';
@@ -73,10 +74,26 @@ export class IndexingService implements OnApplicationBootstrap {
       // is the only way to read the index state without calling
       // /rag/provider-check — absence of a warning is not evidence.
       const totalChunks = byProvider.reduce((sum, r) => sum + r.chunks, 0);
+      // The refusal threshold is reported here because it is the softest
+      // control in the clinical safety contract and was, until now, invisible:
+      // hosting platforms redact variable *values*, so an operator could see
+      // that RAG_MIN_SIMILARITY was set without being able to see what to.
+      // The measured trade-off is steep — at 0.15 the assistant answers every
+      // out-of-corpus question instead of refusing it — so "which value is
+      // live" is a question worth being able to answer from a log line.
+      //
+      // Deliberately `ragMinSimilarity()` and not `process.env`: this reports
+      // the value the gate will actually compare against, including the
+      // default when the variable is unset. Reporting the raw variable would
+      // be the configuration describing itself, which is the same mistake
+      // /rag/provider-check made when it checked EMBEDDING_DIM against
+      // EMBEDDING_DIM. It cannot throw here — loadEnv() validated it during
+      // boot, well before this hook runs.
       this.logger.log(
         `Embedding index: provider="${this.embeddings.name}" chunks=${totalChunks} ` +
           `staleRetrievable=${staleRetrievable} staleOrphaned=${staleOrphaned} ` +
-          `columnDimensions=${columnDimensions ?? 'unknown'}`,
+          `columnDimensions=${columnDimensions ?? 'unknown'} ` +
+          `refusalThreshold=${ragMinSimilarity()}`,
       );
       // Only `staleRetrievable` warrants a warning. Warning on the total meant
       // a single expired document produced a permanent alarm that no action
