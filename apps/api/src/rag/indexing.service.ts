@@ -65,9 +65,19 @@ export class IndexingService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      const { byProvider, staleRetrievable, staleOrphaned } =
+      const { byProvider, staleRetrievable, staleOrphaned, columnDimensions } =
         await this.providerCoverage();
       const stale = byProvider.filter((r) => r.provider !== this.embeddings.name);
+      // Always logged, healthy or not. On a deployment whose HTTP surface is
+      // not reachable from the operator's tooling, this line in the boot log
+      // is the only way to read the index state without calling
+      // /rag/provider-check — absence of a warning is not evidence.
+      const totalChunks = byProvider.reduce((sum, r) => sum + r.chunks, 0);
+      this.logger.log(
+        `Embedding index: provider="${this.embeddings.name}" chunks=${totalChunks} ` +
+          `staleRetrievable=${staleRetrievable} staleOrphaned=${staleOrphaned} ` +
+          `columnDimensions=${columnDimensions ?? 'unknown'}`,
+      );
       // Only `staleRetrievable` warrants a warning. Warning on the total meant
       // a single expired document produced a permanent alarm that no action
       // could clear, which trains operators to ignore the one message that

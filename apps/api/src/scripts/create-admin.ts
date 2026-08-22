@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import * as bcrypt from 'bcryptjs';
 import { RoleName, ROLE_DESCRIPTIONS, ROLE_PERMISSIONS } from '@bnp/shared';
+import { DataSource } from 'typeorm';
 import { AppDataSource } from '../config/data-source';
 import { PermissionEntity, Role, User } from '../entities';
 import { DEMO_ACCOUNTS } from '../seed/demo-accounts';
@@ -57,14 +58,24 @@ export function assertStrongPassword(password: string): void {
   }
 }
 
-async function main() {
-  const email = requiredEnv('ADMIN_EMAIL').toLowerCase();
-  const password = requiredEnv('ADMIN_PASSWORD');
-  const fullName = process.env.ADMIN_NAME?.trim() || 'Break-glass Administrator';
+export interface ProvisionResult {
+  outcome: 'CREATED' | 'RESET' | 'ALREADY_PROVISIONED';
+}
+
+/**
+ * The actual provisioning, separated from env parsing so it can run against
+ * a test database. Exported for the e2e suite; `main()` is the CLI shell.
+ */
+export async function provisionAdmin(
+  ds: DataSource,
+  opts: { email: string; password: string; fullName?: string },
+): Promise<ProvisionResult> {
+  const email = opts.email.toLowerCase();
+  const { password } = opts;
+  const fullName = opts.fullName?.trim() || 'Break-glass Administrator';
   assertStrongPassword(password);
 
-  const ds = await AppDataSource.initialize();
-  try {
+  {
     const users = ds.getRepository(User);
     const roles = ds.getRepository(Role);
     const permissions = ds.getRepository(PermissionEntity);
@@ -92,8 +103,27 @@ async function main() {
       console.log('Created the SUPER_ADMIN role.');
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
     const existing = await users.findOne({ where: { email } });
+
+    // Idempotent when nothing needs doing. The container runs this at every
+    // boot while ADMIN_EMAIL/ADMIN_PASSWORD are set, and an unconditional
+    // reset would bump token_version each deploy — revoking the
+    // administrator's sessions as a side effect of releasing unrelated code.
+    // "Nothing needs doing" is strict: same password, active, SUPER_ADMIN
+    // attached. Anything else falls through to the reset below.
+    if (
+      existing &&
+      existing.isActive &&
+      existing.roles?.some((r) => r.name === RoleName.SUPER_ADMIN) &&
+      (await bcrypt.compare(password, existing.passwordHash))
+    ) {
+      console.log(
+        `${email} is already provisioned with this password — nothing to do.`,
+      );
+      return { outcome: 'ALREADY_PROVISIONED' };
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
     if (existing) {
       existing.passwordHash = passwordHash;
       existing.isActive = true;
@@ -106,15 +136,28 @@ async function main() {
         `Reset ${email}: password changed, account reactivated, SUPER_ADMIN ` +
           `attached, and all outstanding refresh tokens revoked.`,
       );
-    } else {
-      await users.save(
-        users.create({ email, fullName, passwordHash, roles: [superAdmin], isActive: true }),
-      );
-      console.log(`Created SUPER_ADMIN ${email}.`);
+      // The password is never echoed — the operator already has it, and this
+      // output goes to the deployment log.
+      console.log('Sign in with the password you supplied, then rotate it from /users.');
+      return { outcome: 'RESET' };
     }
-    // The password is never echoed — the operator already has it, and this
-    // output goes to the deployment log.
+    await users.save(
+      users.create({ email, fullName, passwordHash, roles: [superAdmin], isActive: true }),
+    );
+    console.log(`Created SUPER_ADMIN ${email}.`);
     console.log('Sign in with the password you supplied, then rotate it from /users.');
+    return { outcome: 'CREATED' };
+  }
+}
+
+async function main() {
+  const email = requiredEnv('ADMIN_EMAIL');
+  const password = requiredEnv('ADMIN_PASSWORD');
+  const fullName = process.env.ADMIN_NAME;
+
+  const ds = await AppDataSource.initialize();
+  try {
+    await provisionAdmin(ds, { email, password, fullName });
   } finally {
     await ds.destroy();
   }

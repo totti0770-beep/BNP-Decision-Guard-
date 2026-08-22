@@ -21,7 +21,18 @@ COPY --from=build /repo/apps/api/package.json ./apps/api/
 COPY --from=build /repo/apps/api/dist ./apps/api/dist
 WORKDIR /repo/apps/api
 EXPOSE 4000
-# Runs migrations, optionally seeds demo data (SEED_ON_BOOT=true), then starts the API
+# Runs migrations, optionally provisions an administrator, optionally seeds
+# demo data (SEED_ON_BOOT=true), then starts the API.
+#
+# The create-admin step is the only execution vector into a managed container
+# with no shell access: when ADMIN_EMAIL and ADMIN_PASSWORD are both set it
+# provisions (or repairs) a SUPER_ADMIN before the app boots — deliberately
+# BEFORE main.js, so on the same boot where DemoAccountGuardService disables
+# demo accounts the administrator already exists and there is no lockout
+# window. The script is idempotent (same password + active + SUPER_ADMIN =
+# no-op), refuses weak or published passwords, and never prints the password.
+# Remove the two variables once the administrator is confirmed working:
+# while they are set, a password rotated in-app is reset back at next boot.
 #
 # The seed gate consults NODE_ENV, not just SEED_ON_BOOT. This image sets
 # NODE_ENV=production (above), and the demo accounts the seed creates use
@@ -35,4 +46,4 @@ EXPOSE 4000
 # not keep the clinical API down — but it is no longer silent. It previously
 # ended in a bare `|| true`, so a stack with zero users looked completely
 # healthy: the API served 401s to every login and nothing said why.
-CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then if [ \"$NODE_ENV\" != \"production\" ] || [ \"$SEED_ALLOW_PRODUCTION\" = \"true\" ]; then node dist/seed/seed.js || echo '!!!!!! SEED FAILED — the API is starting WITHOUT demo data and logins will fail; see the error above !!!!!!'; else echo '>>> SEED_ON_BOOT=true ignored because NODE_ENV=production. The demo accounts use passwords published in README.md. Provision a real administrator with: ADMIN_EMAIL=... ADMIN_PASSWORD=... node dist/scripts/create-admin.js  (or set SEED_ALLOW_PRODUCTION=true if this deployment holds no real data).'; fi; fi && node dist/main.js"]
+CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ -n \"$ADMIN_EMAIL\" ] && [ -n \"$ADMIN_PASSWORD\" ]; then node dist/scripts/create-admin.js || echo '!!!!!! CREATE-ADMIN FAILED — see the error above; the API is starting without provisioning the administrator !!!!!!'; fi && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then if [ \"$NODE_ENV\" != \"production\" ] || [ \"$SEED_ALLOW_PRODUCTION\" = \"true\" ]; then node dist/seed/seed.js || echo '!!!!!! SEED FAILED — the API is starting WITHOUT demo data and logins will fail; see the error above !!!!!!'; else echo '>>> SEED_ON_BOOT=true ignored because NODE_ENV=production. The demo accounts use passwords published in README.md. Provision a real administrator with: ADMIN_EMAIL=... ADMIN_PASSWORD=... node dist/scripts/create-admin.js  (or set SEED_ALLOW_PRODUCTION=true if this deployment holds no real data).'; fi; fi && node dist/main.js"]
