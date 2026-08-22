@@ -171,6 +171,13 @@ Profiles live in `apps/mobile/eas.json` — edit each profile's
 >   ADMIN_NAME='Your Name' node dist/scripts/create-admin.js
 > ```
 >
+> The container runs this for you at boot when `ADMIN_EMAIL` and
+> `ADMIN_PASSWORD` are set. **The password must be 12+ characters with upper,
+> lower, digit and symbol** — if it is rejected the deploy fails deliberately,
+> because booting without an administrator would let the sweep disable every
+> account and lock you out. Remove `ADMIN_PASSWORD` once you have signed in:
+> while it is set, a password you rotate in the app is reset at the next boot.
+>
 > It creates a SUPER_ADMIN, or resets and reactivates that email if it already
 > exists. It refuses weak passwords and refuses every password in the table
 > above. Nothing echoes the password back to the log.

@@ -34,6 +34,21 @@ EXPOSE 4000
 # Remove the two variables once the administrator is confirmed working:
 # while they are set, a password rotated in-app is reset back at next boot.
 #
+# Its failure is FATAL, and that is a correction of a real incident rather
+# than caution. It previously warned and carried on — but "carrying on" means
+# booting the app, and the app's boot sweep then disables every account still
+# using a published password. On 2026-08-22 an ADMIN_PASSWORD of 9 characters
+# was rejected by the password policy, so the administrator was never created,
+# and the sweep proceeded to disable all seven demo accounts: zero active
+# users on a live clinical system, from a typo in a variable.
+#
+# Exiting non-zero instead makes Railway (or any orchestrator) keep the
+# previous deployment serving while the operator fixes the variable. That
+# leaves the published demo credentials live for a few more minutes — an
+# exposure that was already ongoing — rather than trading it for a total
+# outage. Provisioning and sweeping must succeed or fail together; doing one
+# without the other is the only combination that locks everybody out.
+#
 # The seed gate consults NODE_ENV, not just SEED_ON_BOOT. This image sets
 # NODE_ENV=production (above), and the demo accounts the seed creates use
 # passwords published in README.md — so a flag left true on a production
@@ -46,4 +61,4 @@ EXPOSE 4000
 # not keep the clinical API down — but it is no longer silent. It previously
 # ended in a bare `|| true`, so a stack with zero users looked completely
 # healthy: the API served 401s to every login and nothing said why.
-CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ -n \"$ADMIN_EMAIL\" ] && [ -n \"$ADMIN_PASSWORD\" ]; then node dist/scripts/create-admin.js || echo '!!!!!! CREATE-ADMIN FAILED — see the error above; the API is starting without provisioning the administrator !!!!!!'; fi && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then if [ \"$NODE_ENV\" != \"production\" ] || [ \"$SEED_ALLOW_PRODUCTION\" = \"true\" ]; then node dist/seed/seed.js || echo '!!!!!! SEED FAILED — the API is starting WITHOUT demo data and logins will fail; see the error above !!!!!!'; else echo '>>> SEED_ON_BOOT=true ignored because NODE_ENV=production. The demo accounts use passwords published in README.md. Provision a real administrator with: ADMIN_EMAIL=... ADMIN_PASSWORD=... node dist/scripts/create-admin.js  (or set SEED_ALLOW_PRODUCTION=true if this deployment holds no real data).'; fi; fi && node dist/main.js"]
+CMD ["sh", "-c", "node dist/scripts/migrate.js && if [ -n \"$ADMIN_EMAIL\" ] && [ -n \"$ADMIN_PASSWORD\" ]; then node dist/scripts/create-admin.js || { echo '!!!!!! CREATE-ADMIN FAILED — refusing to start. See the error above. The previous deployment keeps serving; fix ADMIN_PASSWORD and redeploy. !!!!!!'; exit 1; }; fi && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then if [ \"$NODE_ENV\" != \"production\" ] || [ \"$SEED_ALLOW_PRODUCTION\" = \"true\" ]; then node dist/seed/seed.js || echo '!!!!!! SEED FAILED — the API is starting WITHOUT demo data and logins will fail; see the error above !!!!!!'; else echo '>>> SEED_ON_BOOT=true ignored because NODE_ENV=production. The demo accounts use passwords published in README.md. Provision a real administrator with: ADMIN_EMAIL=... ADMIN_PASSWORD=... node dist/scripts/create-admin.js  (or set SEED_ALLOW_PRODUCTION=true if this deployment holds no real data).'; fi; fi && node dist/main.js"]
