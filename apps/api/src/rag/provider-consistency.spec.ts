@@ -95,6 +95,12 @@ describe('RetrievalService provider filtering', () => {
 });
 
 describe('IndexingService boot summary', () => {
+  const ORIGINAL_THRESHOLD = process.env.RAG_MIN_SIMILARITY;
+  afterEach(() => {
+    if (ORIGINAL_THRESHOLD === undefined) delete process.env.RAG_MIN_SIMILARITY;
+    else process.env.RAG_MIN_SIMILARITY = ORIGINAL_THRESHOLD;
+  });
+
   function makeService(coverage: Record<string, unknown>) {
     const service = new IndexingService(
       { query: jest.fn() } as never,
@@ -136,6 +142,50 @@ describe('IndexingService boot summary', () => {
     expect(summary).toContain('staleRetrievable=0');
     expect(summary).toContain('staleOrphaned=0');
     expect(summary).toContain('columnDimensions=384');
+  });
+
+  it('reports the refusal threshold the gate will actually compare against', async () => {
+    process.env.RAG_MIN_SIMILARITY = '0.4';
+    const { service, logged } = makeService({
+      activeProvider: 'mock-hash-embedding',
+      byProvider: [{ provider: 'mock-hash-embedding', chunks: 9 }],
+      staleRetrievable: 0,
+      staleOrphaned: 0,
+      staleChunks: 0,
+      columnDimensions: 384,
+    });
+
+    await service.onApplicationBootstrap();
+
+    expect(logged.find((l) => l.startsWith('Embedding index:'))).toContain(
+      'refusalThreshold=0.4',
+    );
+  });
+
+  // The whole reason this is logged: hosting platforms redact variable
+  // *values*, so an operator can see RAG_MIN_SIMILARITY is set without being
+  // able to see what to — and the measured trade-off is steep enough that the
+  // difference between 0.15 and 0.25 is the difference between refusing
+  // out-of-corpus questions and answering them.
+  it('reports the effective default when the variable is unset, not blank', async () => {
+    delete process.env.RAG_MIN_SIMILARITY;
+    const { service, logged } = makeService({
+      activeProvider: 'mock-hash-embedding',
+      byProvider: [],
+      staleRetrievable: 0,
+      staleOrphaned: 0,
+      staleChunks: 0,
+      columnDimensions: 384,
+    });
+
+    await service.onApplicationBootstrap();
+
+    // Reporting the raw variable would print nothing here while the gate
+    // silently used 0.25 — the configuration describing itself rather than
+    // the behaviour.
+    expect(logged.find((l) => l.startsWith('Embedding index:'))).toContain(
+      'refusalThreshold=0.25',
+    );
   });
 
   it('reports an unreadable column as unknown, never as a number', async () => {
