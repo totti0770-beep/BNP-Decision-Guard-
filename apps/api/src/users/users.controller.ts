@@ -50,8 +50,10 @@ export class UsersController {
   }
 
   @Get('me')
-  me(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+  async me(@CurrentUser() user: AuthenticatedUser) {
+    // DB-backed profile (fresh mfaEnabled) plus the JWT-derived permissions —
+    // permissions live in rbac.ts, not the database, so only the token has them.
+    return { ...(await this.users.me(user.userId)), permissions: user.permissions };
   }
 
   @Post()

@@ -40,6 +40,13 @@ interface HistoryEntry {
   createdAt: string;
 }
 
+interface VersionEntry {
+  versionNumber: number;
+  fileName: string;
+  sizeBytes: string;
+  createdAt: string;
+}
+
 const STAGES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'INDEXED', 'ACTIVE'] as const;
 
 type Filter = 'NEEDS_ACTION' | 'ALL';
@@ -81,6 +88,7 @@ export default function ApprovalsPage() {
   const [filter, setFilter] = useState<Filter>('NEEDS_ACTION');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
@@ -123,9 +131,19 @@ export default function ApprovalsPage() {
     setExpanded(id);
     setHistoryLoading(true);
     try {
-      setHistory(await api<HistoryEntry[]>(`/documents/${id}/approval-history`));
+      // One disclosure, two records: what happened to the document
+      // (approval events) and what the document physically was (uploads).
+      const [h, v] = await Promise.all([
+        api<HistoryEntry[]>(`/documents/${id}/approval-history`),
+        api<VersionEntry[]>(`/documents/${id}/versions`).catch(
+          () => [] as VersionEntry[],
+        ),
+      ]);
+      setHistory(h);
+      setVersions(v);
     } catch {
       setHistory([]);
+      setVersions([]);
     } finally {
       setHistoryLoading(false);
     }
@@ -324,6 +342,26 @@ export default function ApprovalsPage() {
                             {h.comment && (
                               <span className="block italic text-muted">“{h.comment}”</span>
                             )}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+
+                    <p className="mb-1.5 mt-4 text-2xs font-medium uppercase tracking-wide text-subtle">
+                      {t('versionHistory')}
+                    </p>
+                    {historyLoading ? null : versions.length === 0 ? (
+                      <p className="text-xs text-subtle">{t('noVersions')}</p>
+                    ) : (
+                      <ol className="space-y-1 text-xs text-subtle">
+                        {versions.map((v) => (
+                          <li key={v.versionNumber} className="tnum">
+                            <span className="font-medium text-text">
+                              v{v.versionNumber}
+                            </span>{' '}
+                            · <span dir="auto">{v.fileName}</span> ·{' '}
+                            {(Number(v.sizeBytes) / 1024).toFixed(1)} KB ·{' '}
+                            {new Date(v.createdAt).toLocaleString()}
                           </li>
                         ))}
                       </ol>

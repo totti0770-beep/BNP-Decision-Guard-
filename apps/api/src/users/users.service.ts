@@ -50,6 +50,18 @@ export class UsersService {
     return users.map((u) => this.toDto(u));
   }
 
+  /**
+   * The caller's own profile, read from the database rather than echoed from
+   * the JWT: the token is a snapshot from login, so state that changes
+   * mid-session — MFA enrolment above all — would otherwise never be visible
+   * to the client until the next sign-in.
+   */
+  async me(userId: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    return this.toDto(user);
+  }
+
   private async resolveRoles(names: string[]): Promise<Role[]> {
     const roles = await this.roles.find({ where: { name: In(names) } });
     if (roles.length !== names.length) {

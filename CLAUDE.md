@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (135), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (34), real HTTP + real Postgres
+npm test                      # API unit tests (213), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (69), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
