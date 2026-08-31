@@ -47,6 +47,20 @@ describe('RBAC enforced on real routes', () => {
     await ctx?.close();
   });
 
+  it('returns the caller\'s own DB-backed profile from /users/me', async () => {
+    const res = await ctx
+      .http()
+      .get('/users/me')
+      .set(auth(t[RoleName.NURSE_USER]))
+      .expect(200);
+    // The profile is read from the users row (fresh mfaEnabled), while the
+    // permissions come from the JWT — both must be present for the security page.
+    expect(res.body.email).toBe(NURSE.email);
+    expect(res.body.mfaEnabled).toBe(false);
+    expect(res.body.roles).toEqual([RoleName.NURSE_USER]);
+    expect(res.body.permissions).toEqual(expect.arrayContaining(['ai:ask']));
+  });
+
   it('lets a nurse ask the AI but not read the governance surfaces', async () => {
     await ctx
       .http()

@@ -349,6 +349,101 @@ export const dict = {
     noQuestionsRecently: 'No questions in the last 14 days.',
     noQuestionsYet: 'No questions asked yet.',
 
+    // Account & security
+    navAccount: 'Account',
+    navSecurity: 'Security',
+    navNotifications: 'Notifications',
+    securityTitle: 'Security',
+    securitySubtitle: 'Your sign-in protection for this account',
+    signedInAs: 'Signed in as',
+    mfaSectionTitle: 'Two-factor authentication (MFA)',
+    mfaSectionDesc:
+      'A 6-digit code from an authenticator app, required at every sign-in.',
+    mfaStatusLabel: 'Status',
+    mfaStatusEnabled: 'Enabled',
+    mfaStatusDisabled: 'Not enabled',
+    mfaDisabledDesc:
+      'Protect your account: after enabling, signing in requires your password and a code from your authenticator app.',
+    mfaEnabledDesc:
+      'Two-factor authentication is active on this account. Disabling it removes the code step from sign-in.',
+    mfaStartEnrolment: 'Enable two-factor authentication',
+    mfaScanQr:
+      'Scan this QR code with your authenticator app (Google Authenticator, Microsoft Authenticator, …), or enter the secret manually.',
+    mfaQrAlt: 'QR code for your authenticator app',
+    mfaSecretLabel: 'Manual entry secret',
+    mfaSecretHint: 'Shown only once — it is not stored anywhere in the browser.',
+    mfaEnterCodeToConfirm: 'Enter the 6-digit code from the app to confirm',
+    mfaConfirmEnable: 'Confirm & enable',
+    mfaEnableSuccess:
+      'Two-factor authentication is now enabled. You will be asked for a code at every sign-in.',
+    mfaDisableHint: 'Confirm with your account password.',
+    mfaDisable: 'Disable two-factor authentication',
+    mfaDisableSuccess: 'Two-factor authentication has been disabled.',
+
+    // Notifications
+    notificationsTitle: 'Notifications',
+    notificationsSubtitle: 'Governance notices — document expiry and platform events',
+    markRead: 'Mark as read',
+    unreadLabel: 'Unread',
+    noNotifications: 'No notifications',
+    noNotificationsDesc: 'Expiry warnings and governance notices will appear here.',
+
+    // Dose formula management
+    formulaManageTitle: 'Formula management',
+    formulaManageDesc:
+      'Draft formulas are unusable in the calculator until a pharmacist approves them.',
+    showAllFormulas: 'Show drafts and rejected',
+    newFormula: 'New formula',
+    formulaName: 'Formula name',
+    drugName: 'Drug name',
+    formulaTypeLabel: 'Formula type',
+    dosePerKgLabel: 'Dose per kg',
+    fixedDoseLabel: 'Fixed dose',
+    maxSingleDoseLabel: 'Max single dose',
+    maxDailyDoseLabel: 'Max daily dose',
+    unitLabel: 'Unit',
+    defaultRouteLabel: 'Default route',
+    frequencyPerDayLabel: 'Frequency per day',
+    notesLabel: 'Notes',
+    createFormula: 'Create draft formula',
+    formulaCreated: 'Draft formula created. It needs pharmacist approval before use.',
+    approveFormulaBtn: 'Approve',
+    formulaApproved: 'Formula approved — it is now available in the calculator.',
+    statusDraft: 'Draft',
+    statusApproved: 'Approved',
+    statusRejected: 'Rejected',
+
+    // Chat history
+    myQuestions: 'My previous questions',
+    myQuestionsDesc: 'Your recent questions and the answers or refusals they received.',
+    showHistory: 'Show my questions',
+    hideHistory: 'Hide my questions',
+    refusedBadge: 'Refused',
+    answeredBadge: 'Answered',
+    noHistory: 'No questions yet',
+    noHistoryDesc: 'Questions you ask the assistant will be listed here.',
+
+    // Document versions
+    versionHistory: 'Versions',
+    versionLabel: 'Version',
+    fileNameLabel: 'File',
+    sizeLabel: 'Size',
+    noVersions: 'No version records for this document.',
+
+    // Settings — RAG operations
+    providerCheckBtn: 'Check AI provider',
+    providerCheckDesc:
+      'Sends one probe embedding to verify the configured provider works, and reports corpus coverage.',
+    providerCheckOk: 'Provider OK',
+    providerCheckFailed: 'Provider check failed',
+    reindexStaleBtn: 'Reindex stale documents',
+    reindexStaleDesc:
+      'Re-embeds only documents whose chunks were embedded by a different provider.',
+    reindexStaleConfirm:
+      'Re-embed only the documents with stale retrievable chunks? This may consume external API quota.',
+
+    genericError: 'Something went wrong. Please try again.',
+
     // Generic
     loading: 'Loading…',
     retry: 'Retry',
@@ -653,6 +748,92 @@ export const dict = {
     noDocumentsUploaded: 'لم تُرفع أي وثائق بعد.',
     noQuestionsRecently: 'لا توجد أسئلة خلال آخر 14 يوماً.',
     noQuestionsYet: 'لم تُطرح أي أسئلة بعد.',
+
+    navAccount: 'الحساب',
+    navSecurity: 'الأمان',
+    navNotifications: 'التنبيهات',
+    securityTitle: 'الأمان',
+    securitySubtitle: 'حماية تسجيل الدخول لحسابك',
+    signedInAs: 'مسجّل الدخول باسم',
+    mfaSectionTitle: 'المصادقة الثنائية (MFA)',
+    mfaSectionDesc: 'رمز من 6 أرقام من تطبيق المصادقة، يُطلب عند كل تسجيل دخول.',
+    mfaStatusLabel: 'الحالة',
+    mfaStatusEnabled: 'مفعّلة',
+    mfaStatusDisabled: 'غير مفعّلة',
+    mfaDisabledDesc:
+      'احمِ حسابك: بعد التفعيل يتطلب تسجيل الدخول كلمة المرور ورمزاً من تطبيق المصادقة.',
+    mfaEnabledDesc:
+      'المصادقة الثنائية مفعّلة على هذا الحساب. تعطيلها يزيل خطوة الرمز من تسجيل الدخول.',
+    mfaStartEnrolment: 'تفعيل المصادقة الثنائية',
+    mfaScanQr:
+      'امسح رمز QR بتطبيق المصادقة (Google Authenticator أو Microsoft Authenticator…)، أو أدخل المفتاح يدوياً.',
+    mfaQrAlt: 'رمز QR لتطبيق المصادقة',
+    mfaSecretLabel: 'مفتاح الإدخال اليدوي',
+    mfaSecretHint: 'يُعرض مرة واحدة فقط — لا يُخزَّن في المتصفح.',
+    mfaEnterCodeToConfirm: 'أدخل الرمز المكوّن من 6 أرقام من التطبيق للتأكيد',
+    mfaConfirmEnable: 'تأكيد وتفعيل',
+    mfaEnableSuccess: 'فُعّلت المصادقة الثنائية. سيُطلب منك رمز عند كل تسجيل دخول.',
+    mfaDisableHint: 'أكّد بكلمة مرور حسابك.',
+    mfaDisable: 'تعطيل المصادقة الثنائية',
+    mfaDisableSuccess: 'عُطّلت المصادقة الثنائية.',
+
+    notificationsTitle: 'التنبيهات',
+    notificationsSubtitle: 'إشعارات الحوكمة — انتهاء صلاحية الوثائق وأحداث المنصة',
+    markRead: 'وضع علامة مقروء',
+    unreadLabel: 'غير مقروء',
+    noNotifications: 'لا توجد تنبيهات',
+    noNotificationsDesc: 'ستظهر هنا تحذيرات انتهاء الصلاحية وإشعارات الحوكمة.',
+
+    formulaManageTitle: 'إدارة الصيغ',
+    formulaManageDesc:
+      'الصيغ في حالة المسودة لا تُستخدم في الحاسبة حتى يعتمدها الصيدلي.',
+    showAllFormulas: 'عرض المسودات والمرفوضة',
+    newFormula: 'صيغة جديدة',
+    formulaName: 'اسم الصيغة',
+    drugName: 'اسم الدواء',
+    formulaTypeLabel: 'نوع الصيغة',
+    dosePerKgLabel: 'الجرعة لكل كغم',
+    fixedDoseLabel: 'جرعة ثابتة',
+    maxSingleDoseLabel: 'الحد الأقصى للجرعة الواحدة',
+    maxDailyDoseLabel: 'الحد الأقصى اليومي',
+    unitLabel: 'الوحدة',
+    defaultRouteLabel: 'طريق الإعطاء الافتراضي',
+    frequencyPerDayLabel: 'عدد المرات في اليوم',
+    notesLabel: 'ملاحظات',
+    createFormula: 'إنشاء مسودة صيغة',
+    formulaCreated: 'أُنشئت مسودة الصيغة. تحتاج اعتماد الصيدلي قبل الاستخدام.',
+    approveFormulaBtn: 'اعتماد',
+    formulaApproved: 'اعتُمدت الصيغة — أصبحت متاحة في الحاسبة.',
+    statusDraft: 'مسودة',
+    statusApproved: 'معتمدة',
+    statusRejected: 'مرفوضة',
+
+    myQuestions: 'أسئلتي السابقة',
+    myQuestionsDesc: 'أسئلتك الأخيرة وما تلقّته من إجابات أو رفض.',
+    showHistory: 'عرض أسئلتي',
+    hideHistory: 'إخفاء أسئلتي',
+    refusedBadge: 'مرفوض',
+    answeredBadge: 'مُجاب',
+    noHistory: 'لا توجد أسئلة بعد',
+    noHistoryDesc: 'ستُعرض هنا الأسئلة التي تطرحها على المساعد.',
+
+    versionHistory: 'الإصدارات',
+    versionLabel: 'الإصدار',
+    fileNameLabel: 'الملف',
+    sizeLabel: 'الحجم',
+    noVersions: 'لا توجد سجلات إصدارات لهذه الوثيقة.',
+
+    providerCheckBtn: 'فحص مزوّد الذكاء الاصطناعي',
+    providerCheckDesc:
+      'يرسل تضميناً تجريبياً واحداً للتحقق من عمل المزوّد المُهيّأ، ويعرض تغطية المكتبة.',
+    providerCheckOk: 'المزوّد يعمل',
+    providerCheckFailed: 'فشل فحص المزوّد',
+    reindexStaleBtn: 'إعادة فهرسة الوثائق المتقادمة',
+    reindexStaleDesc: 'يعيد تضمين الوثائق التي ضُمّنت بمزوّد مختلف فقط.',
+    reindexStaleConfirm:
+      'إعادة تضمين الوثائق ذات الأجزاء المتقادمة فقط؟ قد يستهلك ذلك حصة الواجهة الخارجية.',
+
+    genericError: 'حدث خطأ ما. حاول مرة أخرى.',
 
     loading: 'جارٍ التحميل…',
     retry: 'إعادة المحاولة',

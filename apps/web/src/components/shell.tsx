@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getSession } from '@/lib/api';
+import { api, getSession } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageToggle } from '@/components/language-toggle';
@@ -52,6 +52,16 @@ const NAV_GROUPS: {
       { href: '/settings', labelKey: 'navSettings', permission: 'settings:read' },
     ],
   },
+  {
+    labelKey: 'navAccount',
+    items: [
+      // notifications:read is held by all 7 roles today; the gate keeps the
+      // item honest if that ever changes. Security has no permission on
+      // purpose — every authenticated user manages their own MFA.
+      { href: '/notifications', labelKey: 'navNotifications', permission: 'notifications:read' },
+      { href: '/security', labelKey: 'navSecurity' },
+    ],
+  },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -60,8 +70,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
+
+  // One fetch per shell mount, no polling: the count is a nudge towards the
+  // notifications page, not a live feed. Failures degrade to "no badge".
+  useEffect(() => {
+    if (!session || !hasPermission('notifications:read')) return;
+    let cancelled = false;
+    api<{ isRead: boolean }[]>('/notifications')
+      .then((items) => {
+        if (!cancelled) setUnreadCount(items.filter((n) => !n.isRead).length);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id]);
 
   useEffect(() => {
     // Check storage directly: provider state can lag a client-side navigation
@@ -160,7 +187,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                           : 'text-muted hover:bg-sunken hover:text-text',
                       )}
                     >
-                      {t(item.labelKey)}
+                      <span className="flex items-center justify-between gap-2">
+                        {t(item.labelKey)}
+                        {item.href === '/notifications' && unreadCount > 0 && (
+                          <span className="tnum inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-2xs font-semibold text-primary-fg">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </span>
                     </Link>
                   </li>
                 );

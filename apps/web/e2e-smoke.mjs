@@ -65,8 +65,13 @@ await page.getByLabel('Weight (kg)').fill('20');
 await page.getByLabel('Concentration (mg/mL)').fill('10');
 await page.click('button:has-text("Calculate dose")');
 await page.waitForSelector('text=لا يعتمد هذا الحساب', { timeout: 15000 });
+// Formula authoring is pharmacist governance (dose:formulas-manage); a nurse
+// must not see the management section at all — same class of control as the
+// hidden download buttons below.
+const formulaMgmt = await page.locator('button:has-text("New formula")').count();
+check(formulaMgmt === 0, `nurse sees ${formulaMgmt} "New formula" button(s), expected 0`);
 await page.screenshot({ path: `${shots}/05-dose-calculator.png` });
-console.log('dose calculator OK');
+console.log('dose calculator OK, formula management hidden from nurse');
 
 // 5. Policies library. DOCUMENTS_DOWNLOAD is deliberately withheld from
 // NURSE_USER — nurses read cited answers, they do not copy source PDFs — so
@@ -84,6 +89,23 @@ for (const label of ['Users & Roles', 'Audit Log', 'Upload Document']) {
   check(visible === 0, `nav "${label}" is visible to a nurse (found ${visible})`);
 }
 console.log('admin navigation hidden from nurse OK');
+
+// 6b. The Account pages are for every role: notifications (governance
+// notices) and security (self-service MFA). Both must be reachable by a
+// nurse — these routes had no UI at all until this section existed.
+await nav('Notifications').click();
+await page.waitForURL('**/notifications');
+await page.waitForSelector('h1:has-text("Notifications")', { timeout: 15000 });
+await page.screenshot({ path: `${shots}/06b-notifications.png` });
+await nav('Security').click();
+await page.waitForURL('**/security');
+await page.waitForSelector('text=Two-factor authentication', { timeout: 15000 });
+const enableMfaBtn = await page
+  .locator('button:has-text("Enable two-factor authentication")')
+  .count();
+check(enableMfaBtn === 1, `expected 1 MFA enrolment button, found ${enableMfaBtn}`);
+await page.screenshot({ path: `${shots}/06c-security.png` });
+console.log('notifications + security pages OK for nurse');
 
 // 7. Login as knowledge manager -> approvals screen. The seeded corpus is
 // entirely ACTIVE, so the default "Needs your action" filter is legitimately

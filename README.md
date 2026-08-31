@@ -223,8 +223,8 @@ warning. Pharmacists manage formulas via `POST /dose/formulas` and
 ## Tests
 
 ```bash
-npm test                        # 135 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 34 integration tests — real HTTP + real Postgres
+npm test                        # 213 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 69 integration tests — real HTTP + real Postgres
 cd apps/mobile && npm test      # 32 mobile unit tests — separate install
 ```
 

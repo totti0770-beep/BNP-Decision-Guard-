@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAsyncData } from '@/lib/async';
 import { useT } from '@/lib/language';
+import { FormulaManager } from '@/components/formula-manager';
 import {
   Alert,
   Badge,
@@ -324,6 +325,9 @@ export default function DoseCalculatorPage() {
           </div>
         )}
       </div>
+
+      {/* Renders null for everyone without a formula-management permission. */}
+      <FormulaManager onChanged={reload} />
     </>
   );
 }

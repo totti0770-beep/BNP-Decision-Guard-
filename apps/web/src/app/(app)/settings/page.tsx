@@ -34,6 +34,24 @@ interface ReindexOutcome {
   }[];
 }
 
+interface ProviderCheck {
+  provider: string;
+  ok: boolean;
+  probe: {
+    dimensions: number | null;
+    expectedDimensions: number;
+    columnDimensions: number | null;
+    durationMs: number;
+  };
+  error: string | null;
+  dimensionConfigMismatch: string | null;
+  corpus: {
+    activeProvider: string;
+    staleRetrievable: number;
+    staleOrphaned: number;
+  };
+}
+
 export default function SettingsPage() {
   const t = useT();
   const { hasPermission } = useAuth();
@@ -53,6 +71,44 @@ export default function SettingsPage() {
 
   const [reindexing, setReindexing] = useState(false);
   const [reindexOutcome, setReindexOutcome] = useState<ReindexOutcome | null>(null);
+
+  const [checking, setChecking] = useState(false);
+  const [checkOutcome, setCheckOutcome] = useState<ProviderCheck | null>(null);
+  const [staleReindexing, setStaleReindexing] = useState(false);
+  const [staleOutcome, setStaleOutcome] = useState<ReindexOutcome | null>(null);
+
+  async function providerCheck() {
+    setSaveError('');
+    setCheckOutcome(null);
+    setChecking(true);
+    try {
+      setCheckOutcome(
+        await api<ProviderCheck>('/rag/provider-check', { method: 'POST' }),
+      );
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? `${t('providerCheckFailed')}: ${err.message}` : t('providerCheckFailed'),
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function reindexStale() {
+    if (!window.confirm(t('reindexStaleConfirm'))) return;
+    setSaveError('');
+    setStaleOutcome(null);
+    setStaleReindexing(true);
+    try {
+      setStaleOutcome(
+        await api<ReindexOutcome>('/rag/reindex/stale', { method: 'POST' }),
+      );
+    } catch (err) {
+      setSaveError(err instanceof Error ? `Reindex: ${err.message}` : t('genericError'));
+    } finally {
+      setStaleReindexing(false);
+    }
+  }
 
   async function reindex() {
     if (
@@ -165,6 +221,69 @@ export default function SettingsPage() {
                       </Badge>
                       <span className="min-w-0">
                         <span className="text-text">{r.title}</span>
+                        {r.error && <span className="block text-danger">{r.error}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-start gap-x-4 gap-y-2 border-t border-border pt-4 sm:flex-nowrap">
+            <div className="min-w-0 flex-1">
+              <span className="text-sm font-medium text-text">{t('providerCheckBtn')}</span>
+              <p className="mt-0.5 text-xs text-subtle">{t('providerCheckDesc')}</p>
+            </div>
+            <Button size="sm" loading={checking} onClick={providerCheck}>
+              {t('providerCheckBtn')}
+            </Button>
+          </div>
+
+          {checkOutcome && (
+            <div className="mt-3 space-y-1 border-t border-border pt-3 text-xs">
+              <p>
+                <Badge tone={checkOutcome.ok ? 'success' : 'danger'}>
+                  {checkOutcome.ok ? t('providerCheckOk') : t('providerCheckFailed')}
+                </Badge>{' '}
+                <span className="font-mono text-text">{checkOutcome.provider}</span>
+              </p>
+              <p className="tnum text-subtle">
+                dimensions: {checkOutcome.probe.dimensions ?? '—'} / expected{' '}
+                {checkOutcome.probe.expectedDimensions} · {checkOutcome.probe.durationMs} ms ·
+                staleRetrievable: {checkOutcome.corpus.staleRetrievable} · staleOrphaned:{' '}
+                {checkOutcome.corpus.staleOrphaned}
+              </p>
+              {checkOutcome.error && <p className="text-danger">{checkOutcome.error}</p>}
+              {checkOutcome.dimensionConfigMismatch && (
+                <p className="text-danger">{checkOutcome.dimensionConfigMismatch}</p>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-start gap-x-4 gap-y-2 border-t border-border pt-4 sm:flex-nowrap">
+            <div className="min-w-0 flex-1">
+              <span className="text-sm font-medium text-text">{t('reindexStaleBtn')}</span>
+              <p className="mt-0.5 text-xs text-subtle">{t('reindexStaleDesc')}</p>
+            </div>
+            <Button size="sm" loading={staleReindexing} onClick={reindexStale}>
+              {t('reindexStaleBtn')}
+            </Button>
+          </div>
+
+          {staleOutcome && (
+            <div className="mt-3 border-t border-border pt-3">
+              {staleOutcome.results.length === 0 ? (
+                <p className="text-xs text-subtle">staleRetrievable = 0 — nothing to repair.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {staleOutcome.results.map((r) => (
+                    <li key={r.documentId} className="flex items-start gap-2 text-xs">
+                      <Badge tone={r.status === 'REINDEXED' ? 'success' : 'danger'}>
+                        {r.status === 'REINDEXED' ? `${r.chunkCount} chunks` : 'Failed'}
+                      </Badge>
+                      <span className="min-w-0">
+                        <span className="text-text" dir="auto">{r.title}</span>
                         {r.error && <span className="block text-danger">{r.error}</span>}
                       </span>
                     </li>
