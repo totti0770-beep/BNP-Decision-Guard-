@@ -75,12 +75,26 @@ export class NotificationsService {
       .andWhere('d.expiry_date BETWEEN :now AND :soon', { now, soon })
       .getMany();
     for (const doc of nearExpiry) {
-      const exists = await this.notifications.findOne({
-        where: { type: 'DOCUMENT_NEAR_EXPIRY' },
-        order: { createdAt: 'DESC' },
-      });
       // Avoid re-notifying the same document every day.
-      if (exists && (exists.metadata as any)?.documentId === doc.id) continue;
+      //
+      // This must be scoped to THIS document. It previously read the newest
+      // DOCUMENT_NEAR_EXPIRY row across the whole table and compared its
+      // documentId, which works only while exactly one document is near
+      // expiry: with two, whichever did not raise the latest row failed the
+      // comparison and was warned again, so they alternated re-notifying
+      // every manager — and emailing them — every single day.
+      //
+      // Bounded by `doc.updatedAt` rather than muting forever: re-approving a
+      // document with a longer expiry moves that timestamp past the old
+      // warning, so a genuinely renewed document that later nears expiry
+      // again is warned afresh, while an untouched one stays quiet.
+      const alreadyWarned = await this.notifications
+        .createQueryBuilder('n')
+        .where('n.type = :type', { type: 'DOCUMENT_NEAR_EXPIRY' })
+        .andWhere("n.metadata ->> 'documentId' = :id", { id: doc.id })
+        .andWhere('n.created_at > :since', { since: doc.updatedAt })
+        .getCount();
+      if (alreadyWarned > 0) continue;
       await this.notifyKnowledgeManagers(
         'DOCUMENT_NEAR_EXPIRY',
         'Document near expiry',
