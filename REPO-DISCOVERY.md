@@ -5,6 +5,55 @@
 Investigation date: 2026-08-31. Commit under investigation:
 `114e655f3590ee648dc35ad61c726b44b0713479` (branch `main`, working tree clean).
 
+> ### ⚠ Read §0.1 first — part of this snapshot has been superseded
+>
+> This report is a **dated snapshot pinned to `114e655`**, and it is kept that
+> way on purpose: every claim in it is tied to one commit, so re-pointing it at
+> a moving `main` would destroy the audit trail it exists to provide. But two
+> commits later, `503cef4` (PR #41) deliberately closed 11 of the gaps this
+> report found. **§8, §23.5 and §28 therefore no longer describe current
+> `main`.** §0.1 records exactly what changed; the two sections together let a
+> reader reconstruct both states.
+
+## 0.1 Addendum — what changed since this snapshot
+
+Added 2026-08-31, after the report itself was merged (PR #40, `e1a1adc`).
+
+`503cef4` — "wire the API's unreachable features into the UI" (PR #41) — was
+written **in response to this report**, and it changes the report's central
+finding. Of the **15 routes** §8 lists as having no caller in either client,
+**11 now have one**:
+
+| Route | Wired at |
+| --- | --- |
+| `GET /users/me` | `/security` page; also changed server-side to return the DB-backed profile rather than echoing the JWT |
+| `POST /auth/mfa/enroll` · `enable` · `disable` | `/security` page — MFA can now be turned on from the product, which §23.5 records it could not |
+| `GET /notifications`, `POST /notifications/:id/read` | new `/notifications` page + unread nav badge |
+| `GET /chat/history` | collapsible panel on `/assistant` |
+| `POST /dose/formulas`, `POST /dose/formulas/:id/approve` | formula-management section on `/dose-calculator` |
+| `GET /documents/:id/versions` | version list in the `/approvals` disclosure |
+| `POST /rag/provider-check`, `POST /rag/reindex/stale` | two operator actions on `/settings` |
+
+**Four remain unwired, each deliberately** (reasons recorded in the PR #41
+description): `DELETE /users/:id` — it is a soft-deactivate and `/users`
+already does exactly that via `PATCH {isActive}`; `GET /documents/:id` and
+`PATCH /documents/:id` — the list and lifecycle actions cover the workflows;
+`POST /rag/reindex/:documentId` — the stale-reindex covers the repair case.
+`POST /rag/query` remains test-only, as §8 already recorded.
+
+Other counts this moves:
+
+| Measure | At `114e655` (this report) | At `503cef4` |
+| --- | --- | --- |
+| Web pages | 16 | **18** (`/security`, `/notifications`) |
+| Routes with a web/mobile caller | 31 of 49 | **42 of 49** |
+| API e2e tests | 68 | **69** |
+| Nav groups | 3 | **4** ("Account") |
+
+Everything else in this report — the RAG chain, the refusal gates, the
+governance filters, the security inventory, the dead-code findings in §23.1–23.4,
+the git archaeology — was unaffected by `503cef4` and still holds.
+
 ## How to read this document
 
 Every substantive claim below carries a `path:line`, a command output, or a
@@ -497,6 +546,10 @@ screen.
 ---
 
 ## 8. API inventory — all 49 routes
+
+> **Superseded in part by `503cef4` — see §0.1.** The reachability findings
+> below describe `114e655`; 11 of the routes called unreachable here now have
+> a caller.
 
 12 controllers. Two are declared **inside module files**, so a
 `*.controller.ts` glob misses them: `analytics.module.ts:60` and
@@ -1532,6 +1585,10 @@ required runtime peer, not dead code.
 
 ### 23.5 Implemented API capabilities with no user interface
 
+> **Superseded in part by `503cef4` — see §0.1.** The reachability findings
+> below describe `114e655`; 11 of the routes called unreachable here now have
+> a caller.
+
 These are **not** dead code — they are implemented, tested in part, and
 reachable by anyone holding a token. They simply have no caller in either
 client, so no user can trigger them through the product.
@@ -1737,6 +1794,10 @@ build and a clean mobile typecheck.
 ---
 
 ## 28. Capability status matrix
+
+> **Superseded in part by `503cef4` — see §0.1.** The reachability findings
+> below describe `114e655`; 11 of the routes called unreachable here now have
+> a caller.
 
 | Capability | Exists | Implemented | Referenced | Called | Runtime reachable | Tested | Documented | Evidence | Status |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | --- | :-: |
@@ -2050,3 +2111,7 @@ confirms **none of these was ever removed — none was ever present.**
 *Compiled 2026-08-31 against commit `114e655f3590ee648dc35ad61c726b44b0713479`.
 The repository was not modified; this file is the only artefact created. No
 secret value appears anywhere in it.*
+
+*Amended 2026-08-31 with §0.1, recording what `503cef4` (PR #41) changed. The
+body above is unchanged and still describes `114e655` exactly — the amendment
+adds a section and three pointers to it, and rewrites no finding.*

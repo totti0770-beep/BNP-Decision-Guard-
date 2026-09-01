@@ -1,8 +1,16 @@
 # REST API reference
 
-Base URL: `http://localhost:4000`. All endpoints except `/health`,
-`/health/ready` and `/auth/*` require `Authorization: Bearer <accessToken>`
-and the listed permission.
+Base URL: `http://localhost:4000`. Every endpoint requires
+`Authorization: Bearer <accessToken>` and the listed permission, except these
+seven, which carry `@Public()`:
+
+`GET /health` · `GET /health/ready` · `POST /auth/login` ·
+`POST /auth/refresh` · `POST /auth/mfa/verify` · `POST /auth/forgot-password` ·
+`POST /auth/reset-password`
+
+Note that **not all of `/auth/*` is public**: `logout`, `mfa/enroll`,
+`mfa/enable` and `mfa/disable` all require a token — each acts on the caller's
+own account, taken from the JWT rather than the request body.
 
 ## Error envelope
 

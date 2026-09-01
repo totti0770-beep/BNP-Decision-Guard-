@@ -9,9 +9,6 @@ export const DOSE_SAFETY_WARNING_AR =
   'لا يعتمد هذا الحساب دون مراجعة سريرية من المختص.';
 
 export const PLATFORM_NAME = 'BNP Decision Guard';
-export const PLATFORM_TAGLINE =
-  'Knowledge Governance and Authorized Decision Platform';
-
 export enum DocumentCategory {
   MEDICATIONS = 'MEDICATIONS',
   NURSING_POLICIES = 'NURSING_POLICIES',
@@ -30,9 +27,6 @@ export enum DocumentStatus {
   EXPIRED = 'EXPIRED',
   INACTIVE = 'INACTIVE',
 }
-
-/** Statuses eligible for AI retrieval. Only ACTIVE documents feed the RAG index. */
-export const RETRIEVABLE_STATUSES = [DocumentStatus.ACTIVE];
 
 export enum ApprovalAction {
   SUBMIT_REVIEW = 'SUBMIT_REVIEW',

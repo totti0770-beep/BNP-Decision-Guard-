@@ -22,10 +22,10 @@ calculator, role-based access control, and a complete audit trail.
 ```
 apps/
   api/        NestJS + TypeScript — REST API, RAG pipeline, RBAC, audit
-  web/        Next.js 14 + Tailwind — 13 protected screens, bilingual EN/AR
+  web/        Next.js 16 + Tailwind — 15 protected screens, bilingual EN/AR
   mobile/     Expo React Native — nurse-focused companion app
 packages/
-  shared/     RBAC matrix, clinical safety strings, lifecycle enums, DTO types
+  shared/     RBAC matrix, clinical safety strings, lifecycle enums
 infra/
   docker/     Dockerfiles + Postgres init SQL
   k8s/        Kubernetes-ready reference manifests
@@ -392,8 +392,9 @@ institutional process. Highlights:
 - **Dependency vulnerability scanning**: CI hard-fails on any **critical**
   `npm audit` finding. As of the August 2026 audit there are **0 critical, 5
   high and 9 moderate** findings; because the gate only blocks critical, the
-  five highs currently pass CI. Some are closeable without the NestJS 11 /
-  Next.js 15 majors — see `docs/production-readiness.md`.
+  five highs currently pass CI. See `docs/production-readiness.md`. (The
+  NestJS 11 and Next.js 16 majors that once blocked some of these have since
+  landed — `e0662bd` and `b62443d`.)
 - **No public self-registration**: accounts are provisioned by an administrator
   via `POST /users`. Roles are read-only over the API — permissions live in
   `packages/shared/src/rbac.ts`, which is what the guard actually enforces.
