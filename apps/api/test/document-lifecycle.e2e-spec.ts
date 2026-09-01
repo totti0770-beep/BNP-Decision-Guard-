@@ -1,5 +1,6 @@
 import { DocumentCategory, REFUSAL_MESSAGE_AR, RoleName } from '@bnp/shared';
 import { buildPdf } from '../src/seed/pdf';
+import { NotificationsService } from '../src/notifications/notifications.service';
 import {
   auth,
   createE2eApp,
@@ -271,5 +272,49 @@ describe('Document governance lifecycle (upload -> approve -> index -> cite)', (
       [documentId],
     );
     expect(row.n).toBe(0);
+  });
+
+  /**
+   * The expiry cron against a real database.
+   *
+   * `notifications.service.spec.ts` covers the sweep's logic with in-memory
+   * fakes, but a fake cannot prove the de-duplication query is valid
+   * Postgres — it reaches into the `metadata` jsonb column with `->>`, which
+   * either runs or throws only against the real engine. Two near-expiry
+   * documents is the case that matters: with the previous table-wide lookup
+   * they alternated re-notifying every manager, every day.
+   */
+  it('warns once per near-expiry document, and not again on the next sweep', async () => {
+    const soon = new Date(Date.now() + 10 * 24 * 3600 * 1000);
+    await ctx.dataSource.query(
+      `INSERT INTO documents (title, category, status, version_number, file_name,
+                              storage_key, expiry_date, uploaded_by_id)
+       SELECT $1, $2, 'ACTIVE', 1, 'x.pdf', 'k', $3, id FROM users WHERE email = $4`,
+      ['Near expiry A', DocumentCategory.NURSING_POLICIES, soon, MANAGER.email],
+    );
+    await ctx.dataSource.query(
+      `INSERT INTO documents (title, category, status, version_number, file_name,
+                              storage_key, expiry_date, uploaded_by_id)
+       SELECT $1, $2, 'ACTIVE', 1, 'y.pdf', 'k', $3, id FROM users WHERE email = $4`,
+      ['Near expiry B', DocumentCategory.NURSING_POLICIES, soon, MANAGER.email],
+    );
+
+    const notifications = ctx.app.get(NotificationsService);
+    const first = await notifications.runExpirySweep();
+    expect(first.nearExpiry).toBe(2);
+
+    const [afterFirst] = await ctx.dataSource.query(
+      `SELECT count(*)::int AS n FROM notifications WHERE type = 'DOCUMENT_NEAR_EXPIRY'`,
+    );
+    expect(afterFirst.n).toBeGreaterThan(0);
+
+    // Same corpus, nothing edited: the second sweep must add nothing at all.
+    const second = await notifications.runExpirySweep();
+    expect(second.nearExpiry).toBe(2);
+
+    const [afterSecond] = await ctx.dataSource.query(
+      `SELECT count(*)::int AS n FROM notifications WHERE type = 'DOCUMENT_NEAR_EXPIRY'`,
+    );
+    expect(afterSecond.n).toBe(afterFirst.n);
   });
 });
