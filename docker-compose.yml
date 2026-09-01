@@ -128,14 +128,6 @@ services:
     ports:
       - "3000:3000"
 
-  # Optional cache / queue backend (not required by the MVP)
-  redis:
-    image: redis:7-alpine
-    container_name: bnp-redis
-    profiles: ["redis"]
-    ports:
-      - "6379:6379"
-
 volumes:
   postgres_data:
   minio_data:
