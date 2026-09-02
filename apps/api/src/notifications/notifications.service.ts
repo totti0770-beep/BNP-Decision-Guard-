@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 import { DocumentStatus, RoleName } from '@bnp/shared';
 import { Document, Notification, User } from '../entities';
-import { AuditService } from '../audit/audit.service';
+import { ApprovalService } from '../approval/approval.service';
 import { MailService } from '../mail/mail.service';
 
 const NEAR_EXPIRY_DAYS = 30;
@@ -18,7 +18,7 @@ export class NotificationsService {
     private readonly notifications: Repository<Notification>,
     @InjectRepository(Document) private readonly documents: Repository<Document>,
     @InjectRepository(User) private readonly users: Repository<User>,
-    private readonly audit: AuditService,
+    private readonly approval: ApprovalService,
     private readonly mail: MailService,
   ) {}
 
@@ -50,14 +50,11 @@ export class NotificationsService {
       where: { status: DocumentStatus.ACTIVE, expiryDate: LessThan(now) },
     });
     for (const doc of expired) {
-      doc.status = DocumentStatus.EXPIRED;
-      await this.documents.save(doc);
-      this.audit.record({
-        action: 'DOCUMENTS:EXPIRE',
-        resourceType: 'document',
-        resourceId: doc.id,
-        metadata: { title: doc.title, expiryDate: doc.expiryDate },
-      });
+      // Through the state machine, not by assigning status here: that is what
+      // puts an EXPIRE row in the document's approval history. The audit row
+      // (DOCUMENTS:EXPIRE, same action and metadata as before) is written by
+      // `transition` too.
+      await this.approval.expire(doc);
       await this.notifyKnowledgeManagers(
         'DOCUMENT_EXPIRED',
         'Document expired',
