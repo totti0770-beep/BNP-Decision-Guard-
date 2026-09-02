@@ -275,6 +275,41 @@ describe('Document governance lifecycle (upload -> approve -> index -> cite)', (
   });
 
   /**
+   * Expiry has to land in the document's approval history, not only the audit
+   * log. NURSING_KNOWLEDGE_MANAGER — the role whose job is the corpus — holds
+   * `documents:read` but not `audit:read`, so before this the person
+   * responsible for a document could not see anywhere in the product that it
+   * had expired and left clinical retrieval.
+   */
+  it('records expiry in the approval history, attributed to the system', async () => {
+    const [row] = await ctx.dataSource.query(
+      `INSERT INTO documents (title, category, status, version_number, file_name,
+                              storage_key, expiry_date, uploaded_by_id)
+       SELECT $1, $2, 'ACTIVE', 1, 'e.pdf', 'k', now() - interval '1 day', id
+         FROM users WHERE email = $3
+       RETURNING id`,
+      ['Lapsed policy', DocumentCategory.NURSING_POLICIES, MANAGER.email],
+    );
+
+    await ctx.app.get(NotificationsService).runExpirySweep();
+
+    const history = await ctx
+      .http()
+      .get(`/documents/${row.id}/approval-history`)
+      .set(auth(managerToken))
+      .expect(200);
+
+    expect(history.body).toContainEqual(
+      expect.objectContaining({
+        action: 'EXPIRE',
+        fromStatus: 'ACTIVE',
+        toStatus: 'EXPIRED',
+        actor: null, // the platform, not a person
+      }),
+    );
+  });
+
+  /**
    * The expiry cron against a real database.
    *
    * `notifications.service.spec.ts` covers the sweep's logic with in-memory

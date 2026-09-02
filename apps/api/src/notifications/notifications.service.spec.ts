@@ -122,18 +122,25 @@ function harness(seed: { docs?: Doc[]; notices?: Notice[]; users?: { id: string;
     },
   };
 
-  const audit = { record: jest.fn() };
+  // The cron no longer sets status itself — it delegates to the state machine,
+  // which is what writes the document's approval-history row. The fake mirrors
+  // the one behaviour the sweep depends on: the status actually moves.
+  const approval = {
+    expire: jest.fn(async (d: Doc) => {
+      d.status = DocumentStatus.EXPIRED;
+    }),
+  };
   const mail = { sendQuietly: jest.fn(async () => undefined) };
 
   const service = new NotificationsService(
     notifications as never,
     documents as never,
     usersRepo as never,
-    audit as never,
+    approval as never,
     mail as never,
   );
 
-  return { service, docs, notices, notifications, documents, audit, mail };
+  return { service, docs, notices, notifications, documents, approval, mail };
 }
 
 function doc(over: Partial<Doc> & { id: string }): Doc {
@@ -159,17 +166,17 @@ function warned(d: Doc, agoDays = 1): Notice {
 }
 
 describe('Expiry sweep — hard expiry', () => {
-  it('expires an ACTIVE document past its expiry date and audits it', async () => {
+  it('expires an ACTIVE document past its expiry date through the state machine', async () => {
     const stale = doc({ id: 'a', expiryDate: new Date(Date.now() - DAY) });
-    const { service, audit, notices } = harness({ docs: [stale] });
+    const { service, approval, notices } = harness({ docs: [stale] });
 
     const result = await service.runExpirySweep();
 
     expect(stale.status).toBe(DocumentStatus.EXPIRED);
     expect(result.expired).toBe(1);
-    expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'DOCUMENTS:EXPIRE', resourceId: 'a' }),
-    );
+    // Delegated, not assigned in place: the approval row and the audit row are
+    // both written by ApprovalService.expire (see approval.service.spec.ts).
+    expect(approval.expire).toHaveBeenCalledWith(stale);
     expect(notices.filter((n) => n.type === 'DOCUMENT_EXPIRED')).toHaveLength(1);
   });
 
