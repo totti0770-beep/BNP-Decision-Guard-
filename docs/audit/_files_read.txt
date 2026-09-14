@@ -45,3 +45,6 @@ apps/api/src/rag/rag-query.service.ts
 apps/api/src/rag/chunking.service.ts
 apps/api/src/rag/pdf-extraction.service.ts
 apps/api/src/rag/rag.module.ts
+apps/api/src/rag/indexing.service.ts
+apps/api/src/rag/openai-http.ts
+apps/api/src/rag/embedding.service.ts

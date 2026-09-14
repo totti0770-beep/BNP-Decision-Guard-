@@ -65,11 +65,8 @@ apps/api/src/notifications/notifications.service.spec.ts
 apps/api/src/notifications/notifications.service.ts
 apps/api/src/rag/chunking.service.spec.ts
 apps/api/src/rag/embedding.service.spec.ts
-apps/api/src/rag/embedding.service.ts
-apps/api/src/rag/indexing.service.ts
 apps/api/src/rag/llm.service.ts
 apps/api/src/rag/openai-http.spec.ts
-apps/api/src/rag/openai-http.ts
 apps/api/src/rag/pdf-extraction.service.spec.ts
 apps/api/src/rag/provider-consistency.spec.ts
 apps/api/src/rag/rag-provider-check.spec.ts
