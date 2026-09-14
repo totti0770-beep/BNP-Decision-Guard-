@@ -199,25 +199,26 @@ export default function SettingsPage() {
               </p>
             </div>
             <Button size="sm" loading={reindexing} onClick={reindex}>
-              Reindex
+              {t('reindex')}
             </Button>
           </div>
 
           {reindexOutcome && (
             <div className="mt-3 border-t border-border pt-3">
               <p className="text-xs text-subtle">
-                Provider: <span className="font-mono text-text">{reindexOutcome.provider}</span>
+                {t('providerLabel')}{' '}
+                <span className="font-mono text-text">{reindexOutcome.provider}</span>
               </p>
               {reindexOutcome.results.length === 0 ? (
-                <p className="mt-1 text-xs text-subtle">
-                  No active documents to reindex.
-                </p>
+                <p className="mt-1 text-xs text-subtle">{t('noActiveDocsToReindex')}</p>
               ) : (
                 <ul className="mt-2 space-y-1.5">
                   {reindexOutcome.results.map((r) => (
                     <li key={r.documentId} className="flex items-start gap-2 text-xs">
                       <Badge tone={r.status === 'REINDEXED' ? 'success' : 'danger'}>
-                        {r.status === 'REINDEXED' ? `${r.chunkCount} chunks` : 'Failed'}
+                        {r.status === 'REINDEXED'
+                          ? t('chunksCount', { count: r.chunkCount ?? 0 })
+                          : t('failed')}
                       </Badge>
                       <span className="min-w-0">
                         <span className="text-text">{r.title}</span>
@@ -280,7 +281,9 @@ export default function SettingsPage() {
                   {staleOutcome.results.map((r) => (
                     <li key={r.documentId} className="flex items-start gap-2 text-xs">
                       <Badge tone={r.status === 'REINDEXED' ? 'success' : 'danger'}>
-                        {r.status === 'REINDEXED' ? `${r.chunkCount} chunks` : 'Failed'}
+                        {r.status === 'REINDEXED'
+                          ? t('chunksCount', { count: r.chunkCount ?? 0 })
+                          : t('failed')}
                       </Badge>
                       <span className="min-w-0">
                         <span className="text-text" dir="auto">{r.title}</span>
@@ -326,7 +329,7 @@ export default function SettingsPage() {
                   )}
                   {!valid && (
                     <p role="alert" className="mt-1 text-xs text-danger">
-                      Not valid JSON — wrap text in quotes
+                      {t('invalidJson')}
                     </p>
                   )}
                 </div>
@@ -363,9 +366,7 @@ export default function SettingsPage() {
       )}
 
       {!canManage && !loading && (
-        <p className="mt-3 text-xs text-subtle">
-          Your role can view configuration but not change it.
-        </p>
+        <p className="mt-3 text-xs text-subtle">{t('roleCannotChangeConfig')}</p>
       )}
     </>
   );

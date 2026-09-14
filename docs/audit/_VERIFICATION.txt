@@ -1,6 +1,6 @@
 ON DISK : 231
-READ    : 186
-MISSING : 45
+READ    : 187
+MISSING : 44
 --- NOT READ ---
 CLAUDE.md
 README.md
@@ -32,7 +32,6 @@ apps/mobile/test/mocks/expo-secure-store.ts
 apps/mobile/tsconfig.json
 apps/mobile/tsconfig.spec.json
 apps/web/e2e-smoke.mjs
-apps/web/src/app/(app)/analytics/page.tsx
 apps/web/src/app/(app)/approvals/page.tsx
 apps/web/src/app/(app)/dose-calculator/page.tsx
 apps/web/src/app/(app)/policies/page.tsx

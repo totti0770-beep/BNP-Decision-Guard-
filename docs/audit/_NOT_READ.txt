@@ -28,7 +28,6 @@ apps/mobile/test/mocks/expo-secure-store.ts
 apps/mobile/tsconfig.json
 apps/mobile/tsconfig.spec.json
 apps/web/e2e-smoke.mjs
-apps/web/src/app/(app)/analytics/page.tsx
 apps/web/src/app/(app)/approvals/page.tsx
 apps/web/src/app/(app)/dose-calculator/page.tsx
 apps/web/src/app/(app)/policies/page.tsx

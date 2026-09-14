@@ -9,11 +9,11 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 186
-MISSING : 45
+READ    : 187
+MISSING : 44
 ```
 
-**The file-by-file audit is 186 of 231 — it is not finished.** One area is:
+**The file-by-file audit is 187 of 231 — it is not finished.** One area is:
 **the whole of `apps/api` is now read** — src, test, config and eval data —
 verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
@@ -26,9 +26,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 186 files read as at 231. A described fact — what a
+whole tree and is as true at 187 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 186 have.
+opened, and only 187 have.
 
 ## Skipped deliberately, with reasons
 
@@ -127,15 +127,36 @@ saw on screen while building got a dictionary key, and whatever only appears
 when something fails or when a list is empty did not. That is exactly the
 copy a user meets on a bad day.
 
-**Closed.** All of the above are now dictionary-backed. Re-running the same
-scan leaves **9 literals**, every one of them in the deliberate list:
-the two `Metadata` strings, the refusal-gate explanation, the
-demo-sign-in hint at `login/page.tsx:166` (rendered only when
-`NEXT_PUBLIC_DEMO_EMAIL` is set, which no deployment config sets), the
-"Switch to English" label, the `Request failed (N)` fallback in `api.ts`
-and the identical one in `login/forgot`'s module-level `post()` helper —
-both outside any component, so no hook can reach them — and one false
-positive (`Promise` in a type annotation in `async.ts:31`).
+**Closed, in two passes — and the first measurement was wrong.**
+
+The first pass reported "9 literals remaining, all deliberate". That figure
+was produced by a line-wise scan, which cannot see a JSX text node spanning
+several lines — and prose sitting directly inside an element is exactly how
+this codebase writes its longer copy. A second scan that strips comments and
+matches across lines found **eight more**, all user-visible: the two
+explanatory paragraphs on `analytics`, the download-protection note on
+`policies`, and five strings on `settings` including the `Reindex` button
+itself. They are fixed.
+
+The lesson is about the measurement, not the strings: a scan that cannot see
+a construct reports zero for it, and zero reads exactly like clean.
+
+What remains, and why each one stays:
+
+- `app/layout.tsx:7-9` — Next `Metadata`, rendered server-side where a
+  `localStorage` preference cannot be read.
+- `assistant-chat.tsx:86-92` — the refusal-gate explanations, shown only to
+  `analytics:read` holders and naming English configuration keys, per the
+  reasoning at `:78-83`.
+- `settings/page.tsx:195-197` and `:277` — the same category: operator prose
+  naming `EMBEDDING_PROVIDER` and the `staleRetrievable` field, kept
+  greppable against the configuration and the API they refer to.
+- `language-toggle.tsx:21` — "Switch to English", deliberately in English.
+- `login/page.tsx:166` — the demo-sign-in hint, rendered only when
+  `NEXT_PUBLIC_DEMO_EMAIL` is set, which no deployment config sets.
+- `api.ts:80` and `login/forgot/page.tsx:22` — the `Request failed (N)`
+  fallback in two module-level helpers, outside any component, where no hook
+  can reach them.
 
 ### Physical direction classes — three real, three false alarms
 
@@ -192,7 +213,7 @@ kind of thing an audit exists to surface:
 
 ## What remains of the audit itself
 
-The remaining 45 files, read in the batches named in the plan, each appended to
+The remaining 44 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.

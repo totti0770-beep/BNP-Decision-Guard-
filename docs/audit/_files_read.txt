@@ -140,6 +140,7 @@ apps/web/next.config.mjs
 apps/web/package.json
 apps/web/postcss.config.mjs
 apps/web/public/.gitkeep
+apps/web/src/app/(app)/analytics/page.tsx
 apps/web/src/app/(app)/answer-review/page.tsx
 apps/web/src/app/(app)/assistant/page.tsx
 apps/web/src/app/(app)/audit/page.tsx

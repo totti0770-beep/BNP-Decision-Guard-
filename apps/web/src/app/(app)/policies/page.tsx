@@ -201,10 +201,7 @@ export default function PoliciesPage() {
       )}
 
       {!canDownload && (
-        <p className="mt-3 text-xs text-subtle">
-          Source PDFs are download-protected for your role. Use the assistant to
-          get cited answers drawn from these documents.
-        </p>
+        <p className="mt-3 text-xs text-subtle">{t('downloadProtectedNote')}</p>
       )}
     </>
   );

@@ -515,6 +515,23 @@ export const dict = {
     resetFailed: 'Reset failed',
     switchToThemeLight: 'Switch to light theme',
     switchToThemeDark: 'Switch to dark theme',
+    // A second pass found these: the first scan could not see JSX text nodes
+    // that span lines, so prose sitting directly inside an element was
+    // invisible to it. The operator-facing lines that name English identifiers
+    // (EMBEDDING_PROVIDER, staleRetrievable) stay English deliberately, on the
+    // same reasoning as the refusal-gate explanations in assistant-chat.
+    refusalRateCaption: 'Share of questions with no approved source behind them',
+    refusalRateExplainer:
+      'A refusal is a correct outcome, not a failure — it means the assistant declined to answer rather than guessing. A rising rate points at gaps in the approved library, not at a broken assistant.',
+    downloadProtectedNote:
+      'Source PDFs are download-protected for your role. Use the assistant to get cited answers drawn from these documents.',
+    noActiveDocsToReindex: 'No active documents to reindex.',
+    invalidJson: 'Not valid JSON — wrap text in quotes',
+    roleCannotChangeConfig: 'Your role can view configuration but not change it.',
+    reindex: 'Reindex',
+    providerLabel: 'Provider:',
+    chunksCount: '{count} chunks',
+    failed: 'Failed',
     switchToEnglish: 'Switch to English',
   },
 
@@ -959,6 +976,18 @@ export const dict = {
     resetFailed: 'فشلت إعادة التعيين',
     switchToThemeLight: 'التبديل إلى المظهر الفاتح',
     switchToThemeDark: 'التبديل إلى المظهر الداكن',
+    refusalRateCaption: 'نسبة الأسئلة التي لا تستند إلى مصدر معتمد',
+    refusalRateExplainer:
+      'الرفض نتيجة صحيحة وليس فشلًا — فهو يعني أن المساعد امتنع عن الإجابة بدل التخمين. ارتفاع النسبة يشير إلى ثغرات في المكتبة المعتمدة، لا إلى خلل في المساعد.',
+    downloadProtectedNote:
+      'تنزيل ملفات PDF المصدرية محجوب عن دورك. استخدم المساعد للحصول على إجابات موثّقة مستمدة من هذه الوثائق.',
+    noActiveDocsToReindex: 'لا توجد وثائق فعّالة لإعادة فهرستها.',
+    invalidJson: 'ليست JSON صالحة — ضع النص بين علامتَي اقتباس',
+    roleCannotChangeConfig: 'يمكن لدورك عرض الإعدادات دون تغييرها.',
+    reindex: 'إعادة الفهرسة',
+    providerLabel: 'المزوّد:',
+    chunksCount: '{count} مقطعًا',
+    failed: 'فشل',
     switchToEnglish: 'Switch to English',
   },
 } as const;
