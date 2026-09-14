@@ -48,3 +48,5 @@ apps/api/src/rag/rag.module.ts
 apps/api/src/rag/indexing.service.ts
 apps/api/src/rag/openai-http.ts
 apps/api/src/rag/embedding.service.ts
+apps/api/src/rag/llm.service.ts
+apps/api/src/rag/rag.controller.ts
