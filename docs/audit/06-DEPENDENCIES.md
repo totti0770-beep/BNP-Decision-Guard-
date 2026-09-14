@@ -80,51 +80,80 @@ change. The two are separate installs and never share a runtime.
 
 ```
 $ npm audit
-9 vulnerabilities (1 moderate, 8 high)
+found 0 vulnerabilities
 ```
 
 `npm audit --json`'s `metadata.vulnerabilities`:
-`{"info":0,"low":0,"moderate":1,"high":8,"critical":0,"total":9}`.
+`{"info":0,"low":0,"moderate":0,"high":0,"critical":0,"total":0}`.
 
-**Zero critical**, which is what CI gates on
-(`.github/scripts/audit-critical.mjs`, hard-fail). The nine break into three
-groups, and `SECURITY.md`'s dependency-scanning row carries the triage:
+**This section previously reported 9 findings (8 high, 1 moderate) and repeated
+`SECURITY.md`'s explanation for why they stood: that the highs were gated on a
+NestJS 12 major and that `js-yaml` could not be fixed because "forcing a single
+version would break the 3.x consumer". I checked neither claim before writing
+them down. Both were wrong, and all nine closed in a single change.**
 
-| Severity | Package | Fix available | Group |
+What the nine actually were:
+
+| Package | Was | Now | What it needed |
 | --- | --- | --- | --- |
-| high | `@nestjs/core` | `@nestjs/core@12.0.2` (**major**) | NestJS 12 chain |
-| high | `@nestjs/platform-express` | `@nestjs/platform-express@12.0.2` (**major**) | NestJS 12 chain |
-| high | `@nestjs/schedule` | `@nestjs/schedule@12.0.2` (**major**) | NestJS 12 chain |
-| high | `@nestjs/testing` | `@nestjs/testing@12.0.2` (**major**) | NestJS 12 chain |
-| high | `@nestjs/throttler` | in-range | NestJS 12 chain |
-| high | `@nestjs/typeorm` | `@nestjs/typeorm@12.0.1` (**major**) | NestJS 12 chain |
-| high | `multer` | only via `@nestjs/platform-express@12` (**major**) | NestJS 12 chain |
-| high | `js-yaml` | in-range | build-time only |
-| moderate | `qs` | in-range | build-time only |
+| `multer` | 2.2.0 | **2.4.0** | root `overrides` `^2.2.0` → `^2.3.0` |
+| `@nestjs/core`, `platform-express`, `schedule`, `testing`, `throttler`, `typeorm` | — | — | **nothing** — no advisory of their own; inherited from `multer` |
+| `js-yaml` (ESLint path) | 4.3.1 | **4.3.2** | lockfile re-resolution |
+| `js-yaml` (jest coverage path) | 3.15.1 | **3.15.2** | lockfile re-resolution |
+| `qs` (Express body-parser) | 6.15.3 | **6.16.0** | lockfile re-resolution |
 
-**`multer` is the substantive one**, and it is worth being precise about the
-exposure rather than waving at the severity: its four advisories are
-denial-of-service on multipart parsing, which is the document-upload path. That
-path is bounded at 25 MB by `FileInterceptor` (`documents.controller.ts:62-64`)
-and requires the `documents:upload` permission, so it is not an unauthenticated
-surface. It resolves only through a framework major.
+Two mistakes produced the old text, and they are different mistakes:
 
-**`js-yaml` genuinely reaches the tree twice**, and the repository's claim that
-forcing one version would break a consumer checks out — the two copies are
-different majors with different APIs:
+**Counting inherited markers as findings.** `npm audit --json` lists a package
+under `vulnerabilities` when a *dependency* of it is vulnerable, not only when it
+has an advisory. Six of the seven "NestJS 12 chain" entries were markers. The
+distinction is one pass over `via`: an entry whose `via` array holds only strings
+has no advisory of its own. Running that pass is what collapsed a seven-package
+framework-major problem into one package.
+
+**Answering a question nobody had asked.** The `js-yaml` claim was true —
+forcing both copies to one version *would* break the 3.x consumer — and
+irrelevant, because each copy had a patched release inside its own parent's
+declared range. `@eslint/eslintrc` declares `^4.3.0` and 4.3.2 is in it;
+`@istanbuljs/load-nyc-config` declares `^3.13.1` and 3.15.2 is in it. Both
+shipped in late August. `qs` was the same: `express` declares `^6.14.0`, and
+6.16.0 satisfies it.
+
+So three of the four were held below floors their own parents already allowed,
+by nothing but a stale lockfile — **the exact failure mode `CLAUDE.md` documents
+from the `next` upgrade**, restated in a security context and not recognised.
+The earlier `qs` attempt failed because it reached for an override, which emptied
+the entry; `npm update qs --package-lock-only` lifts it cleanly.
+
+`multer` was the one genuine override case, because
+`@nestjs/platform-express@11.2.1` pins it at exactly `2.2.0` rather than by
+range. Its four advisories are denial-of-service on multipart parsing — the
+document-upload path — which is why it was the substantive one. That path stays
+bounded at 25 MB by `FileInterceptor` and gated on `documents:upload`.
+
+**Not adopted: NestJS 12.** `@nestjs/core@12.0.2` was published
+2026-09-14T18:14 UTC, hours before this change. It is a reasonable routine
+upgrade and no longer a security item.
+
+### Verified on disk, not from declared ranges
+
+`npm ci` then reading each installed `package.json`, because a security bump that
+fails the nested-lockfile way reads exactly like success:
 
 ```
-node_modules/js-yaml                                   4.3.1   (ESLint's config loader)
-node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml
-                                                       3.15.1  (jest's coverage config)
+multer     2.4.0
+qs         6.16.0
+node_modules/js-yaml                                        4.3.2
+node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml  3.15.2
 ```
 
-Neither is imported by the API at runtime.
+Both `js-yaml` copies are checked deliberately. The nested one is invisible to
+an ordinary `require.resolve`, and it is the one an advisory would be missed on.
 
-**`qs` arrives through Express 5's body parser.** An override to `^6.16.0` was
-attempted and reverted: npm kept resolving the locked 6.15.3, and re-resolving
-emptied the entry rather than upgrading it, leaving the tree inconsistent. The
-installed version is still 6.15.3, confirming the revert held.
+The lockfile diff is four version changes and seven removals, with no additions:
+`concat-stream`, `readable-stream`, `string_decoder`, `typedarray` and three
+nested `mime`/`media-typer` packages all leave the tree, because multer 2.4.0 no
+longer needs them. A smaller tree, not a wider one.
 
 ## What the CI gate actually decides on
 

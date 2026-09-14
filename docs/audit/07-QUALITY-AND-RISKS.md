@@ -81,29 +81,47 @@ actually cite it, and names the reason when it cannot. It has not been run
 against production. It was also, until this audit, **absent from
 `docs/api.md`** — which is part of why nobody ran it.
 
-### 🟠 3. Three documents carried a stale advisory count, and the pattern is the risk
+### ✅ 3. The stale advisory count — and the explanation underneath it was also wrong
 
-On this commit `npm audit` reports **0 critical, 8 high, 1 moderate**. Before
-this audit, four separate statements in three documents disagreed — two claiming
-**zero findings at every severity**, one claiming 5 high / 9 moderate, and one
-correct. The zero-findings claims were true on the day they were written.
+**Closed.** `npm audit` on this commit reports **0 findings at every severity**.
 
-The risk is not the numbers; it is that **a count that ages cannot be maintained
-by remembering to maintain it.** The four stale statements were written by
-authors careful enough to put a triage paragraph underneath each one. One of
-them had already been struck through and superseded in the same file's own
-change log — and the correction sat in the log while the stale claim sat in the
-section someone reads to plan the work.
+The original finding stands as written: four statements across three documents
+carried a stale count, two of them claiming zero findings when there were nine.
+The risk named was that *a count that ages cannot be maintained by remembering
+to maintain it.*
 
-**Mitigation:** either CI writes these numbers, or the documents stop stating
-them and point at the single place that does. Not built here, because that is a
-CI change and nothing in this audit establishes it was asked for.
+What the fix revealed is worse than a stale count, and it is worth keeping
+visible. Every one of those documents also explained **why** the nine stood — a
+NestJS 12 major for the highs, an unfixable `js-yaml` split for the build-time
+pair. Both explanations were wrong:
 
-The substantive advisory is **`multer`**: four denial-of-service advisories on
-multipart parsing, which is the document-upload path. It is bounded at 25 MB by
-`FileInterceptor` and requires `documents:upload`, so it is not an
-unauthenticated surface — but it resolves only through a **NestJS 12 major**,
-which is the real open engineering item behind seven of the eight highs.
+- Six of the seven packages in the "NestJS 12 chain" had **no advisory of their
+  own**. `npm audit --json` lists a package when a *dependency* is vulnerable,
+  and all six traced to `multer`, fixed in 2.3.0. One override bump closed
+  seven entries.
+- The `js-yaml` claim — that forcing one version would break the 3.x consumer —
+  was true and beside the point. Neither copy had to move version *lines*:
+  4.3.2 sits inside ESLint's declared `^4.3.0`, and 3.15.2 inside jest's
+  `^3.13.1`. Both had shipped weeks earlier. `qs` was the same.
+
+So three of four advisories were held open by a stale lockfile pinning packages
+below floors their own parents allowed — **the failure mode `CLAUDE.md` already
+documents from the `next` upgrade**, occurring again in a security context
+without being recognised as the same thing.
+
+**And this audit repeated the explanation rather than testing it.**
+`06-DEPENDENCIES.md` restated the NestJS-12 framing and the `js-yaml` reasoning
+as established fact. Both are corrected there, and the correction is recorded
+rather than swapped in quietly.
+
+The generalisable lesson is narrower than "verify claims": **a documented reason
+why something cannot be fixed ages exactly like the count it explains, and is
+re-read far less often.** A stale number looks stale. A stale rationale looks
+like understanding.
+
+The original mitigation still stands, and is still not built: either CI writes
+these numbers or the documents stop stating them. It would have caught the
+count. It would *not* have caught the rationale.
 
 ### 🟠 4. The web app has no tests, and one defect class is caught by nothing
 
@@ -254,7 +272,7 @@ Every instance found:
 | Drift | Where | Correct |
 | --- | --- | --- |
 | Retrieval invariant missing the 4th filter | `database-schema.md`, `architecture.md`, `README.md` ×2 | four filters |
-| Advisory count | `SECURITY.md`, `production-readiness.md` ×2, `README.md` | 0 critical / 8 high / 1 moderate |
+| Advisory count, **and the reason given for it** | `SECURITY.md` ×2, `production-readiness.md` ×2, `README.md` | 0 at every severity — the nine were closed without the framework major all four documents said they needed |
 | Contractual Arabic strings | `CLAUDE.md` | three, not two |
 | Refusal gates | `CLAUDE.md` | four, not three |
 | `GET /audit?action=` | `SECURITY.md` ×2 | `GET /audit-logs` |

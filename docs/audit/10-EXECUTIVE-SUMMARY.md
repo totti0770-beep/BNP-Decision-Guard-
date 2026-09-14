@@ -58,7 +58,7 @@ the clinical-validation row.
 | **Demo / investor walkthrough** | **10/10** | Running today at the Railway deployment; the full stack comes up from `docker compose up` again as of `a46181d`. |
 | **MVP (internal, synthetic corpus)** | **9/10** | Complete governed loop, upload → approve → index → cited answer → refusal, proven in CI. |
 | **Pilot (one ward, real corpus, supervised)** | **5/10** | Blocked on clinical sign-off and a real approved corpus — neither is code. |
-| **Production (unsupervised clinical use)** | **3/10** | Add backups with a rehearsed restore, observability, an image registry, and the NestJS 12 major. |
+| **Production (unsupervised clinical use)** | **4/10** | Add backups with a rehearsed restore, observability and an image registry. Was 3/10 while 8 high advisories stood; they are now **0 at every severity**, closed without the framework major everything assumed they needed. |
 
 ## 3. Critical missing components
 
@@ -73,11 +73,11 @@ the clinical-validation row.
 
 | Item | Evidence | Cost if left |
 | --- | --- | --- |
-| **NestJS 12 major outstanding** | 7 high advisories resolve only through it; `multer`'s four DoS advisories sit on the upload path | Security debt that compounds with every release |
+| ~~**NestJS 12 major outstanding**~~ **Closed, and it was never the blocker** | The 7 "high" entries were 1 advisory (`multer`) and 6 inherited markers. `multer` 2.2.0 → 2.4.0 via the existing root override took the tree to 0 findings. NestJS 12 remains a routine upgrade, not security debt | — |
 | **`PUT /settings/:key` is unvalidated, and nothing reads settings** | `settings.module.ts:64-72`; no consumer of `SettingsService` outside its own module | An API that stores values which change nothing |
 | **Expiry cron runs in-process** | `notifications.service.ts:39`; `infra/k8s/README.md:57` | Runs once per replica — duplicate expiries the moment you scale |
 | **Web has no unit tests** | no `*.spec.tsx` under `apps/web` | Every web regression must be caught by one browser smoke |
-| **Documented counts drift** | corrected four times in this session alone | Docs that lie quietly |
+| **Documented counts drift — and the reasons under them** | counts corrected four times in this session; then the *explanation* under the advisory count turned out to be wrong too, in three documents and in this audit's own report | Docs that lie quietly. A stale number looks stale; a stale rationale looks like understanding |
 | **`EMBEDDING_DIM` and `vector(384)` are independent** | `migrations/1720000000000-initial-schema.ts:99` vs `embedding.service.ts:4` | A provider change needs a migration nobody is reminded to write |
 
 ## 5. Recommended next actions
@@ -87,7 +87,7 @@ the clinical-validation row.
 3. **Add an issuing-authority column** and surface it in citations. *~1 day.*
 4. **Managed Postgres backups + one rehearsed restore.** *~1 day.*
 5. **Ship logs and add error tracking.** *~2 days.*
-6. **Plan the NestJS 12 migration.** *~3 days with the test suite as the net.*
+6. ~~**Plan the NestJS 12 migration.**~~ **Done differently, and in minutes rather than days.** The advisories it was supposed to close were one package (`multer`) plus six inherited markers; the tree is now at 0 findings without it. NestJS 12 is now an ordinary upgrade to schedule, not a security action.
 
 ## 6. Fastest path to launch (supervised pilot)
 
@@ -104,7 +104,7 @@ The engineering is done; this is a sequencing problem.
 
 ## 7. Fastest path to fully functional
 
-Add to the above: NestJS 12 + `multer`; an issuing-authority field; the expiry
+Add to the above: an issuing-authority field; the expiry
 cron moved to a single-replica `CronJob`; images pushed to a registry and pinned
 by digest; web unit tests; metrics and tracing; a data-retention policy. **None
 of it is on the pilot's critical path** — which is the useful finding, because it

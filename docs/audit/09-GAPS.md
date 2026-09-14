@@ -366,10 +366,12 @@ having fired".
 4. The Known Gaps section carried a struck-through ✅ reading *"Root workspaces
    are at **0 findings of any severity** (re-run 21 Aug 2026)"*, while the
    implemented-controls table sixty lines above said **8 high and 1 moderate**.
-   `npm audit` on this commit reports **9 vulnerabilities (8 high, 1 moderate,
+   `npm audit` at that point reported **9 vulnerabilities (8 high, 1 moderate,
    0 critical)**, confirming the table and refuting the ✅. The struck-through
-   line was true when it was written; the NestJS 12 advisory chain and `multer`
-   arrived afterwards.
+   line was true when it was written; the `multer` advisory chain arrived
+   afterwards. *(Those nine have since been closed — the tree is at 0 findings
+   at every severity. See "…and the explanation underneath the count was wrong
+   in all three" below.)*
 
 That last one is the most instructive. A resolved item struck through with a ✅
 is a claim with a timestamp attached, and striking it through is precisely how
@@ -416,7 +418,7 @@ not protect and which nothing had been re-measuring:
 
 | Claim | Where | Measured on this commit |
 | --- | --- | --- |
-| `14 findings: 5 high, 9 moderate` | scorecard | **9 findings: 8 high, 1 moderate, 0 critical** (`npm audit`) |
+| `14 findings: 5 high, 9 moderate` | scorecard | **9 findings: 8 high, 1 moderate, 0 critical** at the time (`npm audit`); **0 at every severity** since they were closed |
 | `211 unit + 68 e2e` | scorecard | **412 unit** across 28 suites (`npm test`) |
 | "the count is **0 findings of any severity**" | Fastest path to PRODUCTION, item 1 | contradicted by the above |
 
@@ -427,7 +429,9 @@ zero-findings audit is a reading, never a property"* — but the correction live
 in the log, and the claim it corrects was still sitting in the section someone
 opens to plan the remaining work. A correction filed in the right place is not
 the same as a correction applied. The live version of that item is now the
-**NestJS 12** major, which is what the 8 high advisories are gated on.
+**NestJS 12** major, which is what the 8 high advisories were believed to be
+gated on — a belief that turned out to be wrong, and is dealt with in the
+section above.
 
 **And one contradiction that matters more than any count.** The scorecard
 marked *Approved clinical content corpus* as ✅ "real, governed (725 chunks
@@ -468,8 +472,9 @@ splitting asking from citation-checking rather than writing around it.
 ### A stale advisory count in three documents at once
 
 Four documents in this repository state how many dependency advisories the tree
-carries. On this commit `npm audit` reports **0 critical, 8 high, 1 moderate**.
-Before this audit they said:
+carries. When this section was written `npm audit` reported **0 critical, 8
+high, 1 moderate**; the tree is now at **0 findings at every severity** (see the
+next section, which is the sequel to this one). Before this audit they said:
 
 | Document | Said | Correct |
 | --- | --- | --- |
@@ -495,6 +500,42 @@ triage that gives the number meaning.
 Recorded as a gap rather than fixed structurally, because building that
 generator is a change to CI rather than a documentation correction, and nothing
 in this audit has established that the user wants it.
+
+### …and the explanation underneath the count was wrong in all three
+
+This is the sequel, and it is the more useful finding.
+
+Every document carrying the stale count also explained **why** those advisories
+stood. Both explanations were wrong, and the audit caught neither until it went
+to close them:
+
+1. **"The highs need a NestJS 12 major."** Seven packages were listed as one
+   blocked chain. Six of them had **no advisory of their own** — `npm audit
+   --json` lists a package when a *dependency* of it is vulnerable — and all six
+   traced to `multer`, fixed in 2.3.0 since August. Bumping the root override
+   this repository already had closed all seven.
+2. **"`js-yaml` can't be fixed — forcing one version would break the 3.x
+   consumer."** True, and beside the point: nothing had to be forced to one
+   version. **Each copy had a patched release inside its own parent's declared
+   range** — 4.3.2 within ESLint's `^4.3.0`, 3.15.2 within jest's `^3.13.1`.
+   `qs` was the same, within `express`'s `^6.14.0`. All three had been closable
+   since late August by a lockfile refresh alone.
+
+Three of four advisories were held open by a stale lockfile pinning packages
+below floors their own parents allowed — **exactly the failure `CLAUDE.md`
+documents from the `next` upgrade**, recurring in a security context without
+being recognised as the same thing.
+
+**And this audit repeated the explanation instead of testing it.**
+`06-DEPENDENCIES.md` restated both claims as established fact, in a report whose
+whole purpose was to check declared ranges against installed versions. Corrected
+there, openly, as with the `2,706`-chunk withdrawal.
+
+The lesson generalises past dependencies: **a documented reason why something
+cannot be fixed ages exactly like the count it explains, and is re-read far less
+often.** A stale number looks stale. A stale rationale looks like understanding,
+and it is what stops anyone from re-running the check. The CI generator proposed
+above would have caught the count and would not have caught this.
 
 ### The retrieval invariant was understated in a fourth place
 

@@ -50,7 +50,7 @@ unit suite passed.
 | `npm test` | ✅ **412 tests, 28 suites, 0 failures**, 9.1 s |
 | `npm run lint` | ✅ **0 errors, 10 warnings** |
 | `npm run build:web` | ✅ compiled in 598 ms, TypeScript in 1.56 s, **20/20 static pages**, every route `○ (Static)` |
-| `npm audit` | 9 findings — 8 high, 1 moderate, **0 critical** (see `06-DEPENDENCIES.md`) |
+| `npm audit` | **0 findings at every severity** (see `06-DEPENDENCIES.md`) |
 
 All ten lint warnings are `@typescript-eslint/no-explicit-any`, and the rule is
 warn-not-error on purpose (`eslint.config.js:39-46`). The exact sites, from

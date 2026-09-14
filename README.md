@@ -471,14 +471,14 @@ institutional process. Highlights:
   MinIO or your cloud bucket; Postgres supports TDE/disk encryption at the
   infrastructure layer.
 - **Dependency vulnerability scanning**: CI hard-fails on any **critical**
-  `npm audit` finding. Measured on this commit: **0 critical, 8 high, 1
-  moderate**; because the gate only blocks critical, the highs pass CI. Most of
-  them chain from `@nestjs/*` and `multer` and are gated on a **NestJS 12**
-  major. `SECURITY.md`'s dependency-scanning row carries the per-package triage
-  and says which are accepted and why. This line read "0 critical, 5 high and 9
-  moderate — as of the August 2026 audit" for a while: advisories are published
-  against code that has not changed, so any count here is a reading with a date
-  on it, not a property of the tree.
+  `npm audit` finding. Measured on this commit: **0 findings at every
+  severity**. The 8 high and 1 moderate this line used to carry were closed
+  without a framework major — `multer` to 2.4.0 via the root override, and
+  `js-yaml` ×2 and `qs` by lockfile re-resolution inside ranges their own
+  parents already allowed. `SECURITY.md`'s dependency-scanning row has the
+  detail. Any count here is still a reading with a date on it, not a property of
+  the tree: advisories get published against code that has not changed, which is
+  why the CI gate and not this sentence is what protects a merge.
 - **No public self-registration**: accounts are provisioned by an administrator
   via `POST /users`. Roles are read-only over the API — permissions live in
   `packages/shared/src/rbac.ts`, which is what the guard actually enforces.
