@@ -11,7 +11,6 @@ apps/api/package.json
 apps/api/src/analytics/analytics.module.ts
 apps/api/src/app.module.ts
 apps/api/src/approval/approval.service.spec.ts
-apps/api/src/approval/approval.service.ts
 apps/api/src/audit/audit.controller.ts
 apps/api/src/audit/audit.module.ts
 apps/api/src/audit/audit.service.ts
@@ -30,9 +29,7 @@ apps/api/src/common/logging/json-logger.service.spec.ts
 apps/api/src/config/env.spec.ts
 apps/api/src/config/env.ts
 apps/api/src/documents/documents.controller.ts
-apps/api/src/documents/documents.module.ts
 apps/api/src/documents/documents.service.spec.ts
-apps/api/src/documents/documents.service.ts
 apps/api/src/documents/inventory.service.spec.ts
 apps/api/src/documents/inventory.service.ts
 apps/api/src/dose/dose.controller.ts
@@ -51,9 +48,7 @@ apps/api/src/eval/field-set.spec.ts
 apps/api/src/eval/field-set.ts
 apps/api/src/health.controller.spec.ts
 apps/api/src/health.controller.ts
-apps/api/src/mail/mail.module.ts
 apps/api/src/mail/mail.service.spec.ts
-apps/api/src/mail/mail.service.ts
 apps/api/src/main.ts
 apps/api/src/migrations/1720000000000-initial-schema.ts
 apps/api/src/migrations/1720000001000-token-version.ts
@@ -85,8 +80,6 @@ apps/api/src/seed/seed-policy.spec.ts
 apps/api/src/seed/seed-policy.ts
 apps/api/src/seed/seed.ts
 apps/api/src/settings/settings.module.ts
-apps/api/src/storage/storage.module.ts
-apps/api/src/storage/storage.service.ts
 apps/api/src/users/users.controller.ts
 apps/api/src/users/users.service.ts
 apps/api/test/answer-quality.e2e-spec.ts

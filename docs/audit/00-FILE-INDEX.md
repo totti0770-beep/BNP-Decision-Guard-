@@ -24,7 +24,7 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 14 | `apps/api/src/analytics/analytics.module.ts` | ts | 76 | PENDING | — |
 | 15 | `apps/api/src/app.module.ts` | ts | 67 | PENDING | — |
 | 16 | `apps/api/src/approval/approval.service.spec.ts` | ts | 220 | PENDING | — |
-| 17 | `apps/api/src/approval/approval.service.ts` | ts | 175 | PENDING | — |
+| 17 | `apps/api/src/approval/approval.service.ts` | ts | 175 | READ | The lifecycle state machine. `TRANSITIONS` (:17-30) lists the statuses each action may leave from; `transition()` (:51-86) is the only path a status may change by, writing the document, a `document_approvals` row and an audit event together. `actor` is nullable because the expiry cron is not a person (:43-50). `expire()` (:101-106) routes through the same machine — the comment records that it previously set `status = EXPIRED` directly and wrote only an audit row, invisible to NURSING_KNOWLEDGE_MANAGER, who owns the lifecycle but holds `documents:read` and not `audit:read` (:88-100). `index()` (:132-149) re-checks `TRANSITIONS[INDEX]` *before* the embedding pipeline so an unapproved document never burns provider quota (:134-144), then performs INDEX and ACTIVATE as two recorded transitions. `deactivate()` removes the vector index after the status change (:152-157). |
 | 18 | `apps/api/src/audit/audit.controller.ts` | ts | 22 | PENDING | — |
 | 19 | `apps/api/src/audit/audit.module.ts` | ts | 14 | PENDING | — |
 | 20 | `apps/api/src/audit/audit.service.ts` | ts | 61 | PENDING | — |
@@ -55,9 +55,9 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 45 | `apps/api/src/config/env.spec.ts` | ts | 342 | PENDING | — |
 | 46 | `apps/api/src/config/env.ts` | ts | 344 | PENDING | — |
 | 47 | `apps/api/src/documents/documents.controller.ts` | ts | 209 | PENDING | — |
-| 48 | `apps/api/src/documents/documents.module.ts` | ts | 20 | PENDING | — |
+| 48 | `apps/api/src/documents/documents.module.ts` | ts | 20 | READ | Registers Document, DocumentVersion and DocumentApproval, imports RagModule, and hosts the approval workflow alongside documents — controllers `[DocumentsController]`, providers `[DocumentsService, ApprovalService, InventoryService]` (:122-130). |
 | 49 | `apps/api/src/documents/documents.service.spec.ts` | ts | 94 | PENDING | — |
-| 50 | `apps/api/src/documents/documents.service.ts` | ts | 250 | PENDING | — |
+| 50 | `apps/api/src/documents/documents.service.ts` | ts | 250 | READ | `isPdf()` (:20-22) scans the first 1024 bytes for `%PDF-` rather than demanding offset 0. `upload()` checks the client-supplied mimetype **and** the magic bytes, with a comment stating the header is a usability check and the magic number is the security one (:71-77). Re-upload creates a new version, resets the document to DRAFT and clears `approvalDate`/`approvedBy` (:87-127), so a new version must be re-approved before it can be cited. `findAll` caps `limit` at 200 (:188). `update()` records a from/to for title and expiry but only the literal `'updated'` for description (:210-213) — the description text stays out of the audit metadata. `downloadUrl` audits every issuance and returns a 300-second link (:238-249). |
 | 51 | `apps/api/src/documents/inventory.service.spec.ts` | ts | 159 | PENDING | — |
 | 52 | `apps/api/src/documents/inventory.service.ts` | ts | 366 | PENDING | — |
 | 53 | `apps/api/src/dose/dose.controller.ts` | ts | 95 | PENDING | — |
@@ -76,9 +76,9 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 66 | `apps/api/src/eval/field-set.ts` | ts | 231 | PENDING | — |
 | 67 | `apps/api/src/health.controller.spec.ts` | ts | 58 | PENDING | — |
 | 68 | `apps/api/src/health.controller.ts` | ts | 63 | PENDING | — |
-| 69 | `apps/api/src/mail/mail.module.ts` | ts | 9 | PENDING | — |
+| 69 | `apps/api/src/mail/mail.module.ts` | ts | 9 | READ | `@Global()` module providing and exporting MailService (:106-111). |
 | 70 | `apps/api/src/mail/mail.service.spec.ts` | ts | 87 | PENDING | — |
-| 71 | `apps/api/src/mail/mail.service.ts` | ts | 135 | PENDING | — |
+| 71 | `apps/api/src/mail/mail.service.ts` | ts | 135 | READ | Two providers behind one service. `LogMailProvider` (:31-40) writes the message to the log instead of delivering it, mirroring the mock LLM so the reset flow works with zero configuration; the docblock states plainly that anyone with log access can read reset links (:22). SMTP transport is built **lazily** (:47-64) so a broken mail dependency cannot take down API boot. `onApplicationBootstrap` (:94-114) writes a permanent `MAIL:LOG_PROVIDER_IN_PRODUCTION` audit row, because a console warning scrolls away and the audit trail is where a knowledge manager already looks. `sendQuietly` (:120-134) swallows and logs, so a relay failure cannot turn response time into an account-enumeration oracle. |
 | 72 | `apps/api/src/main.ts` | ts | 48 | PENDING | — |
 | 73 | `apps/api/src/migrations/1720000000000-initial-schema.ts` | ts | 258 | PENDING | — |
 | 74 | `apps/api/src/migrations/1720000001000-token-version.ts` | ts | 21 | PENDING | — |
@@ -125,8 +125,8 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 115 | `apps/api/src/seed/seed-policy.ts` | ts | 30 | PENDING | — |
 | 116 | `apps/api/src/seed/seed.ts` | ts | 267 | PENDING | — |
 | 117 | `apps/api/src/settings/settings.module.ts` | ts | 81 | PENDING | — |
-| 118 | `apps/api/src/storage/storage.module.ts` | ts | 9 | PENDING | — |
-| 119 | `apps/api/src/storage/storage.service.ts` | ts | 93 | PENDING | — |
+| 118 | `apps/api/src/storage/storage.module.ts` | ts | 9 | READ | `@Global()` module providing and exporting StorageService (:97-102). |
+| 119 | `apps/api/src/storage/storage.service.ts` | ts | 93 | READ | S3 client built entirely from `loadEnv().s3` (:28-35), with the comment recording that an inline `?? 'bnp_minio_secret'` here meant the object store silently used shipped demo credentials whenever the variable was absent. `isHealthy()` probes with HeadBucket and **deliberately does not create** the bucket (:38-51) — a self-healing readiness probe would hide a broken deployment. `ensureBucket()` creates on miss and swallows only `BucketAlreadyOwnedByYou` (:53-64). `presignedDownloadUrl` defaults to 300 seconds (:86-92). |
 | 120 | `apps/api/src/users/users.controller.ts` | ts | 83 | PENDING | — |
 | 121 | `apps/api/src/users/users.module.ts` | ts | 13 | READ | Registers User and Role entities, UsersController and UsersService; exports UsersService (:145-150). |
 | 122 | `apps/api/src/users/users.service.ts` | ts | 153 | PENDING | — |

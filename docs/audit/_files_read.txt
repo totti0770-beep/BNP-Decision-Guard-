@@ -50,3 +50,10 @@ apps/api/src/rag/openai-http.ts
 apps/api/src/rag/embedding.service.ts
 apps/api/src/rag/llm.service.ts
 apps/api/src/rag/rag.controller.ts
+apps/api/src/approval/approval.service.ts
+apps/api/src/documents/documents.service.ts
+apps/api/src/documents/documents.module.ts
+apps/api/src/storage/storage.service.ts
+apps/api/src/storage/storage.module.ts
+apps/api/src/mail/mail.service.ts
+apps/api/src/mail/mail.module.ts
