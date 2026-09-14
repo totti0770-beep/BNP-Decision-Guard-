@@ -1,6 +1,6 @@
 ON DISK : 231
-READ    : 173
-MISSING : 58
+READ    : 177
+MISSING : 54
 --- NOT READ ---
 CLAUDE.md
 README.md
@@ -48,11 +48,7 @@ apps/web/src/app/(app)/users/page.tsx
 apps/web/src/app/globals.css
 apps/web/src/app/login/forgot/page.tsx
 apps/web/src/app/login/page.tsx
-apps/web/src/components/assistant-chat.tsx
-apps/web/src/components/chat-history.tsx
 apps/web/src/components/formula-manager.tsx
-apps/web/src/components/shell.tsx
-apps/web/src/components/ui/index.tsx
 apps/web/src/lib/i18n.ts
 docs/api.md
 docs/architecture.md

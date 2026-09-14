@@ -9,11 +9,11 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 173
-MISSING : 58
+READ    : 177
+MISSING : 54
 ```
 
-**The file-by-file audit is 173 of 231 — it is not finished.** One area is:
+**The file-by-file audit is 177 of 231 — it is not finished.** One area is:
 **the whole of `apps/api` is now read** — src, test, config and eval data —
 verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
@@ -26,9 +26,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 173 files read as at 231. A described fact — what a
+whole tree and is as true at 177 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 173 have.
+opened, and only 177 have.
 
 ## Skipped deliberately, with reasons
 
@@ -80,9 +80,34 @@ that this audit did **not** prove.
    and one variable away from being enforced.
 5. Who is the qualified reviewer, and when can they sit down with the sheet?
 
+## Found by reading, and not guarded by any test
+
+`ErrorState` and `Pagination` in `apps/web/src/components/ui/index.tsx`
+rendered English literals — "Something went wrong", "Try again", "Previous",
+"Next", "No {noun}", "of" — while every screen around them translated.
+`ErrorState` appears on 14 surfaces and `Pagination` on 3 (counted with
+`grep -rln`), and `genericError` had been in the dictionary at `i18n.ts:447`
+the whole time. Fixed in this branch.
+
+What that episode says about coverage is worth recording, because it is the
+kind of thing an audit exists to surface:
+
+- **Dictionary parity is enforced.** Removing one Arabic key and running
+  `npx tsc --noEmit -p apps/web/tsconfig.json` fails with `TS7053` at the
+  `t()` indexer (`i18n.ts:883`). Verified by doing it, not by reading the
+  types.
+- **A hardcoded literal is not caught by anything.** It never enters the
+  dictionary, so parity cannot see it; the browser smoke test asserts
+  `dir`/`lang` and one Arabic navigation label, but nothing about shared
+  chrome. No test was added for it here: the honest options were a browser
+  assertion that would pass vacuously whenever `Pagination` does not render
+  (the corpus is four documents against a limit of 50), or a grep-based lint
+  rule too fragile to trust. The class is caught by review, and that is
+  stated rather than papered over.
+
 ## What remains of the audit itself
 
-The remaining 58 files, read in the batches named in the plan, each appended to
+The remaining 54 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.

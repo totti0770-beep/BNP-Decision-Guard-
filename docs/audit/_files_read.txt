@@ -145,8 +145,12 @@ apps/web/src/app/(app)/drug-prep/page.tsx
 apps/web/src/app/(app)/layout.tsx
 apps/web/src/app/layout.tsx
 apps/web/src/app/page.tsx
+apps/web/src/components/assistant-chat.tsx
+apps/web/src/components/chat-history.tsx
 apps/web/src/components/language-toggle.tsx
+apps/web/src/components/shell.tsx
 apps/web/src/components/theme-toggle.tsx
+apps/web/src/components/ui/index.tsx
 apps/web/src/lib/api.ts
 apps/web/src/lib/async.ts
 apps/web/src/lib/auth.tsx

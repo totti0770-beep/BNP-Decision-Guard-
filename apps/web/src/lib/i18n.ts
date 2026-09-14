@@ -445,6 +445,18 @@ export const dict = {
       'Re-embed only the documents with stale retrievable chunks? This may consume external API quota.',
 
     genericError: 'Something went wrong. Please try again.',
+    // Shared chrome for ErrorState and Pagination. These lived as English
+    // literals inside the components, so a load failure or a paginated table
+    // stayed English on 14 and 3 surfaces respectively while everything around
+    // them translated.
+    errorTitle: 'Something went wrong',
+    paginationRange: '{from}–{to} of {total} {noun}',
+    paginationEmpty: 'No {noun}',
+    previous: 'Previous',
+    next: 'Next',
+    // Default for Pagination when a caller passes no noun. Every current caller
+    // does pass one; this keeps the fallback translated rather than English.
+    resultsNoun: 'results',
 
     // Generic
     loading: 'Loading…',
@@ -838,6 +850,12 @@ export const dict = {
       'إعادة تضمين الوثائق ذات الأجزاء المتقادمة فقط؟ قد يستهلك ذلك حصة الواجهة الخارجية.',
 
     genericError: 'حدث خطأ ما. حاول مرة أخرى.',
+    errorTitle: 'حدث خطأ ما',
+    paginationRange: '{from}–{to} من {total} {noun}',
+    paginationEmpty: 'لا توجد {noun}',
+    previous: 'السابق',
+    next: 'التالي',
+    resultsNoun: 'نتيجة',
 
     loading: 'جارٍ التحميل…',
     retry: 'إعادة المحاولة',
