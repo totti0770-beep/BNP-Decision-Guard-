@@ -30,11 +30,11 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 20 | `apps/api/src/audit/audit.service.ts` | ts | 61 | PENDING | — |
 | 21 | `apps/api/src/auth/account-security.spec.ts` | ts | 318 | PENDING | — |
 | 22 | `apps/api/src/auth/auth.controller.ts` | ts | 133 | PENDING | — |
-| 23 | `apps/api/src/auth/auth.module.ts` | ts | 26 | PENDING | — |
-| 24 | `apps/api/src/auth/auth.service.ts` | ts | 431 | PENDING | — |
+| 23 | `apps/api/src/auth/auth.module.ts` | ts | 26 | READ | Wires `TypeOrmModule.forFeature([User])`, Passport, and `JwtModule.registerAsync` with a factory so the signing secret resolves through the same `loadEnv()` path the strategy verifies with (:53-57). Providers: AuthService, JwtStrategy, DemoAccountGuardService (:60). |
+| 24 | `apps/api/src/auth/auth.service.ts` | ts | 431 | READ | 431 lines, the security core, read in full. `validateUser` checks active, then the lockout window before the password (:44-65). `registerFailedAttempt` locks at the configured threshold and audits (:69-84). `issueTokens` stamps the refresh token with `tv: user.tokenVersion` (:108). `login` returns a 5-minute half-authenticated `mfa` token when MFA is on (:127-144). `verifyMfa` (:158-190), `refresh` rejecting a superseded `tv` (:209-210), `logout` bumping `tokenVersion` (:219-230). `forgotPassword` (:251-284) returns the same shape regardless of whether the account exists, does not await delivery so response timing cannot distinguish them (:245-249, :269), and gates the dev token return on `AUTH_DEV_RETURN_RESET_TOKEN === 'true' && !isProduction` (:280) — the comment records that keying on `NODE_ENV !== 'production'` alone failed open because NODE_ENV is unset in the shipped manifests. `resetPassword` requires the token's `tv` to match and bumps it again (:309-316). MFA enrolment is deliberately two-step: `enrollMfa` never sets `mfaEnabled` (:326-364), `enableMfa` proves possession first (:370-395), `disableMfa` requires the password even though the caller is authenticated (:397-430). |
 | 25 | `apps/api/src/auth/demo-account-guard.service.spec.ts` | ts | 163 | PENDING | — |
 | 26 | `apps/api/src/auth/demo-account-guard.service.ts` | ts | 118 | PENDING | — |
-| 27 | `apps/api/src/auth/jwt.strategy.ts` | ts | 37 | PENDING | — |
+| 27 | `apps/api/src/auth/jwt.strategy.ts` | ts | 37 | READ | Passport JWT strategy. Secret resolves through `loadEnv().jwt.secret` (:21) — the comment (:15-20) records that an inline fallback here resolved to this public repository's literal whenever JWT_SECRET was unset, which only fail-fasts in production. `validate()` rejects any token whose `type` is not `access` (:26-28) and derives permissions from the RBAC matrix, never the database (:34). |
 | 28 | `apps/api/src/chat/chat-diagnostics.spec.ts` | ts | 67 | PENDING | — |
 | 29 | `apps/api/src/chat/chat.controller.ts` | ts | 73 | PENDING | — |
 | 30 | `apps/api/src/chat/chat.module.ts` | ts | 14 | PENDING | — |
@@ -109,9 +109,9 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 99 | `apps/api/src/rag/rerank.service.ts` | ts | 93 | PENDING | — |
 | 100 | `apps/api/src/rag/retrieval-dimension-mismatch.spec.ts` | ts | 67 | PENDING | — |
 | 101 | `apps/api/src/rag/retrieval.service.ts` | ts | 117 | PENDING | — |
-| 102 | `apps/api/src/roles/roles.controller.ts` | ts | 36 | PENDING | — |
-| 103 | `apps/api/src/roles/roles.module.ts` | ts | 13 | PENDING | — |
-| 104 | `apps/api/src/roles/roles.service.ts` | ts | 26 | PENDING | — |
+| 102 | `apps/api/src/roles/roles.controller.ts` | ts | 36 | READ | A single `GET /roles` behind `ROLES_READ` (:120-124). The docblock (:95-115) records why POST /roles and PATCH /roles/:id were removed: they wrote to `role_permissions`, returned success and emitted an audit entry while changing nothing a user could do, because authorization reads the matrix in `rbac.ts`. |
+| 103 | `apps/api/src/roles/roles.module.ts` | ts | 13 | READ | Registers the Role entity, RolesController and RolesService; exports RolesService (:132-137). |
+| 104 | `apps/api/src/roles/roles.service.ts` | ts | 26 | READ | One method, `findAll()`, returning the seeded role catalogue with permission codes for display (:80-88). Read-only by design. |
 | 105 | `apps/api/src/scripts/create-admin.spec.ts` | ts | 38 | PENDING | — |
 | 106 | `apps/api/src/scripts/create-admin.ts` | ts | 171 | PENDING | — |
 | 107 | `apps/api/src/scripts/field-eval.ts` | ts | 242 | PENDING | — |
@@ -128,7 +128,7 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 118 | `apps/api/src/storage/storage.module.ts` | ts | 9 | PENDING | — |
 | 119 | `apps/api/src/storage/storage.service.ts` | ts | 93 | PENDING | — |
 | 120 | `apps/api/src/users/users.controller.ts` | ts | 83 | PENDING | — |
-| 121 | `apps/api/src/users/users.module.ts` | ts | 13 | PENDING | — |
+| 121 | `apps/api/src/users/users.module.ts` | ts | 13 | READ | Registers User and Role entities, UsersController and UsersService; exports UsersService (:145-150). |
 | 122 | `apps/api/src/users/users.service.ts` | ts | 153 | PENDING | — |
 | 123 | `apps/api/test/answer-quality.e2e-spec.ts` | ts | 331 | PENDING | — |
 | 124 | `apps/api/test/auth.e2e-spec.ts` | ts | 298 | PENDING | — |

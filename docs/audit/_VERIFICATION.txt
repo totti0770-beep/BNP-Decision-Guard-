@@ -1,6 +1,6 @@
 ON DISK : 230
-READ    : 33
-MISSING : 197
+READ    : 40
+MISSING : 190
 --- NOT READ ---
 CLAUDE.md
 README.md
@@ -21,11 +21,8 @@ apps/api/src/audit/audit.module.ts
 apps/api/src/audit/audit.service.ts
 apps/api/src/auth/account-security.spec.ts
 apps/api/src/auth/auth.controller.ts
-apps/api/src/auth/auth.module.ts
-apps/api/src/auth/auth.service.ts
 apps/api/src/auth/demo-account-guard.service.spec.ts
 apps/api/src/auth/demo-account-guard.service.ts
-apps/api/src/auth/jwt.strategy.ts
 apps/api/src/chat/chat-diagnostics.spec.ts
 apps/api/src/chat/chat.controller.ts
 apps/api/src/chat/chat.module.ts
@@ -90,9 +87,6 @@ apps/api/src/rag/rerank.service.spec.ts
 apps/api/src/rag/rerank.service.ts
 apps/api/src/rag/retrieval-dimension-mismatch.spec.ts
 apps/api/src/rag/retrieval.service.ts
-apps/api/src/roles/roles.controller.ts
-apps/api/src/roles/roles.module.ts
-apps/api/src/roles/roles.service.ts
 apps/api/src/scripts/create-admin.spec.ts
 apps/api/src/scripts/create-admin.ts
 apps/api/src/scripts/field-eval.ts
@@ -109,7 +103,6 @@ apps/api/src/settings/settings.module.ts
 apps/api/src/storage/storage.module.ts
 apps/api/src/storage/storage.service.ts
 apps/api/src/users/users.controller.ts
-apps/api/src/users/users.module.ts
 apps/api/src/users/users.service.ts
 apps/api/test/answer-quality.e2e-spec.ts
 apps/api/test/auth.e2e-spec.ts

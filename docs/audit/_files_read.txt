@@ -32,3 +32,10 @@ apps/api/src/notifications/notifications.controller.ts
 apps/api/src/common/pagination.ts
 apps/api/test/notifications.e2e-spec.ts
 apps/api/test/pagination.e2e-spec.ts
+apps/api/src/auth/auth.module.ts
+apps/api/src/auth/auth.service.ts
+apps/api/src/auth/jwt.strategy.ts
+apps/api/src/roles/roles.controller.ts
+apps/api/src/roles/roles.module.ts
+apps/api/src/roles/roles.service.ts
+apps/api/src/users/users.module.ts
