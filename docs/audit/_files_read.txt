@@ -19,3 +19,16 @@ packages/shared/src/index.ts
 packages/shared/src/phi.ts
 packages/shared/src/rbac.ts
 packages/shared/tsconfig.json
+apps/api/src/common/decorators.ts
+apps/api/src/common/filters/all-exceptions.filter.ts
+apps/api/src/common/guards/jwt-auth.guard.ts
+apps/api/src/common/guards/permissions.guard.ts
+apps/api/src/common/guards/phi-screen.guard.ts
+apps/api/src/common/interceptors/audit.interceptor.ts
+apps/api/src/common/logging/json-logger.service.ts
+apps/api/src/common/pagination.ts
+apps/api/src/config/data-source.ts
+apps/api/src/notifications/notifications.controller.ts
+apps/api/src/common/pagination.ts
+apps/api/test/notifications.e2e-spec.ts
+apps/api/test/pagination.e2e-spec.ts

@@ -39,6 +39,7 @@ apps/api/src/common/guards/phi-screen.guard.ts
 apps/api/src/common/interceptors/audit.interceptor.ts
 apps/api/src/common/logging/json-logger.service.spec.ts
 apps/api/src/common/logging/json-logger.service.ts
+apps/api/src/common/pagination.ts
 apps/api/src/config/data-source.ts
 apps/api/src/config/env.spec.ts
 apps/api/src/config/env.ts
@@ -125,6 +126,8 @@ apps/api/test/document-lifecycle.e2e-spec.ts
 apps/api/test/field-set.e2e-spec.ts
 apps/api/test/health.e2e-spec.ts
 apps/api/test/inventory.e2e-spec.ts
+apps/api/test/notifications.e2e-spec.ts
+apps/api/test/pagination.e2e-spec.ts
 apps/api/test/phi-screening.e2e-spec.ts
 apps/api/test/rag-integrity.e2e-spec.ts
 apps/api/test/rbac-and-dose.e2e-spec.ts
@@ -203,6 +206,11 @@ apps/web/tsconfig.json
 docker-compose.yml
 docs/api.md
 docs/architecture.md
+docs/audit/00-FILE-INDEX.md
+docs/audit/10-EXECUTIVE-SUMMARY.md
+docs/audit/_files_read.txt
+docs/audit/_inventory_all.txt
+docs/audit/_inventory_tracked.txt
 docs/clinical-validation.md
 docs/database-schema.md
 docs/production-readiness.md

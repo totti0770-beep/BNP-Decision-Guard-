@@ -9,12 +9,12 @@ is left as `—` until the file has actually been read — a role inferred from 
 | # | Path | Type | Lines | Status | Role in project |
 |---|------|------|-------|--------|-----------------|
 | 1 | `.env.example` | example | 120 | READ | Documented environment template, 120 lines, nine sections: Database (:1-6), API/JWT (:8-16), Security incl. CORS, rate limits, body limit, lockout and reset-token lifetime (:18-33), Email (:35-49), the dev reset-token escape hatch (:51-56), demo-credential overrides (:58-64), MinIO/S3 (:66-72), AI/RAG incl. provider switches, EMBEDDING_DIM=384 and RAG_MIN_SIMILARITY=0.25 (:74-103), PHI screening with `PHI_MRN_PATTERN` commented out and `RAG_MAX_PER_DOCUMENT=3` (:105-117), and the web API URL (:119-120). |
-| 2 | `.github/workflows/ci.yml` | yml | 221 | READ | CI, six parallel jobs on push and PR to every branch (:3-7): `security` (npm audit, hard-fail critical :22, non-blocking high :28), `lint` (:30-45), `api` (pgvector service, build, unit tests, migrations, creates `bnp_e2e` via the `pg` client, runs e2e :47-106), `web` (:108-122), `smoke` (docker compose up, health polling, Playwright, screenshot upload, teardown :124-181) and `mobile` (separate `npm ci` in apps/mobile, typecheck, tests, own audit gate :183-221). No `needs:` anywhere. |
+| 2 | `.github/workflows/ci.yml` | yml | 226 | READ | CI, six parallel jobs on push and PR to every branch (:3-7): `security` (npm audit, hard-fail critical :22, non-blocking high :28), `lint` (:30-45), `api` (pgvector service, build, unit tests, migrations, creates `bnp_e2e` via the `pg` client, runs e2e :47-106), `web` (:108-122), `smoke` (docker compose up, health polling, Playwright, screenshot upload, teardown :124-181) and `mobile` (separate `npm ci` in apps/mobile, typecheck, tests, own audit gate :183-221). No `needs:` anywhere. |
 | 3 | `.gitignore` | gitignore | 13 | READ | Root ignore list, 13 entries: build output (`node_modules/`, `dist/`, `build/`, `.next/`, `.expo/`, `coverage/`), `.env` and `.env.local` variants, `apps/api/uploads/` and `*.tsbuildinfo` (:1-13). |
-| 4 | `CLAUDE.md` | md | 242 | PENDING | — |
+| 4 | `CLAUDE.md` | md | 253 | PENDING | — |
 | 5 | `README.md` | md | 508 | PENDING | — |
 | 6 | `REPO-DISCOVERY.md` | md | 2117 | PENDING | — |
-| 7 | `SECURITY.md` | md | 315 | PENDING | — |
+| 7 | `SECURITY.md` | md | 321 | PENDING | — |
 | 8 | `apps/api/.gitignore` | gitignore | 2 | PENDING | — |
 | 9 | `apps/api/eval/README.md` | md | 98 | PENDING | — |
 | 10 | `apps/api/eval/field-set.starter.jsonl` | jsonl | 69 | PENDING | — |
@@ -25,7 +25,7 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 15 | `apps/api/src/app.module.ts` | ts | 67 | PENDING | — |
 | 16 | `apps/api/src/approval/approval.service.spec.ts` | ts | 220 | PENDING | — |
 | 17 | `apps/api/src/approval/approval.service.ts` | ts | 175 | PENDING | — |
-| 18 | `apps/api/src/audit/audit.controller.ts` | ts | 27 | PENDING | — |
+| 18 | `apps/api/src/audit/audit.controller.ts` | ts | 22 | PENDING | — |
 | 19 | `apps/api/src/audit/audit.module.ts` | ts | 14 | PENDING | — |
 | 20 | `apps/api/src/audit/audit.service.ts` | ts | 61 | PENDING | — |
 | 21 | `apps/api/src/auth/account-security.spec.ts` | ts | 318 | PENDING | — |
@@ -36,204 +36,213 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 26 | `apps/api/src/auth/demo-account-guard.service.ts` | ts | 118 | PENDING | — |
 | 27 | `apps/api/src/auth/jwt.strategy.ts` | ts | 37 | PENDING | — |
 | 28 | `apps/api/src/chat/chat-diagnostics.spec.ts` | ts | 67 | PENDING | — |
-| 29 | `apps/api/src/chat/chat.controller.ts` | ts | 76 | PENDING | — |
+| 29 | `apps/api/src/chat/chat.controller.ts` | ts | 73 | PENDING | — |
 | 30 | `apps/api/src/chat/chat.module.ts` | ts | 14 | PENDING | — |
 | 31 | `apps/api/src/chat/chat.service.ts` | ts | 214 | PENDING | — |
-| 32 | `apps/api/src/common/decorators.ts` | ts | 48 | PENDING | — |
+| 32 | `apps/api/src/common/decorators.ts` | ts | 48 | READ | Five exports: `Public()`/`IS_PUBLIC_KEY` (:8-9), `Permissions(...)`/`PERMISSIONS_KEY` (:11-13), `ScreenForPhi(spec)`/`PHI_SCREEN_KEY` with the `PhiScreenSpec` shape (:15-35), the `AuthenticatedUser` interface (:37-43) and the `CurrentUser` param decorator reading `req.user` (:45-48). |
 | 33 | `apps/api/src/common/filters/all-exceptions.filter.ts` | ts | 78 | PENDING | — |
-| 34 | `apps/api/src/common/guards/jwt-auth.guard.ts` | ts | 20 | PENDING | — |
+| 34 | `apps/api/src/common/guards/jwt-auth.guard.ts` | ts | 20 | READ | Extends passport's `AuthGuard('jwt')`; short-circuits to true when `IS_PUBLIC_KEY` is set on the handler or class (:13-17), otherwise delegates (:18). 20 lines, no other behaviour. |
 | 35 | `apps/api/src/common/guards/permissions.guard.spec.ts` | ts | 120 | PENDING | — |
-| 36 | `apps/api/src/common/guards/permissions.guard.ts` | ts | 42 | PENDING | — |
+| 36 | `apps/api/src/common/guards/permissions.guard.ts` | ts | 42 | READ | Reads `PERMISSIONS_KEY` and compares against `user.permissions` (:33-34) — the JWT-derived set, never the database. Passes when public (:16-20) or when no permission is required (:26); throws `ForbiddenException('Not authenticated')` with no user (:31) and names the missing permissions in the message (:36-38). |
 | 37 | `apps/api/src/common/guards/phi-scanner.spec.ts` | ts | 162 | PENDING | — |
 | 38 | `apps/api/src/common/guards/phi-screen.guard.spec.ts` | ts | 254 | PENDING | — |
-| 39 | `apps/api/src/common/guards/phi-screen.guard.ts` | ts | 107 | PENDING | — |
-| 40 | `apps/api/src/common/interceptors/audit.interceptor.ts` | ts | 47 | PENDING | — |
+| 39 | `apps/api/src/common/guards/phi-screen.guard.ts` | ts | 107 | READ | The PHI screen. Reads the route's `@ScreenForPhi` spec (:52-56), screens the named body and query fields with `scanForPhi` (:63-78), skipping non-strings because guards run before the ValidationPipe (:70-73). On a hit it records `SECURITY:PHI_BLOCKED` with route, **categories** and profile — never content (:87-99) — logs categories only (:100-103), and throws `BadRequestException(PHI_REJECTION_MESSAGE_AR)` (:105). The docblock (:19-41) states the structural property: a guard throws before the interceptor chain, so `AuditInterceptor` never runs on a rejected request. |
+| 40 | `apps/api/src/common/interceptors/audit.interceptor.ts` | ts | 47 | READ | Records every mutating request (`POST/PATCH/PUT/DELETE`, :10,23) except `/auth/*`, which the auth service audits itself to avoid recording credentials (:24-25). Writes actor, `HTTP:<method>:<route>`, outcome, duration and `req.params` (:36-45) — **the request body is never included**, which is what makes the PHI guard's claim hold for routes that are screened and for those that are not. |
 | 41 | `apps/api/src/common/logging/json-logger.service.spec.ts` | ts | 70 | PENDING | — |
-| 42 | `apps/api/src/common/logging/json-logger.service.ts` | ts | 82 | PENDING | — |
-| 43 | `apps/api/src/config/data-source.ts` | ts | 46 | PENDING | — |
-| 44 | `apps/api/src/config/env.spec.ts` | ts | 276 | PENDING | — |
-| 45 | `apps/api/src/config/env.ts` | ts | 320 | PENDING | — |
-| 46 | `apps/api/src/documents/documents.controller.ts` | ts | 214 | PENDING | — |
-| 47 | `apps/api/src/documents/documents.module.ts` | ts | 20 | PENDING | — |
-| 48 | `apps/api/src/documents/documents.service.spec.ts` | ts | 94 | PENDING | — |
-| 49 | `apps/api/src/documents/documents.service.ts` | ts | 250 | PENDING | — |
-| 50 | `apps/api/src/documents/inventory.service.spec.ts` | ts | 159 | PENDING | — |
-| 51 | `apps/api/src/documents/inventory.service.ts` | ts | 366 | PENDING | — |
-| 52 | `apps/api/src/dose/dose.controller.ts` | ts | 95 | PENDING | — |
-| 53 | `apps/api/src/dose/dose.module.ts` | ts | 13 | PENDING | — |
-| 54 | `apps/api/src/dose/dose.service.spec.ts` | ts | 108 | PENDING | — |
-| 55 | `apps/api/src/dose/dose.service.ts` | ts | 224 | PENDING | — |
-| 56 | `apps/api/src/entities/ai.entity.ts` | ts | 119 | PENDING | — |
-| 57 | `apps/api/src/entities/document.entity.ts` | ts | 158 | PENDING | — |
-| 58 | `apps/api/src/entities/dose.entity.ts` | ts | 110 | PENDING | — |
-| 59 | `apps/api/src/entities/index.ts` | ts | 46 | PENDING | — |
-| 60 | `apps/api/src/entities/misc.entity.ts` | ts | 86 | PENDING | — |
-| 61 | `apps/api/src/entities/user.entity.ts` | ts | 97 | PENDING | — |
-| 62 | `apps/api/src/eval/field-eval.spec.ts` | ts | 304 | PENDING | — |
-| 63 | `apps/api/src/eval/field-eval.ts` | ts | 422 | PENDING | — |
-| 64 | `apps/api/src/eval/field-set.spec.ts` | ts | 176 | PENDING | — |
-| 65 | `apps/api/src/eval/field-set.ts` | ts | 231 | PENDING | — |
-| 66 | `apps/api/src/health.controller.spec.ts` | ts | 58 | PENDING | — |
-| 67 | `apps/api/src/health.controller.ts` | ts | 63 | PENDING | — |
-| 68 | `apps/api/src/mail/mail.module.ts` | ts | 9 | PENDING | — |
-| 69 | `apps/api/src/mail/mail.service.spec.ts` | ts | 87 | PENDING | — |
-| 70 | `apps/api/src/mail/mail.service.ts` | ts | 135 | PENDING | — |
-| 71 | `apps/api/src/main.ts` | ts | 48 | PENDING | — |
-| 72 | `apps/api/src/migrations/1720000000000-initial-schema.ts` | ts | 258 | PENDING | — |
-| 73 | `apps/api/src/migrations/1720000001000-token-version.ts` | ts | 21 | PENDING | — |
-| 74 | `apps/api/src/migrations/1720000002000-account-security.ts` | ts | 25 | PENDING | — |
-| 75 | `apps/api/src/migrations/1720000003000-embedding-provider.ts` | ts | 35 | PENDING | — |
-| 76 | `apps/api/src/migrations/1720000004000-chunk-uniqueness.ts` | ts | 53 | PENDING | — |
-| 77 | `apps/api/src/notifications/notifications.controller.ts` | ts | 28 | PENDING | — |
-| 78 | `apps/api/src/notifications/notifications.module.ts` | ts | 17 | PENDING | — |
-| 79 | `apps/api/src/notifications/notifications.service.spec.ts` | ts | 308 | PENDING | — |
-| 80 | `apps/api/src/notifications/notifications.service.ts` | ts | 141 | PENDING | — |
-| 81 | `apps/api/src/rag/chunking.service.spec.ts` | ts | 55 | PENDING | — |
-| 82 | `apps/api/src/rag/chunking.service.ts` | ts | 69 | PENDING | — |
-| 83 | `apps/api/src/rag/embedding.service.spec.ts` | ts | 126 | PENDING | — |
-| 84 | `apps/api/src/rag/embedding.service.ts` | ts | 186 | PENDING | — |
-| 85 | `apps/api/src/rag/indexing.service.ts` | ts | 369 | PENDING | — |
-| 86 | `apps/api/src/rag/llm.service.ts` | ts | 165 | PENDING | — |
-| 87 | `apps/api/src/rag/openai-http.spec.ts` | ts | 129 | PENDING | — |
-| 88 | `apps/api/src/rag/openai-http.ts` | ts | 84 | PENDING | — |
-| 89 | `apps/api/src/rag/pdf-extraction.service.spec.ts` | ts | 99 | PENDING | — |
-| 90 | `apps/api/src/rag/pdf-extraction.service.ts` | ts | 65 | PENDING | — |
-| 91 | `apps/api/src/rag/provider-consistency.spec.ts` | ts | 207 | PENDING | — |
-| 92 | `apps/api/src/rag/rag-provider-check.spec.ts` | ts | 233 | PENDING | — |
-| 93 | `apps/api/src/rag/rag-query.service.spec.ts` | ts | 199 | PENDING | — |
-| 94 | `apps/api/src/rag/rag-query.service.ts` | ts | 209 | PENDING | — |
-| 95 | `apps/api/src/rag/rag.controller.ts` | ts | 264 | PENDING | — |
-| 96 | `apps/api/src/rag/rag.module.ts` | ts | 36 | PENDING | — |
-| 97 | `apps/api/src/rag/rerank.service.spec.ts` | ts | 81 | PENDING | — |
-| 98 | `apps/api/src/rag/rerank.service.ts` | ts | 93 | PENDING | — |
-| 99 | `apps/api/src/rag/retrieval-dimension-mismatch.spec.ts` | ts | 67 | PENDING | — |
-| 100 | `apps/api/src/rag/retrieval.service.ts` | ts | 117 | PENDING | — |
-| 101 | `apps/api/src/roles/roles.controller.ts` | ts | 36 | PENDING | — |
-| 102 | `apps/api/src/roles/roles.module.ts` | ts | 13 | PENDING | — |
-| 103 | `apps/api/src/roles/roles.service.ts` | ts | 26 | PENDING | — |
-| 104 | `apps/api/src/scripts/create-admin.spec.ts` | ts | 38 | PENDING | — |
-| 105 | `apps/api/src/scripts/create-admin.ts` | ts | 171 | PENDING | — |
-| 106 | `apps/api/src/scripts/field-eval.ts` | ts | 242 | PENDING | — |
-| 107 | `apps/api/src/scripts/inventory.ts` | ts | 53 | PENDING | — |
-| 108 | `apps/api/src/scripts/migrate.ts` | ts | 17 | PENDING | — |
-| 109 | `apps/api/src/seed/demo-accounts.ts` | ts | 54 | PENDING | — |
-| 110 | `apps/api/src/seed/pdf.ts` | ts | 37 | PENDING | — |
-| 111 | `apps/api/src/seed/refuse-in-production.ts` | ts | 17 | PENDING | — |
-| 112 | `apps/api/src/seed/sample-docs.ts` | ts | 116 | PENDING | — |
-| 113 | `apps/api/src/seed/seed-policy.spec.ts` | ts | 78 | PENDING | — |
-| 114 | `apps/api/src/seed/seed-policy.ts` | ts | 30 | PENDING | — |
-| 115 | `apps/api/src/seed/seed.ts` | ts | 267 | PENDING | — |
-| 116 | `apps/api/src/settings/settings.module.ts` | ts | 81 | PENDING | — |
-| 117 | `apps/api/src/storage/storage.module.ts` | ts | 9 | PENDING | — |
-| 118 | `apps/api/src/storage/storage.service.ts` | ts | 93 | PENDING | — |
-| 119 | `apps/api/src/users/users.controller.ts` | ts | 83 | PENDING | — |
-| 120 | `apps/api/src/users/users.module.ts` | ts | 13 | PENDING | — |
-| 121 | `apps/api/src/users/users.service.ts` | ts | 153 | PENDING | — |
-| 122 | `apps/api/test/answer-quality.e2e-spec.ts` | ts | 331 | PENDING | — |
-| 123 | `apps/api/test/auth.e2e-spec.ts` | ts | 298 | PENDING | — |
-| 124 | `apps/api/test/create-admin.e2e-spec.ts` | ts | 102 | PENDING | — |
-| 125 | `apps/api/test/document-lifecycle.e2e-spec.ts` | ts | 355 | PENDING | — |
-| 126 | `apps/api/test/field-set.e2e-spec.ts` | ts | 146 | PENDING | — |
-| 127 | `apps/api/test/health.e2e-spec.ts` | ts | 28 | PENDING | — |
-| 128 | `apps/api/test/inventory.e2e-spec.ts` | ts | 305 | PENDING | — |
-| 129 | `apps/api/test/phi-screening.e2e-spec.ts` | ts | 373 | PENDING | — |
-| 130 | `apps/api/test/rag-integrity.e2e-spec.ts` | ts | 320 | PENDING | — |
-| 131 | `apps/api/test/rbac-and-dose.e2e-spec.ts` | ts | 326 | PENDING | — |
-| 132 | `apps/api/test/support/demo-corpus.ts` | ts | 53 | PENDING | — |
-| 133 | `apps/api/test/support/e2e-app.ts` | ts | 279 | PENDING | — |
-| 134 | `apps/api/test/support/env.ts` | ts | 42 | PENDING | — |
-| 135 | `apps/api/test/support/gold-set.ts` | ts | 192 | PENDING | — |
-| 136 | `apps/api/tsconfig.build.json` | json | 4 | PENDING | — |
-| 137 | `apps/api/tsconfig.e2e.json` | json | 4 | PENDING | — |
-| 138 | `apps/api/tsconfig.json` | json | 23 | PENDING | — |
-| 139 | `apps/mobile/.gitignore` | gitignore | 1 | PENDING | — |
-| 140 | `apps/mobile/App.tsx` | tsx | 179 | PENDING | — |
-| 141 | `apps/mobile/app.json` | json | 20 | PENDING | — |
-| 142 | `apps/mobile/babel.config.js` | js | 6 | PENDING | — |
-| 143 | `apps/mobile/eas.json` | json | 37 | PENDING | — |
-| 144 | `apps/mobile/jest.config.js` | js | 31 | PENDING | — |
-| 145 | `apps/mobile/package-lock.json` | json | 8627 | GENERATED-SKIPPED | npm lockfile — machine-generated dependency graph; not read line by line. Resolved versions are queried with `npm ls` / `jq` instead (see 06-DEPENDENCIES.md). |
-| 146 | `apps/mobile/package.json` | json | 33 | PENDING | — |
-| 147 | `apps/mobile/src/api.spec.ts` | ts | 348 | PENDING | — |
-| 148 | `apps/mobile/src/api.ts` | ts | 181 | PENDING | — |
-| 149 | `apps/mobile/src/components/BottomNav.tsx` | tsx | 67 | PENDING | — |
-| 150 | `apps/mobile/src/i18n.spec.ts` | ts | 74 | PENDING | — |
-| 151 | `apps/mobile/src/i18n.ts` | ts | 175 | PENDING | — |
-| 152 | `apps/mobile/src/screens/AuditScreen.tsx` | tsx | 163 | PENDING | — |
-| 153 | `apps/mobile/src/screens/ChatScreen.tsx` | tsx | 393 | PENDING | — |
-| 154 | `apps/mobile/src/screens/DoseCalculatorScreen.tsx` | tsx | 201 | PENDING | — |
-| 155 | `apps/mobile/src/screens/HomeScreen.tsx` | tsx | 177 | PENDING | — |
-| 156 | `apps/mobile/src/screens/LoginScreen.tsx` | tsx | 272 | PENDING | — |
-| 157 | `apps/mobile/src/screens/PoliciesScreen.tsx` | tsx | 105 | PENDING | — |
-| 158 | `apps/mobile/src/theme.ts` | ts | 177 | PENDING | — |
-| 159 | `apps/mobile/test/mocks/async-storage.ts` | ts | 45 | PENDING | — |
-| 160 | `apps/mobile/test/mocks/expo-secure-store.ts` | ts | 32 | PENDING | — |
-| 161 | `apps/mobile/tsconfig.json` | json | 14 | PENDING | — |
-| 162 | `apps/mobile/tsconfig.spec.json` | json | 9 | PENDING | — |
-| 163 | `apps/web/e2e-smoke.mjs` | mjs | 401 | PENDING | — |
-| 164 | `apps/web/next-env.d.ts` | ts | 7 | PENDING | — |
-| 165 | `apps/web/next.config.mjs` | mjs | 7 | PENDING | — |
-| 166 | `apps/web/package.json` | json | 28 | PENDING | — |
-| 167 | `apps/web/postcss.config.mjs` | mjs | 6 | PENDING | — |
-| 168 | `apps/web/public/.gitkeep` | gitkeep | 0 | PENDING | — |
-| 169 | `apps/web/src/app/(app)/analytics/page.tsx` | tsx | 216 | PENDING | — |
-| 170 | `apps/web/src/app/(app)/answer-review/page.tsx` | tsx | 235 | PENDING | — |
-| 171 | `apps/web/src/app/(app)/approvals/page.tsx` | tsx | 391 | PENDING | — |
-| 172 | `apps/web/src/app/(app)/assistant/page.tsx` | tsx | 23 | PENDING | — |
-| 173 | `apps/web/src/app/(app)/audit/page.tsx` | tsx | 172 | PENDING | — |
-| 174 | `apps/web/src/app/(app)/cbahi/page.tsx` | tsx | 120 | PENDING | — |
-| 175 | `apps/web/src/app/(app)/dashboard/page.tsx` | tsx | 254 | PENDING | — |
-| 176 | `apps/web/src/app/(app)/dose-calculator/page.tsx` | tsx | 333 | PENDING | — |
-| 177 | `apps/web/src/app/(app)/drug-prep/page.tsx` | tsx | 21 | PENDING | — |
-| 178 | `apps/web/src/app/(app)/layout.tsx` | tsx | 5 | PENDING | — |
-| 179 | `apps/web/src/app/(app)/notifications/page.tsx` | tsx | 101 | PENDING | — |
-| 180 | `apps/web/src/app/(app)/policies/page.tsx` | tsx | 211 | PENDING | — |
-| 181 | `apps/web/src/app/(app)/security/page.tsx` | tsx | 251 | PENDING | — |
-| 182 | `apps/web/src/app/(app)/settings/page.tsx` | tsx | 372 | PENDING | — |
-| 183 | `apps/web/src/app/(app)/upload/page.tsx` | tsx | 159 | PENDING | — |
-| 184 | `apps/web/src/app/(app)/users/page.tsx` | tsx | 291 | PENDING | — |
-| 185 | `apps/web/src/app/globals.css` | css | 164 | PENDING | — |
-| 186 | `apps/web/src/app/layout.tsx` | tsx | 65 | PENDING | — |
-| 187 | `apps/web/src/app/login/forgot/page.tsx` | tsx | 214 | PENDING | — |
-| 188 | `apps/web/src/app/login/page.tsx` | tsx | 173 | PENDING | — |
-| 189 | `apps/web/src/app/page.tsx` | tsx | 13 | PENDING | — |
-| 190 | `apps/web/src/components/assistant-chat.tsx` | tsx | 388 | PENDING | — |
-| 191 | `apps/web/src/components/chat-history.tsx` | tsx | 116 | PENDING | — |
-| 192 | `apps/web/src/components/formula-manager.tsx` | tsx | 335 | PENDING | — |
-| 193 | `apps/web/src/components/language-toggle.tsx` | tsx | 34 | PENDING | — |
-| 194 | `apps/web/src/components/shell.tsx` | tsx | 307 | PENDING | — |
-| 195 | `apps/web/src/components/theme-toggle.tsx` | tsx | 55 | PENDING | — |
-| 196 | `apps/web/src/components/ui/index.tsx` | tsx | 571 | PENDING | — |
-| 197 | `apps/web/src/lib/api.ts` | ts | 92 | PENDING | — |
-| 198 | `apps/web/src/lib/async.ts` | ts | 89 | PENDING | — |
-| 199 | `apps/web/src/lib/auth.tsx` | tsx | 62 | PENDING | — |
-| 200 | `apps/web/src/lib/i18n.ts` | ts | 899 | PENDING | — |
-| 201 | `apps/web/src/lib/language.tsx` | tsx | 106 | PENDING | — |
-| 202 | `apps/web/tailwind.config.ts` | ts | 66 | PENDING | — |
-| 203 | `apps/web/tsconfig.json` | json | 30 | PENDING | — |
-| 204 | `docker-compose.yml` | yml | 133 | READ | Local full-stack definition, five services: `postgres` (`pgvector/pgvector:pg16`, initdb mount, pg_isready healthcheck, :4-20), `minio` (:22-38), `minio-init` (`minio/mc`, runs `mc mb`, :40-53), `api` (built from Dockerfile.api, 30 env vars, node-based /health/ready healthcheck with 60s start_period, :55-116) and `web` (build ARG `NEXT_PUBLIC_API_URL`, :118-129). `NODE_ENV` defaults to `development` here deliberately (:66-71). |
-| 205 | `docs/api.md` | md | 202 | PENDING | — |
-| 206 | `docs/architecture.md` | md | 105 | PENDING | — |
-| 207 | `docs/clinical-validation.md` | md | 241 | PENDING | — |
-| 208 | `docs/database-schema.md` | md | 63 | PENDING | — |
-| 209 | `docs/production-readiness.md` | md | 494 | PENDING | — |
-| 210 | `eslint.config.js` | js | 94 | READ | ESLint 9 flat config for the whole monorepo. Ignores `apps/mobile/**` and build output (:21-28); enables `js.configs.recommended` + `tseslint.configs.recommended` (:31-32); sets `no-unused-vars` to error with `^_` exemptions and `no-explicit-any` to warn (:39-46); adds react-hooks rules for `apps/web/**` (:52-58); relaxes three rules for spec files (:66-73); and grants Node + `document`/`window` globals to `**/*.mjs` because `page.evaluate` bodies run in the browser (:82-93). |
-| 211 | `infra/docker/Dockerfile.api` | api | 64 | READ | Two-stage API image. Build on `node:22-alpine` installs only the shared+api workspaces (:2-10); runtime copies `dist` and `node_modules`, sets `NODE_ENV=production`, exposes 4000 (:13-23). The CMD (:64) chains migrate → optional create-admin (fatal on failure) → optional seed (gated on NODE_ENV, non-fatal) → `node dist/main.js`; the 40-line comment above it records the 2026-08-22 incident where a 9-character ADMIN_PASSWORD left zero active users (:24-63). |
-| 212 | `infra/docker/Dockerfile.web` | web | 24 | READ | Two-stage web image. Build stage bakes `NEXT_PUBLIC_API_URL` as an ARG into the bundle (:4-5) — the reason changing it needs a rebuild; runtime copies the Next standalone output and serves `apps/web/server.js` on 3000 (:15-24). |
-| 213 | `infra/docker/initdb/01-pgvector.sql` | sql | 2 | READ | Two statements run by the Postgres container on first init: `CREATE EXTENSION IF NOT EXISTS vector` and `\"uuid-ossp\"` (:1-2). |
-| 214 | `infra/k8s/README.md` | md | 71 | READ | Operator guide for the k8s manifests: a file table (:6-11), the three-origins failure mode (:13-25), five pre-apply steps (:27-42), a nine-row table of what the manifests deliberately do not do — images, secret management, Postgres, object storage, TLS, the in-process expiry cron under replicas:2, backups, observability, NetworkPolicy/HPA/PDB (:44-60) — and the apply order (:62-71). |
-| 215 | `infra/k8s/api-deployment.yaml` | yaml | 67 | READ | Reference API Deployment (2 replicas) + Service. `envFrom` the `bnp-secrets` Secret (:18-19); sets NODE_ENV=production, CORS_ORIGINS, MAIL_PROVIDER=smtp, mock LLM/embedding providers and SEED_ON_BOOT=false (:20-39); readinessProbe on `/health/ready` and livenessProbe on `/health`, deliberately different endpoints (:40-54); Service maps port 80 to 4000 (:59-67). |
-| 216 | `infra/k8s/ingress.yaml` | yaml | 66 | READ | Two Ingress objects — web on `app.your-hospital.example` (:17-39) and API on `api.your-hospital.example` (:41-66) — with cert-manager annotations, a 1m body cap for web and 32m plus a 120s read timeout for the API because ingestion runs inside the request (:47-51). The header states the three origins that must agree (:7-13). |
-| 217 | `infra/k8s/secrets.example.yaml` | yaml | 24 | READ | Opaque Secret template with 16 `stringData` keys — Postgres, both JWT secrets, S3, OPENAI_API_KEY and the four MAIL_* values — every sensitive one set to the literal `REPLACE_ME` (:6-24). No real credential is present. |
-| 218 | `infra/k8s/web-deployment.yaml` | yaml | 41 | READ | Reference web Deployment (2 replicas) + Service, both probes on `/login` because it is statically prerendered and does not call the API (:18-28); Service maps 80 to 3000 (:33-41). |
-| 219 | `infra/railway/README.md` | md | 59 | READ | Documents the actual live deployment: project `bnp-decisionguard`, four services with build sources, domains and healthcheck paths (:26-33); why the config is documented rather than committed as `railway.json` (:11-24); the env-var names per service (:35-46); and two known gaps — `openai` providers rather than `mock`, and single replica/region (:53-59). |
-| 220 | `package-lock.json` | json | 11272 | GENERATED-SKIPPED | npm lockfile — machine-generated dependency graph; not read line by line. Resolved versions are queried with `npm ls` / `jq` instead (see 06-DEPENDENCIES.md). |
-| 221 | `package.json` | json | 42 | READ | Monorepo root manifest. Declares npm workspaces `packages/shared`, `apps/api`, `apps/web` (:6-10) — `apps/mobile` is absent, so it is not a workspace. 14 scripts (:11-25), `engines.node >=20` (:26-28), five `overrides` pinning lodash/multer/file-type/@nestjs (:29-35), and four ESLint devDependencies (:36-41). |
-| 222 | `packages/shared/package.json` | json | 13 | READ | Manifest for `@bnp/shared`: private, `main`/`types` point at `dist/` (:5-6) — the reason api and web fail until `build:shared` runs. One script (`tsc -p tsconfig.json`, :8) and one devDependency, typescript ^5.5.4 (:10-12). No runtime dependencies. |
-| 223 | `packages/shared/src/constants.ts` | ts | 83 | READ | The clinical contract plus seven enums. Three verbatim Arabic strings — `REFUSAL_MESSAGE_AR` (:5-6), `DOSE_SAFETY_WARNING_AR` (:8-9) and `PHI_REJECTION_MESSAGE_AR` (:18-19) — then `PLATFORM_NAME` (:21) and the enums `DocumentCategory` 5 values (:22-28), `DocumentStatus` 8 (:30-39), `ApprovalAction` 7 (:41-49), `ConfidenceLevel` 4 (:51-56), `AssistantType` 3 (:58-62), `DoseFormulaStatus` 3 (:64-68), `DoseFormulaType` 3 (:70-74) and `DoseRoute` 6 (:76-83). |
-| 224 | `packages/shared/src/index.ts` | ts | 11 | READ | Barrel re-exporting `./constants`, `./phi` and `./rbac` (:1-3). The comment (:5-11) records that a former `types.ts` of eight DTO interfaces was deleted after a sweep found zero consumers. |
-| 225 | `packages/shared/src/phi.ts` | ts | 159 | READ | Pure PHI scanner with no DB, request or logger. Exports `PhiCategory` 5 values (:16-27) and `PhiProfile` 2 (:44-47); `METADATA_CATEGORIES` limits the metadata profile to NATIONAL_ID/PHONE/MRN (:49-53). Four built-in patterns: NATIONAL_ID ten digits starting 1 or 2 (:68), DATE_OF_BIRTH full numeric date either order (:75-76), PHONE Saudi mobile in three forms (:79), IDENTIFYING_CONTEXT Arabic and English phrases each needing a trailing value (:98-99). `foldDigits` maps Arabic-Indic and Extended Arabic-Indic digits to ASCII before matching (:114-120). `scanForPhi(text, options)` returns every matching category and never any part of the text (:139-159); the MRN pattern runs only when supplied (:153-156). |
-| 226 | `packages/shared/src/rbac.ts` | ts | 141 | READ | The RBAC matrix, single source of truth. `RoleName` 7 roles (:1-9); `Permission` 22 values across users/roles, documents, AI, dose, governance (:11-42) with a comment explaining why no ROLES_MANAGE exists (:16-18); `CLINICAL_READ` bundle of 5 (:46-52); `ROLE_PERMISSIONS` mapping every role (:69-122) — SUPER_ADMIN gets all, NURSE_USER exactly CLINICAL_READ (:115), AUDITOR 4 read permissions (:116-121); `ROLE_DESCRIPTIONS` (:124-132); and `permissionsForRoles(roles)` which unions via a Set and silently ignores unknown roles (:134-141). |
-| 227 | `packages/shared/tsconfig.json` | json | 13 | READ | TypeScript config for the shared package: target ES2021, commonjs, `declaration: true`, `outDir: dist`, `rootDir: src`, `strict: true` (:2-11), including only `src` (:12). |
+| 42 | `apps/api/src/common/logging/json-logger.service.ts` | ts | 82 | READ | One JSON object per line; error/fatal to stderr, everything else to stdout (:148-149). Mirrors Nest's own convention of passing the bound context as the last optional param and an undefined stack placeholder before it (:127-137), so every existing `new Logger(X)` call site works unchanged. Installed once via `app.useLogger()`. |
+| 43 | `apps/api/src/common/pagination.ts` | ts | 23 | READ | The shared `PAGE_INT` pipe for every limit/offset parameter. Added by this audit; see the fix commit 68f9511. |
+| 44 | `apps/api/src/config/data-source.ts` | ts | 46 | READ | TypeORM options shared by the Nest app and the standalone migrate script. Credentials come from `loadEnv()` (:25) — the comment (:11-23) records why: the container runs migrate.js before main.js, so this was the one entrypoint touching production secrets without the fail-fast. Migrations are listed explicitly (:34-40), `synchronize: false` (:41). |
+| 45 | `apps/api/src/config/env.spec.ts` | ts | 342 | PENDING | — |
+| 46 | `apps/api/src/config/env.ts` | ts | 344 | PENDING | — |
+| 47 | `apps/api/src/documents/documents.controller.ts` | ts | 209 | PENDING | — |
+| 48 | `apps/api/src/documents/documents.module.ts` | ts | 20 | PENDING | — |
+| 49 | `apps/api/src/documents/documents.service.spec.ts` | ts | 94 | PENDING | — |
+| 50 | `apps/api/src/documents/documents.service.ts` | ts | 250 | PENDING | — |
+| 51 | `apps/api/src/documents/inventory.service.spec.ts` | ts | 159 | PENDING | — |
+| 52 | `apps/api/src/documents/inventory.service.ts` | ts | 366 | PENDING | — |
+| 53 | `apps/api/src/dose/dose.controller.ts` | ts | 95 | PENDING | — |
+| 54 | `apps/api/src/dose/dose.module.ts` | ts | 13 | PENDING | — |
+| 55 | `apps/api/src/dose/dose.service.spec.ts` | ts | 108 | PENDING | — |
+| 56 | `apps/api/src/dose/dose.service.ts` | ts | 224 | PENDING | — |
+| 57 | `apps/api/src/entities/ai.entity.ts` | ts | 119 | PENDING | — |
+| 58 | `apps/api/src/entities/document.entity.ts` | ts | 158 | PENDING | — |
+| 59 | `apps/api/src/entities/dose.entity.ts` | ts | 110 | PENDING | — |
+| 60 | `apps/api/src/entities/index.ts` | ts | 46 | PENDING | — |
+| 61 | `apps/api/src/entities/misc.entity.ts` | ts | 86 | PENDING | — |
+| 62 | `apps/api/src/entities/user.entity.ts` | ts | 97 | PENDING | — |
+| 63 | `apps/api/src/eval/field-eval.spec.ts` | ts | 304 | PENDING | — |
+| 64 | `apps/api/src/eval/field-eval.ts` | ts | 422 | PENDING | — |
+| 65 | `apps/api/src/eval/field-set.spec.ts` | ts | 176 | PENDING | — |
+| 66 | `apps/api/src/eval/field-set.ts` | ts | 231 | PENDING | — |
+| 67 | `apps/api/src/health.controller.spec.ts` | ts | 58 | PENDING | — |
+| 68 | `apps/api/src/health.controller.ts` | ts | 63 | PENDING | — |
+| 69 | `apps/api/src/mail/mail.module.ts` | ts | 9 | PENDING | — |
+| 70 | `apps/api/src/mail/mail.service.spec.ts` | ts | 87 | PENDING | — |
+| 71 | `apps/api/src/mail/mail.service.ts` | ts | 135 | PENDING | — |
+| 72 | `apps/api/src/main.ts` | ts | 48 | PENDING | — |
+| 73 | `apps/api/src/migrations/1720000000000-initial-schema.ts` | ts | 258 | PENDING | — |
+| 74 | `apps/api/src/migrations/1720000001000-token-version.ts` | ts | 21 | PENDING | — |
+| 75 | `apps/api/src/migrations/1720000002000-account-security.ts` | ts | 25 | PENDING | — |
+| 76 | `apps/api/src/migrations/1720000003000-embedding-provider.ts` | ts | 35 | PENDING | — |
+| 77 | `apps/api/src/migrations/1720000004000-chunk-uniqueness.ts` | ts | 53 | PENDING | — |
+| 78 | `apps/api/src/notifications/notifications.controller.ts` | ts | 28 | READ | Two routes, both `@Permissions(NOTIFICATIONS_READ)`: `GET /notifications` delegating to `listForUser(user.userId)` (:14-18) and `POST /notifications/:id/read` with `ParseUUIDPipe`, scoped by the caller's id (:20-27). |
+| 79 | `apps/api/src/notifications/notifications.module.ts` | ts | 17 | PENDING | — |
+| 80 | `apps/api/src/notifications/notifications.service.spec.ts` | ts | 308 | PENDING | — |
+| 81 | `apps/api/src/notifications/notifications.service.ts` | ts | 154 | PENDING | — |
+| 82 | `apps/api/src/rag/chunking.service.spec.ts` | ts | 55 | PENDING | — |
+| 83 | `apps/api/src/rag/chunking.service.ts` | ts | 69 | PENDING | — |
+| 84 | `apps/api/src/rag/embedding.service.spec.ts` | ts | 126 | PENDING | — |
+| 85 | `apps/api/src/rag/embedding.service.ts` | ts | 186 | PENDING | — |
+| 86 | `apps/api/src/rag/indexing.service.ts` | ts | 369 | PENDING | — |
+| 87 | `apps/api/src/rag/llm.service.ts` | ts | 165 | PENDING | — |
+| 88 | `apps/api/src/rag/openai-http.spec.ts` | ts | 129 | PENDING | — |
+| 89 | `apps/api/src/rag/openai-http.ts` | ts | 84 | PENDING | — |
+| 90 | `apps/api/src/rag/pdf-extraction.service.spec.ts` | ts | 99 | PENDING | — |
+| 91 | `apps/api/src/rag/pdf-extraction.service.ts` | ts | 65 | PENDING | — |
+| 92 | `apps/api/src/rag/provider-consistency.spec.ts` | ts | 207 | PENDING | — |
+| 93 | `apps/api/src/rag/rag-provider-check.spec.ts` | ts | 233 | PENDING | — |
+| 94 | `apps/api/src/rag/rag-query.service.spec.ts` | ts | 199 | PENDING | — |
+| 95 | `apps/api/src/rag/rag-query.service.ts` | ts | 209 | PENDING | — |
+| 96 | `apps/api/src/rag/rag.controller.ts` | ts | 264 | PENDING | — |
+| 97 | `apps/api/src/rag/rag.module.ts` | ts | 36 | PENDING | — |
+| 98 | `apps/api/src/rag/rerank.service.spec.ts` | ts | 81 | PENDING | — |
+| 99 | `apps/api/src/rag/rerank.service.ts` | ts | 93 | PENDING | — |
+| 100 | `apps/api/src/rag/retrieval-dimension-mismatch.spec.ts` | ts | 67 | PENDING | — |
+| 101 | `apps/api/src/rag/retrieval.service.ts` | ts | 117 | PENDING | — |
+| 102 | `apps/api/src/roles/roles.controller.ts` | ts | 36 | PENDING | — |
+| 103 | `apps/api/src/roles/roles.module.ts` | ts | 13 | PENDING | — |
+| 104 | `apps/api/src/roles/roles.service.ts` | ts | 26 | PENDING | — |
+| 105 | `apps/api/src/scripts/create-admin.spec.ts` | ts | 38 | PENDING | — |
+| 106 | `apps/api/src/scripts/create-admin.ts` | ts | 171 | PENDING | — |
+| 107 | `apps/api/src/scripts/field-eval.ts` | ts | 242 | PENDING | — |
+| 108 | `apps/api/src/scripts/inventory.ts` | ts | 53 | PENDING | — |
+| 109 | `apps/api/src/scripts/migrate.ts` | ts | 17 | PENDING | — |
+| 110 | `apps/api/src/seed/demo-accounts.ts` | ts | 54 | PENDING | — |
+| 111 | `apps/api/src/seed/pdf.ts` | ts | 37 | PENDING | — |
+| 112 | `apps/api/src/seed/refuse-in-production.ts` | ts | 17 | PENDING | — |
+| 113 | `apps/api/src/seed/sample-docs.ts` | ts | 116 | PENDING | — |
+| 114 | `apps/api/src/seed/seed-policy.spec.ts` | ts | 78 | PENDING | — |
+| 115 | `apps/api/src/seed/seed-policy.ts` | ts | 30 | PENDING | — |
+| 116 | `apps/api/src/seed/seed.ts` | ts | 267 | PENDING | — |
+| 117 | `apps/api/src/settings/settings.module.ts` | ts | 81 | PENDING | — |
+| 118 | `apps/api/src/storage/storage.module.ts` | ts | 9 | PENDING | — |
+| 119 | `apps/api/src/storage/storage.service.ts` | ts | 93 | PENDING | — |
+| 120 | `apps/api/src/users/users.controller.ts` | ts | 83 | PENDING | — |
+| 121 | `apps/api/src/users/users.module.ts` | ts | 13 | PENDING | — |
+| 122 | `apps/api/src/users/users.service.ts` | ts | 153 | PENDING | — |
+| 123 | `apps/api/test/answer-quality.e2e-spec.ts` | ts | 331 | PENDING | — |
+| 124 | `apps/api/test/auth.e2e-spec.ts` | ts | 298 | PENDING | — |
+| 125 | `apps/api/test/create-admin.e2e-spec.ts` | ts | 102 | PENDING | — |
+| 126 | `apps/api/test/document-lifecycle.e2e-spec.ts` | ts | 355 | PENDING | — |
+| 127 | `apps/api/test/field-set.e2e-spec.ts` | ts | 146 | PENDING | — |
+| 128 | `apps/api/test/health.e2e-spec.ts` | ts | 28 | PENDING | — |
+| 129 | `apps/api/test/inventory.e2e-spec.ts` | ts | 305 | PENDING | — |
+| 130 | `apps/api/test/notifications.e2e-spec.ts` | ts | 117 | READ | Four cases pinning who may read a notification, against real Postgres. Added by this audit (93d82b1) — three of the four failed before the IsNull fix. |
+| 131 | `apps/api/test/pagination.e2e-spec.ts` | ts | 84 | READ | Sixteen cases pinning 400-not-500 on malformed limit/offset, absence, well-formed values, and the absence of an ERROR:UNHANDLED row. Added by this audit (68f9511). |
+| 132 | `apps/api/test/phi-screening.e2e-spec.ts` | ts | 373 | PENDING | — |
+| 133 | `apps/api/test/rag-integrity.e2e-spec.ts` | ts | 320 | PENDING | — |
+| 134 | `apps/api/test/rbac-and-dose.e2e-spec.ts` | ts | 326 | PENDING | — |
+| 135 | `apps/api/test/support/demo-corpus.ts` | ts | 53 | PENDING | — |
+| 136 | `apps/api/test/support/e2e-app.ts` | ts | 279 | PENDING | — |
+| 137 | `apps/api/test/support/env.ts` | ts | 42 | PENDING | — |
+| 138 | `apps/api/test/support/gold-set.ts` | ts | 192 | PENDING | — |
+| 139 | `apps/api/tsconfig.build.json` | json | 4 | PENDING | — |
+| 140 | `apps/api/tsconfig.e2e.json` | json | 4 | PENDING | — |
+| 141 | `apps/api/tsconfig.json` | json | 23 | PENDING | — |
+| 142 | `apps/mobile/.gitignore` | gitignore | 1 | PENDING | — |
+| 143 | `apps/mobile/App.tsx` | tsx | 179 | PENDING | — |
+| 144 | `apps/mobile/app.json` | json | 20 | PENDING | — |
+| 145 | `apps/mobile/babel.config.js` | js | 6 | PENDING | — |
+| 146 | `apps/mobile/eas.json` | json | 37 | PENDING | — |
+| 147 | `apps/mobile/jest.config.js` | js | 31 | PENDING | — |
+| 148 | `apps/mobile/package-lock.json` | json | 8627 | GENERATED-SKIPPED | npm lockfile — machine-generated dependency graph; not read line by line. Resolved versions are queried with `npm ls` / `jq` instead (see 06-DEPENDENCIES.md). |
+| 149 | `apps/mobile/package.json` | json | 33 | PENDING | — |
+| 150 | `apps/mobile/src/api.spec.ts` | ts | 348 | PENDING | — |
+| 151 | `apps/mobile/src/api.ts` | ts | 181 | PENDING | — |
+| 152 | `apps/mobile/src/components/BottomNav.tsx` | tsx | 67 | PENDING | — |
+| 153 | `apps/mobile/src/i18n.spec.ts` | ts | 74 | PENDING | — |
+| 154 | `apps/mobile/src/i18n.ts` | ts | 175 | PENDING | — |
+| 155 | `apps/mobile/src/screens/AuditScreen.tsx` | tsx | 163 | PENDING | — |
+| 156 | `apps/mobile/src/screens/ChatScreen.tsx` | tsx | 393 | PENDING | — |
+| 157 | `apps/mobile/src/screens/DoseCalculatorScreen.tsx` | tsx | 201 | PENDING | — |
+| 158 | `apps/mobile/src/screens/HomeScreen.tsx` | tsx | 177 | PENDING | — |
+| 159 | `apps/mobile/src/screens/LoginScreen.tsx` | tsx | 272 | PENDING | — |
+| 160 | `apps/mobile/src/screens/PoliciesScreen.tsx` | tsx | 105 | PENDING | — |
+| 161 | `apps/mobile/src/theme.ts` | ts | 177 | PENDING | — |
+| 162 | `apps/mobile/test/mocks/async-storage.ts` | ts | 45 | PENDING | — |
+| 163 | `apps/mobile/test/mocks/expo-secure-store.ts` | ts | 32 | PENDING | — |
+| 164 | `apps/mobile/tsconfig.json` | json | 14 | PENDING | — |
+| 165 | `apps/mobile/tsconfig.spec.json` | json | 9 | PENDING | — |
+| 166 | `apps/web/e2e-smoke.mjs` | mjs | 401 | PENDING | — |
+| 167 | `apps/web/next-env.d.ts` | ts | 7 | PENDING | — |
+| 168 | `apps/web/next.config.mjs` | mjs | 7 | PENDING | — |
+| 169 | `apps/web/package.json` | json | 28 | PENDING | — |
+| 170 | `apps/web/postcss.config.mjs` | mjs | 6 | PENDING | — |
+| 171 | `apps/web/public/.gitkeep` | gitkeep | 0 | PENDING | — |
+| 172 | `apps/web/src/app/(app)/analytics/page.tsx` | tsx | 216 | PENDING | — |
+| 173 | `apps/web/src/app/(app)/answer-review/page.tsx` | tsx | 235 | PENDING | — |
+| 174 | `apps/web/src/app/(app)/approvals/page.tsx` | tsx | 391 | PENDING | — |
+| 175 | `apps/web/src/app/(app)/assistant/page.tsx` | tsx | 23 | PENDING | — |
+| 176 | `apps/web/src/app/(app)/audit/page.tsx` | tsx | 172 | PENDING | — |
+| 177 | `apps/web/src/app/(app)/cbahi/page.tsx` | tsx | 120 | PENDING | — |
+| 178 | `apps/web/src/app/(app)/dashboard/page.tsx` | tsx | 254 | PENDING | — |
+| 179 | `apps/web/src/app/(app)/dose-calculator/page.tsx` | tsx | 333 | PENDING | — |
+| 180 | `apps/web/src/app/(app)/drug-prep/page.tsx` | tsx | 21 | PENDING | — |
+| 181 | `apps/web/src/app/(app)/layout.tsx` | tsx | 5 | PENDING | — |
+| 182 | `apps/web/src/app/(app)/notifications/page.tsx` | tsx | 101 | PENDING | — |
+| 183 | `apps/web/src/app/(app)/policies/page.tsx` | tsx | 211 | PENDING | — |
+| 184 | `apps/web/src/app/(app)/security/page.tsx` | tsx | 251 | PENDING | — |
+| 185 | `apps/web/src/app/(app)/settings/page.tsx` | tsx | 372 | PENDING | — |
+| 186 | `apps/web/src/app/(app)/upload/page.tsx` | tsx | 159 | PENDING | — |
+| 187 | `apps/web/src/app/(app)/users/page.tsx` | tsx | 291 | PENDING | — |
+| 188 | `apps/web/src/app/globals.css` | css | 164 | PENDING | — |
+| 189 | `apps/web/src/app/layout.tsx` | tsx | 65 | PENDING | — |
+| 190 | `apps/web/src/app/login/forgot/page.tsx` | tsx | 214 | PENDING | — |
+| 191 | `apps/web/src/app/login/page.tsx` | tsx | 173 | PENDING | — |
+| 192 | `apps/web/src/app/page.tsx` | tsx | 13 | PENDING | — |
+| 193 | `apps/web/src/components/assistant-chat.tsx` | tsx | 388 | PENDING | — |
+| 194 | `apps/web/src/components/chat-history.tsx` | tsx | 116 | PENDING | — |
+| 195 | `apps/web/src/components/formula-manager.tsx` | tsx | 335 | PENDING | — |
+| 196 | `apps/web/src/components/language-toggle.tsx` | tsx | 34 | PENDING | — |
+| 197 | `apps/web/src/components/shell.tsx` | tsx | 307 | PENDING | — |
+| 198 | `apps/web/src/components/theme-toggle.tsx` | tsx | 55 | PENDING | — |
+| 199 | `apps/web/src/components/ui/index.tsx` | tsx | 571 | PENDING | — |
+| 200 | `apps/web/src/lib/api.ts` | ts | 92 | PENDING | — |
+| 201 | `apps/web/src/lib/async.ts` | ts | 89 | PENDING | — |
+| 202 | `apps/web/src/lib/auth.tsx` | tsx | 62 | PENDING | — |
+| 203 | `apps/web/src/lib/i18n.ts` | ts | 899 | PENDING | — |
+| 204 | `apps/web/src/lib/language.tsx` | tsx | 106 | PENDING | — |
+| 205 | `apps/web/tailwind.config.ts` | ts | 66 | PENDING | — |
+| 206 | `apps/web/tsconfig.json` | json | 30 | PENDING | — |
+| 207 | `docker-compose.yml` | yml | 137 | READ | Local full-stack definition, five services: `postgres` (`pgvector/pgvector:pg16`, initdb mount, pg_isready healthcheck, :4-20), `minio` (:22-38), `minio-init` (`minio/mc`, runs `mc mb`, :40-53), `api` (built from Dockerfile.api, 30 env vars, node-based /health/ready healthcheck with 60s start_period, :55-116) and `web` (build ARG `NEXT_PUBLIC_API_URL`, :118-129). `NODE_ENV` defaults to `development` here deliberately (:66-71). |
+| 208 | `docs/api.md` | md | 202 | PENDING | — |
+| 209 | `docs/architecture.md` | md | 105 | PENDING | — |
+| 210 | `docs/clinical-validation.md` | md | 241 | PENDING | — |
+| 211 | `docs/database-schema.md` | md | 63 | PENDING | — |
+| 212 | `docs/production-readiness.md` | md | 494 | PENDING | — |
+| 213 | `eslint.config.js` | js | 94 | READ | ESLint 9 flat config for the whole monorepo. Ignores `apps/mobile/**` and build output (:21-28); enables `js.configs.recommended` + `tseslint.configs.recommended` (:31-32); sets `no-unused-vars` to error with `^_` exemptions and `no-explicit-any` to warn (:39-46); adds react-hooks rules for `apps/web/**` (:52-58); relaxes three rules for spec files (:66-73); and grants Node + `document`/`window` globals to `**/*.mjs` because `page.evaluate` bodies run in the browser (:82-93). |
+| 214 | `infra/docker/Dockerfile.api` | api | 64 | READ | Two-stage API image. Build on `node:22-alpine` installs only the shared+api workspaces (:2-10); runtime copies `dist` and `node_modules`, sets `NODE_ENV=production`, exposes 4000 (:13-23). The CMD (:64) chains migrate → optional create-admin (fatal on failure) → optional seed (gated on NODE_ENV, non-fatal) → `node dist/main.js`; the 40-line comment above it records the 2026-08-22 incident where a 9-character ADMIN_PASSWORD left zero active users (:24-63). |
+| 215 | `infra/docker/Dockerfile.web` | web | 24 | READ | Two-stage web image. Build stage bakes `NEXT_PUBLIC_API_URL` as an ARG into the bundle (:4-5) — the reason changing it needs a rebuild; runtime copies the Next standalone output and serves `apps/web/server.js` on 3000 (:15-24). |
+| 216 | `infra/docker/initdb/01-pgvector.sql` | sql | 2 | READ | Two statements run by the Postgres container on first init: `CREATE EXTENSION IF NOT EXISTS vector` and `\"uuid-ossp\"` (:1-2). |
+| 217 | `infra/k8s/README.md` | md | 78 | READ | Operator guide for the k8s manifests: a file table (:6-11), the three-origins failure mode (:13-25), five pre-apply steps (:27-42), a nine-row table of what the manifests deliberately do not do — images, secret management, Postgres, object storage, TLS, the in-process expiry cron under replicas:2, backups, observability, NetworkPolicy/HPA/PDB (:44-60) — and the apply order (:62-71). |
+| 218 | `infra/k8s/api-deployment.yaml` | yaml | 79 | READ | Reference API Deployment (2 replicas) + Service. `envFrom` the `bnp-secrets` Secret (:18-19); sets NODE_ENV=production, CORS_ORIGINS, MAIL_PROVIDER=smtp, mock LLM/embedding providers and SEED_ON_BOOT=false (:20-39); readinessProbe on `/health/ready` and livenessProbe on `/health`, deliberately different endpoints (:40-54); Service maps port 80 to 4000 (:59-67). |
+| 219 | `infra/k8s/ingress.yaml` | yaml | 66 | READ | Two Ingress objects — web on `app.your-hospital.example` (:17-39) and API on `api.your-hospital.example` (:41-66) — with cert-manager annotations, a 1m body cap for web and 32m plus a 120s read timeout for the API because ingestion runs inside the request (:47-51). The header states the three origins that must agree (:7-13). |
+| 220 | `infra/k8s/secrets.example.yaml` | yaml | 27 | READ | Opaque Secret template with 16 `stringData` keys — Postgres, both JWT secrets, S3, OPENAI_API_KEY and the four MAIL_* values — every sensitive one set to the literal `REPLACE_ME` (:6-24). No real credential is present. |
+| 221 | `infra/k8s/web-deployment.yaml` | yaml | 41 | READ | Reference web Deployment (2 replicas) + Service, both probes on `/login` because it is statically prerendered and does not call the API (:18-28); Service maps 80 to 3000 (:33-41). |
+| 222 | `infra/railway/README.md` | md | 59 | READ | Documents the actual live deployment: project `bnp-decisionguard`, four services with build sources, domains and healthcheck paths (:26-33); why the config is documented rather than committed as `railway.json` (:11-24); the env-var names per service (:35-46); and two known gaps — `openai` providers rather than `mock`, and single replica/region (:53-59). |
+| 223 | `package-lock.json` | json | 11272 | GENERATED-SKIPPED | npm lockfile — machine-generated dependency graph; not read line by line. Resolved versions are queried with `npm ls` / `jq` instead (see 06-DEPENDENCIES.md). |
+| 224 | `package.json` | json | 42 | READ | Monorepo root manifest. Declares npm workspaces `packages/shared`, `apps/api`, `apps/web` (:6-10) — `apps/mobile` is absent, so it is not a workspace. 14 scripts (:11-25), `engines.node >=20` (:26-28), five `overrides` pinning lodash/multer/file-type/@nestjs (:29-35), and four ESLint devDependencies (:36-41). |
+| 225 | `packages/shared/package.json` | json | 13 | READ | Manifest for `@bnp/shared`: private, `main`/`types` point at `dist/` (:5-6) — the reason api and web fail until `build:shared` runs. One script (`tsc -p tsconfig.json`, :8) and one devDependency, typescript ^5.5.4 (:10-12). No runtime dependencies. |
+| 226 | `packages/shared/src/constants.ts` | ts | 83 | READ | The clinical contract plus seven enums. Three verbatim Arabic strings — `REFUSAL_MESSAGE_AR` (:5-6), `DOSE_SAFETY_WARNING_AR` (:8-9) and `PHI_REJECTION_MESSAGE_AR` (:18-19) — then `PLATFORM_NAME` (:21) and the enums `DocumentCategory` 5 values (:22-28), `DocumentStatus` 8 (:30-39), `ApprovalAction` 7 (:41-49), `ConfidenceLevel` 4 (:51-56), `AssistantType` 3 (:58-62), `DoseFormulaStatus` 3 (:64-68), `DoseFormulaType` 3 (:70-74) and `DoseRoute` 6 (:76-83). |
+| 227 | `packages/shared/src/index.ts` | ts | 11 | READ | Barrel re-exporting `./constants`, `./phi` and `./rbac` (:1-3). The comment (:5-11) records that a former `types.ts` of eight DTO interfaces was deleted after a sweep found zero consumers. |
+| 228 | `packages/shared/src/phi.ts` | ts | 159 | READ | Pure PHI scanner with no DB, request or logger. Exports `PhiCategory` 5 values (:16-27) and `PhiProfile` 2 (:44-47); `METADATA_CATEGORIES` limits the metadata profile to NATIONAL_ID/PHONE/MRN (:49-53). Four built-in patterns: NATIONAL_ID ten digits starting 1 or 2 (:68), DATE_OF_BIRTH full numeric date either order (:75-76), PHONE Saudi mobile in three forms (:79), IDENTIFYING_CONTEXT Arabic and English phrases each needing a trailing value (:98-99). `foldDigits` maps Arabic-Indic and Extended Arabic-Indic digits to ASCII before matching (:114-120). `scanForPhi(text, options)` returns every matching category and never any part of the text (:139-159); the MRN pattern runs only when supplied (:153-156). |
+| 229 | `packages/shared/src/rbac.ts` | ts | 141 | READ | The RBAC matrix, single source of truth. `RoleName` 7 roles (:1-9); `Permission` 22 values across users/roles, documents, AI, dose, governance (:11-42) with a comment explaining why no ROLES_MANAGE exists (:16-18); `CLINICAL_READ` bundle of 5 (:46-52); `ROLE_PERMISSIONS` mapping every role (:69-122) — SUPER_ADMIN gets all, NURSE_USER exactly CLINICAL_READ (:115), AUDITOR 4 read permissions (:116-121); `ROLE_DESCRIPTIONS` (:124-132); and `permissionsForRoles(roles)` which unions via a Set and silently ignores unknown roles (:134-141). |
+| 230 | `packages/shared/tsconfig.json` | json | 13 | READ | TypeScript config for the shared package: target ES2021, commonjs, `declaration: true`, `outDir: dist`, `rootDir: src`, `strict: true` (:2-11), including only `src` (:12). |
 
-**TOTAL FILES ON DISK: 227 | DOCUMENTED IN INDEX: 227 | MATCH: ✅**
+
+**TOTAL FILES ON DISK: 230 | DOCUMENTED IN INDEX: 230 | MATCH: ✅**
+
+> The denominator moved from 227 to 230 during the audit: the audit itself added
+> `apps/api/src/common/pagination.ts` and two e2e specs while fixing defects it found.
+> The inventory is regenerated rather than frozen, so Phase 3's coverage check stays
+> honest — a file this work created is a file this work must also account for.
