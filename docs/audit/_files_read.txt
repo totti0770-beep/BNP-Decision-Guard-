@@ -149,8 +149,10 @@ apps/web/src/app/(app)/dashboard/page.tsx
 apps/web/src/app/(app)/drug-prep/page.tsx
 apps/web/src/app/(app)/layout.tsx
 apps/web/src/app/(app)/notifications/page.tsx
+apps/web/src/app/(app)/policies/page.tsx
 apps/web/src/app/(app)/security/page.tsx
 apps/web/src/app/(app)/upload/page.tsx
+apps/web/src/app/(app)/users/page.tsx
 apps/web/src/app/globals.css
 apps/web/src/app/layout.tsx
 apps/web/src/app/login/page.tsx
