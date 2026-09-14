@@ -3,6 +3,7 @@
 .github/workflows/ci.yml
 .gitignore
 CLAUDE.md
+SECURITY.md
 apps/api/.gitignore
 apps/api/eval/README.md
 apps/api/eval/field-set.starter.jsonl

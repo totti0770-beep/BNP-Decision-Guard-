@@ -1,6 +1,5 @@
 README.md
 REPO-DISCOVERY.md
-SECURITY.md
 apps/api/field-eval-report.md
 apps/mobile/package-lock.json
 docs/clinical-validation.md

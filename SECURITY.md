@@ -72,7 +72,7 @@ against a real database by searching whole rows and whole `jsonb` documents
 single total. In the first weeks of use the operating question is not how many
 inputs were rejected but *which pattern is rejecting legitimate clinical
 questions*, and a total cannot answer that. Query it with
-`GET /audit?action=SECURITY:PHI_BLOCKED`.
+`GET /audit-logs?action=SECURITY:PHI_BLOCKED`.
 
 ### Which fields, and why two profiles
 
@@ -106,11 +106,11 @@ Three routes are screened for reasons worth stating:
 - **`fullName` on `POST /users` / `PATCH /users/:id`** is a structured field for
   staff names, and a name in it is its purpose. This control targets identifiers
   that leak into a *free-text* field, not fields designed to hold a name.
-- **`PATCH /settings/:key`** takes `{ value: unknown }` — an operator-set
+- **`PUT /settings/:key`** takes `{ value: unknown }` — an operator-set
   configuration value of unconstrained type. This is a **known, accepted
   limitation** rather than a field judged out of scope: it is reachable only by
-  `settings:write` holders, and screening it would mean type-narrowing the
-  settings contract. Revisit if free-text settings are ever exposed more widely.
+  `settings:manage` holders (`settings.module.ts:64`), and screening it would
+  mean type-narrowing the settings contract. Revisit if free-text settings are ever exposed more widely.
 
 ### The MRN pattern ships disabled
 
@@ -257,7 +257,7 @@ table. It never echoes the password to stdout.
 
 **Verifying it fired.** After the next production deploy, the application log
 carries one `Disabled "<email>"` line per affected account plus a summary
-naming how many active accounts remain, and `GET /audit?action=SECURITY:DEMO_ACCOUNT_DISABLED`
+naming how many active accounts remain, and `GET /audit-logs?action=SECURITY:DEMO_ACCOUNT_DISABLED`
 returns the corresponding rows.
 
 **Web UI.** The login page no longer prefills a demo email or renders a demo
@@ -284,12 +284,20 @@ production sign-off — see `docs/production-readiness.md`.
   themselves (`/auth/mfa/enroll` → `/auth/mfa/enable`), but nothing lets an
   administrator *require* it for a role — there is no org-wide MFA policy, so
   adoption is voluntary per user.
-- ~~**High-severity dependency advisories pass CI.**~~ ✅ Root workspaces are
-  at **0 findings of any severity** (re-run 21 Aug 2026): the NestJS 10→11
-  upgrade closed all 9 moderates, and Next.js 14→16 closed the last 2 highs in
-  `next` and its bundled `postcss`. The CI gate still hard-fails only on
-  critical and reports high/moderate, so a new advisory surfaces without
-  blocking.
+- **High-severity dependency advisories pass CI — still true, and the count is
+  no longer zero.** This bullet was struck through and marked ✅ "0 findings of
+  any severity (re-run 21 Aug 2026)". That was accurate on the day: the NestJS
+  10→11 upgrade closed all 9 moderates and Next.js 14→16 closed the last 2 highs.
+  It is not accurate now. `npm audit` on this commit reports **9 vulnerabilities
+  (8 high, 1 moderate, 0 critical)** — the NestJS 12 advisory chain and `multer`
+  appeared afterwards. The implemented-controls table above has carried the
+  current figure the whole time, so the file disagreed with itself, with the ✅
+  sitting in the section a reviewer reads to find out what is still open. A
+  resolved-and-struck-through entry is a claim with a timestamp on it; when the
+  underlying number can move, striking it through is how it stops being read.
+  The triage of those 9 is in the dependency-scanning row above. The CI gate
+  still hard-fails only on critical and reports high/moderate, so a new advisory
+  surfaces without blocking.
 - **`apps/mobile` dependencies are scanned AND gated.** It is deliberately not
   an npm workspace, so the root `npm audit` gate never sees it; the mobile CI
   job scans it and hard-fails on critical, matching the root job. The Expo

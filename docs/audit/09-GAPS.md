@@ -9,17 +9,17 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 223
-MISSING : 8
+READ    : 224
+MISSING : 7
 ```
 
-**The file-by-file audit is 223 of 231 — it is not finished.** One area is
+**The file-by-file audit is 224 of 231 — it is not finished.** One area is
 complete: **every source file in the repository is now read** — `apps/api`,
 `apps/web`, `apps/mobile` and `packages/shared` in full, plus all infra and CI
 config, across src, test, config and eval data — verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
 gitignored generated report already listed in the skipped table below. What
-remains is five markdown documents and three generated files (two npm
+remains is four markdown documents and three generated files (two npm
 lockfiles and the gitignored eval report), all listed in the skipped table
 below or pending in the next batch. Any statement in
 these reports about a file in `_NOT_READ.txt` would be unsupported, and there
@@ -29,9 +29,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 223 files read as at 231. A described fact — what a
+whole tree and is as true at 224 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 223 have.
+opened, and only 224 have.
 
 ## Skipped deliberately, with reasons
 
@@ -314,9 +314,72 @@ does. It is corrected in place, and recorded here rather than quietly
 overwritten, because an audit that silently fixes its own mistakes is making
 the same claim to trust that the drift it reports has already broken.
 
+### `SECURITY.md` told an operator to call a route that does not exist
+
+Three of the four errors found in `SECURITY.md` are in instructions someone
+would actually type, which is what separates them from a typo:
+
+1. **`GET /audit?action=SECURITY:PHI_BLOCKED`** (`:75`) — the documented way to
+   answer the operating question the PHI section says matters most in the first
+   weeks: *which pattern is rejecting legitimate clinical questions*.
+2. **`GET /audit?action=SECURITY:DEMO_ACCOUNT_DISABLED`** (`:260`) — the
+   documented way to confirm the demo-credential sweep fired after a production
+   deploy.
+
+The controller is `@Controller('audit-logs')` (`audit.controller.ts:7`). Both
+calls return 404. Each is the stated verification step for a security control,
+so the failure mode is not "a doc is wrong" but "someone checks whether a
+control fired, gets nothing, and has no way to tell that from the control not
+having fired".
+
+3. **`PATCH /settings/:key`** (`:109`) is `@Put(':key')`
+   (`settings.module.ts:64`), and the permission named beside it,
+   `settings:write`, **does not exist**: `rbac.ts:40` defines
+   `settings:manage`. The sentence is making a containment argument — *this
+   unscreened field is acceptable because only these holders can reach it* —
+   using the name of a permission that is not in the matrix.
+
+4. The Known Gaps section carried a struck-through ✅ reading *"Root workspaces
+   are at **0 findings of any severity** (re-run 21 Aug 2026)"*, while the
+   implemented-controls table sixty lines above said **8 high and 1 moderate**.
+   `npm audit` on this commit reports **9 vulnerabilities (8 high, 1 moderate,
+   0 critical)**, confirming the table and refuting the ✅. The struck-through
+   line was true when it was written; the NestJS 12 advisory chain and `multer`
+   arrived afterwards.
+
+That last one is the most instructive. A resolved item struck through with a ✅
+is a claim with a timestamp attached, and striking it through is precisely how
+it stops being re-read — it now looks like history rather than a statement of
+current fact. It was sitting in the section a reviewer opens to find out what is
+still open. All four are corrected in this branch.
+
+**Verified and correct, said so rather than only reporting defects:** the gold
+set really is 15 cases, 10 answerable and 5 refusal — `GOLD_SET` spans
+`gold-set.ts:50-192`, and the 16th `question:` match at `:38` is the interface
+field, not a case. That paragraph also documents its own earlier "16 cases"
+error, which is the habit this audit is trying to encourage.
+
+### One thing seen once, and not claimed as a finding
+
+The first `npm audit --json` of this session returned
+`{"moderate":1,"high":7,"critical":0,"total":8}`. Three later runs against the
+unchanged lockfile all returned `high: 8, total: 9`, matching the detailed
+`vulnerabilities` map and `npm audit`'s own printed summary. `critical` was `0`
+in every run, so nothing observed here changes what
+`.github/scripts/audit-critical.mjs` would have decided.
+
+It is recorded because the CI gate reads exactly one number —
+`metadata.vulnerabilities.critical` — and a count that moved by one between two
+runs of the same command on the same tree is the kind of thing worth having
+written down if it ever recurs at a severity that matters. It is **not** a
+finding: it did not reproduce, and I have not read npm's source to explain it.
+Repeating a command until it agrees with you is how a real intermittent fault
+gets talked out of existence, so the disagreement stays on the record with its
+evidence.
+
 ## What remains of the audit itself
 
-The remaining 8 files, read in the batches named in the plan, each appended to
+The remaining 7 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.
