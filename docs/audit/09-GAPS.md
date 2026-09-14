@@ -9,11 +9,15 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 128
-MISSING : 103
+READ    : 133
+MISSING : 98
 ```
 
-**The file-by-file audit is 128 of 231 — it is not finished.** Any statement in
+**The file-by-file audit is 133 of 231 — it is not finished.** One area is:
+`apps/api/src` is now read in full, every file, verified by
+`comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep apps/api/src`
+returning nothing. What remains is `apps/api/test`, `apps/web`, `apps/mobile`
+and the root/`docs` markdown. Any statement in
 these reports about a file in `_NOT_READ.txt` would be unsupported, and there
 are none: the reports cite only files that have been opened, and the executive
 summary's counts come from commands (`grep`, `find`, a route-classifying script)
@@ -21,9 +25,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 128 files read as at 231. A described fact — what a
+whole tree and is as true at 133 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 128 have.
+opened, and only 133 have.
 
 ## Skipped deliberately, with reasons
 
@@ -77,7 +81,7 @@ that this audit did **not** prove.
 
 ## What remains of the audit itself
 
-The remaining 103 files, read in the batches named in the plan, each appended to
+The remaining 98 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.

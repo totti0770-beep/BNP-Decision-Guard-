@@ -8,11 +8,6 @@ apps/api/eval/field-set.starter.jsonl
 apps/api/field-eval-report.md
 apps/api/jest-e2e.config.js
 apps/api/package.json
-apps/api/src/auth/account-security.spec.ts
-apps/api/src/config/env.spec.ts
-apps/api/src/eval/field-eval.spec.ts
-apps/api/src/notifications/notifications.service.spec.ts
-apps/api/src/rag/rag-provider-check.spec.ts
 apps/api/test/answer-quality.e2e-spec.ts
 apps/api/test/auth.e2e-spec.ts
 apps/api/test/create-admin.e2e-spec.ts

@@ -9,6 +9,7 @@ apps/api/src/approval/approval.service.ts
 apps/api/src/audit/audit.controller.ts
 apps/api/src/audit/audit.module.ts
 apps/api/src/audit/audit.service.ts
+apps/api/src/auth/account-security.spec.ts
 apps/api/src/auth/auth.controller.ts
 apps/api/src/auth/auth.module.ts
 apps/api/src/auth/auth.service.ts
@@ -32,6 +33,7 @@ apps/api/src/common/logging/json-logger.service.spec.ts
 apps/api/src/common/logging/json-logger.service.ts
 apps/api/src/common/pagination.ts
 apps/api/src/config/data-source.ts
+apps/api/src/config/env.spec.ts
 apps/api/src/config/env.ts
 apps/api/src/documents/documents.controller.ts
 apps/api/src/documents/documents.module.ts
@@ -49,6 +51,7 @@ apps/api/src/entities/dose.entity.ts
 apps/api/src/entities/index.ts
 apps/api/src/entities/misc.entity.ts
 apps/api/src/entities/user.entity.ts
+apps/api/src/eval/field-eval.spec.ts
 apps/api/src/eval/field-eval.ts
 apps/api/src/eval/field-set.spec.ts
 apps/api/src/eval/field-set.ts
@@ -65,6 +68,7 @@ apps/api/src/migrations/1720000003000-embedding-provider.ts
 apps/api/src/migrations/1720000004000-chunk-uniqueness.ts
 apps/api/src/notifications/notifications.controller.ts
 apps/api/src/notifications/notifications.module.ts
+apps/api/src/notifications/notifications.service.spec.ts
 apps/api/src/notifications/notifications.service.ts
 apps/api/src/rag/chunking.service.spec.ts
 apps/api/src/rag/chunking.service.ts
@@ -77,6 +81,7 @@ apps/api/src/rag/openai-http.ts
 apps/api/src/rag/pdf-extraction.service.spec.ts
 apps/api/src/rag/pdf-extraction.service.ts
 apps/api/src/rag/provider-consistency.spec.ts
+apps/api/src/rag/rag-provider-check.spec.ts
 apps/api/src/rag/rag-query.service.spec.ts
 apps/api/src/rag/rag-query.service.ts
 apps/api/src/rag/rag.controller.ts
