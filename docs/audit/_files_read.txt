@@ -147,6 +147,13 @@ apps/mobile/src/api.ts
 apps/mobile/src/components/BottomNav.tsx
 apps/mobile/src/i18n.spec.ts
 apps/mobile/src/i18n.ts
+apps/mobile/src/screens/AuditScreen.tsx
+apps/mobile/src/screens/ChatScreen.tsx
+apps/mobile/src/screens/DoseCalculatorScreen.tsx
+apps/mobile/src/screens/HomeScreen.tsx
+apps/mobile/src/screens/LoginScreen.tsx
+apps/mobile/src/screens/PoliciesScreen.tsx
+apps/mobile/src/theme.ts
 apps/mobile/test/mocks/async-storage.ts
 apps/mobile/test/mocks/expo-secure-store.ts
 apps/mobile/tsconfig.json

@@ -9,16 +9,19 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 212
-MISSING : 19
+READ    : 219
+MISSING : 12
 ```
 
-**The file-by-file audit is 212 of 231 — it is not finished.** One area is:
-**the whole of `apps/api` and the whole of `apps/web` are now read** — src, test, config and eval data —
+**The file-by-file audit is 219 of 231 — it is not finished.** One area is:
+**every source file in the repository is now read** — `apps/api`, `apps/web`,
+`apps/mobile` and `packages/shared` in full, plus all infra and CI config** — src, test, config and eval data —
 verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
 gitignored generated report already listed in the skipped table below. What
-remains is `apps/mobile` and the root/`docs` markdown. Any statement in
+remains is nine markdown documents and three generated files (two npm
+lockfiles and the gitignored eval report), all listed in the skipped table
+below or pending in the next batch. Any statement in
 these reports about a file in `_NOT_READ.txt` would be unsupported, and there
 are none: the reports cite only files that have been opened, and the executive
 summary's counts come from commands (`grep`, `find`, a route-classifying script)
@@ -26,9 +29,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 212 files read as at 231. A described fact — what a
+whole tree and is as true at 219 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 212 have.
+opened, and only 219 have.
 
 ## Skipped deliberately, with reasons
 
@@ -213,7 +216,7 @@ kind of thing an audit exists to surface:
 
 ## What remains of the audit itself
 
-The remaining 19 files, read in the batches named in the plan, each appended to
+The remaining 12 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.
