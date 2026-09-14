@@ -90,7 +90,7 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 80 | `apps/api/src/notifications/notifications.service.spec.ts` | ts | 308 | PENDING | — |
 | 81 | `apps/api/src/notifications/notifications.service.ts` | ts | 154 | PENDING | — |
 | 82 | `apps/api/src/rag/chunking.service.spec.ts` | ts | 55 | PENDING | — |
-| 83 | `apps/api/src/rag/chunking.service.ts` | ts | 69 | PENDING | — |
+| 83 | `apps/api/src/rag/chunking.service.ts` | ts | 69 | READ | Page-aware chunking: chunks never cross a page boundary, so every chunk cites exactly one page (:20-30). Splits on sentence boundaries around 800 chars with 150 chars of overlap (:10-11, :32-46). `overlapTail` (:59-68) resumes at a sentence or word boundary and carries nothing rather than a fragment — the docblock records why in a drug manual: a mid-word cut turns 'Cefonicid sodium' into 'fonicid sodium', which embeds as a different, non-existent drug. |
 | 84 | `apps/api/src/rag/embedding.service.spec.ts` | ts | 126 | PENDING | — |
 | 85 | `apps/api/src/rag/embedding.service.ts` | ts | 186 | PENDING | — |
 | 86 | `apps/api/src/rag/indexing.service.ts` | ts | 369 | PENDING | — |
@@ -98,13 +98,13 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 88 | `apps/api/src/rag/openai-http.spec.ts` | ts | 129 | PENDING | — |
 | 89 | `apps/api/src/rag/openai-http.ts` | ts | 84 | PENDING | — |
 | 90 | `apps/api/src/rag/pdf-extraction.service.spec.ts` | ts | 99 | PENDING | — |
-| 91 | `apps/api/src/rag/pdf-extraction.service.ts` | ts | 65 | PENDING | — |
+| 91 | `apps/api/src/rag/pdf-extraction.service.ts` | ts | 65 | READ | Per-page text extraction via pdf-parse, with a `pagerender` hook that inserts a newline on each Y-coordinate change (:115-127). Hands pdf.js a plain `Uint8Array`, never a `Buffer` (:113) — the 30-line docblock (:80-110) records the measured cause: pdf.js clones with `new value.constructor(value)`, a Buffer clone allocates from Node's shared 8 KB pool at a non-zero byteOffset, and pdf.js then misreads it. Measured 12/12 parses with Uint8Array against 8/12 with Buffer. |
 | 92 | `apps/api/src/rag/provider-consistency.spec.ts` | ts | 207 | PENDING | — |
 | 93 | `apps/api/src/rag/rag-provider-check.spec.ts` | ts | 233 | PENDING | — |
 | 94 | `apps/api/src/rag/rag-query.service.spec.ts` | ts | 199 | PENDING | — |
-| 95 | `apps/api/src/rag/rag-query.service.ts` | ts | 209 | PENDING | — |
+| 95 | `apps/api/src/rag/rag-query.service.ts` | ts | 209 | READ | The governed chain. `RagDiagnostics` (:24-61) carries candidateCount, qualifiedCount, bestScore, the effective threshold, the top three considered snippets and which gate refused. One private `refusal()` (:84-97) is the single exit for all four gates — NO_CANDIDATES (:122-131), BELOW_THRESHOLD (:160), MODEL_ERROR (:167-172) and MODEL_FOUND_NOTHING (:181-183) — so every refusal returns `REFUSAL_MESSAGE_AR` verbatim with zero citations and NONE confidence by construction, not by four separate remembered decisions. `ask()` re-reads the validated threshold per call (:117). Candidates are scored *before* thresholding so the diagnostic reports the true best score even when nothing qualifies (:133-138). `hasContent` accepts steps or warnings, not just shortAnswer (:177-180), because procedural answers put the substance in steps. Confidence bands at 0.6/0.45 (:99-103); citations carry document, page, approval date, similarity and a 300-char snippet (:198-208). |
 | 96 | `apps/api/src/rag/rag.controller.ts` | ts | 264 | PENDING | — |
-| 97 | `apps/api/src/rag/rag.module.ts` | ts | 36 | PENDING | — |
+| 97 | `apps/api/src/rag/rag.module.ts` | ts | 36 | READ | Registers RagController and the eight RAG providers (:146-157). Exports IndexingService, RagQueryService, RetrievalService, RerankService and EmbeddingService, the last for its `name` only so the inventory report reads the active provider from the same object retrieval filters on (:158-168). |
 | 98 | `apps/api/src/rag/rerank.service.spec.ts` | ts | 81 | PENDING | — |
 | 99 | `apps/api/src/rag/rerank.service.ts` | ts | 93 | READ | Lexical reranker standing in for a cross-encoder. Score is `max(similarity, 0.6·similarity + 0.4·coverage)` (:148-151) — promotion-only, so an Arabic question over an English source (coverage 0) never faces a harsher effective threshold than a same-language one. `selectDiverse` (:177-209) caps chunks per document at `ragMaxPerDocument()` with backfill so the cap never returns fewer chunks than plain ranking; the docblock records the live failure that motivated it (:159-176). |
 | 100 | `apps/api/src/rag/retrieval-dimension-mismatch.spec.ts` | ts | 67 | PENDING | — |

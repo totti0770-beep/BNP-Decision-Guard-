@@ -41,3 +41,7 @@ apps/api/src/roles/roles.service.ts
 apps/api/src/users/users.module.ts
 apps/api/src/rag/retrieval.service.ts
 apps/api/src/rag/rerank.service.ts
+apps/api/src/rag/rag-query.service.ts
+apps/api/src/rag/chunking.service.ts
+apps/api/src/rag/pdf-extraction.service.ts
+apps/api/src/rag/rag.module.ts

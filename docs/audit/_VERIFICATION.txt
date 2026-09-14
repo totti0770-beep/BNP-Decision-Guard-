@@ -1,6 +1,6 @@
 ON DISK : 230
-READ    : 42
-MISSING : 188
+READ    : 46
+MISSING : 184
 --- NOT READ ---
 CLAUDE.md
 README.md
@@ -68,7 +68,6 @@ apps/api/src/notifications/notifications.module.ts
 apps/api/src/notifications/notifications.service.spec.ts
 apps/api/src/notifications/notifications.service.ts
 apps/api/src/rag/chunking.service.spec.ts
-apps/api/src/rag/chunking.service.ts
 apps/api/src/rag/embedding.service.spec.ts
 apps/api/src/rag/embedding.service.ts
 apps/api/src/rag/indexing.service.ts
@@ -76,13 +75,10 @@ apps/api/src/rag/llm.service.ts
 apps/api/src/rag/openai-http.spec.ts
 apps/api/src/rag/openai-http.ts
 apps/api/src/rag/pdf-extraction.service.spec.ts
-apps/api/src/rag/pdf-extraction.service.ts
 apps/api/src/rag/provider-consistency.spec.ts
 apps/api/src/rag/rag-provider-check.spec.ts
 apps/api/src/rag/rag-query.service.spec.ts
-apps/api/src/rag/rag-query.service.ts
 apps/api/src/rag/rag.controller.ts
-apps/api/src/rag/rag.module.ts
 apps/api/src/rag/rerank.service.spec.ts
 apps/api/src/rag/retrieval-dimension-mismatch.spec.ts
 apps/api/src/scripts/create-admin.spec.ts
