@@ -47,7 +47,7 @@ unit suite passed.
 | Command | Result |
 | --- | --- |
 | `npm run build:shared` | ✅ success |
-| `npm test` | ✅ **412 tests, 28 suites, 0 failures**, 9.1 s |
+| `npm test` | ✅ **416 tests, 29 suites, 0 failures**, 8.5 s |
 | `npm run lint` | ✅ **0 errors, 10 warnings** |
 | `npm run build:web` | ✅ compiled in 598 ms, TypeScript in 1.56 s, **20/20 static pages**, every route `○ (Static)` |
 | `npm audit` | **0 findings at every severity** (see `06-DEPENDENCIES.md`) |
@@ -179,7 +179,7 @@ branch, with no `needs:` between them, so all six run in parallel.
 | --- | --- |
 | `security` | `audit-critical.mjs` hard-fails on any critical; `npm audit --audit-level=high` reports the rest non-blocking |
 | `lint` | `build:shared` then `eslint .` — errors block, the 10 warnings do not |
-| `api` | build shared → build API → **412 unit tests** → migrations against a real `pgvector/pgvector:pg16` → create `bnp_e2e` via the `pg` client → **integration tests** |
+| `api` | build shared → build API → **416 unit tests** → migrations against a real `pgvector/pgvector:pg16` → create `bnp_e2e` via the `pg` client → **integration tests** |
 | `web` | `next build` — the **only** web typecheck, since there is no web test runner |
 | `smoke` | `docker compose up -d --build`, poll `/health` and `/login`, install Chromium, run `apps/web/e2e-smoke.mjs`, upload screenshots, dump logs on failure, tear down with `-v` |
 | `mobile` | separate `npm ci` in `apps/mobile`, `tsc --noEmit`, 32 unit tests, and its **own** critical-severity audit gate |

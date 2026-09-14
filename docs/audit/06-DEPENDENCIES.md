@@ -150,10 +150,50 @@ node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml  3.15.2
 Both `js-yaml` copies are checked deliberately. The nested one is invisible to
 an ordinary `require.resolve`, and it is the one an advisory would be missed on.
 
-The lockfile diff is four version changes and seven removals, with no additions:
-`concat-stream`, `readable-stream`, `string_decoder`, `typedarray` and three
-nested `mime`/`media-typer` packages all leave the tree, because multer 2.4.0 no
-longer needs them. A smaller tree, not a wider one.
+### The removals in that diff were not cleanup, and reading them as cleanup broke upload
+
+The first attempt at this change hand-deleted `multer`'s node from
+`package-lock.json` to force re-resolution — the remedy `CLAUDE.md` gives for a
+stale entry pinned below its own floor. The resulting diff showed seven removals
+and no additions: `concat-stream`, `readable-stream`, `string_decoder`,
+`typedarray`, and three nested `mime-db` / `mime-types` / `media-typer`
+packages. This report said they left "because multer 2.4.0 no longer needs them.
+A smaller tree, not a wider one."
+
+**That was wrong, and it broke every document upload.** Three of those removals
+belonged to `type-is@1.6.18`, which multer pulls and which pins
+`media-typer: "0.3.0"` and `mime-types: "~2.1.24"` — an exact pin and a tilde
+range. With its nested copies gone, `type-is` resolved Express 5's hoisted
+`media-typer@1.1.1` and `mime-types@3.0.2` instead. Wrong majors, changed API, so
+`is(req, ['multipart'])` returned **false** for a valid multipart request, and
+multer's gate
+
+```js
+if (!is(req, ['multipart'])) return next()      // make-middleware.js:68
+```
+
+silently skipped parsing. The handler got `undefined`, `isPdf(undefined)`
+returned false, and `POST /documents/upload` 400'd — with no error, no log line,
+and no failure anywhere that runs without a database. **85 of 229 integration
+tests** went red in CI while the 412-test unit suite, lint and the web build were
+all green.
+
+Regenerating the lockfile (`rm -rf node_modules package-lock.json && npm
+install`) restores the nested pins and fixes it. The rule worth keeping:
+**never hand-delete lockfile nodes to force a version.** `CLAUDE.md`'s gotcha is
+about a single stale entry; deleting one takes its nested subtree with it, and
+that subtree can be load-bearing for a package that never asked for it.
+
+A second wrong conclusion came out of the same episode and is corrected here too.
+Comparing a *nested* multer 2.3.0 (which had its own correct sub-dependencies)
+against a *hoisted* 2.4.0 (which did not) looked like evidence that 2.4.0 was
+defective. It was not: the variable was resolution, not version. On a correctly
+regenerated tree **multer 2.4.0 works**, and that is what ships here.
+
+`apps/api/package.json` also declares `multer` directly, so its range floats
+independently of the override — worth knowing, because a mismatch between the two
+produces two copies with different sub-dependency trees, which is exactly the
+shape that made this hard to see.
 
 ## What the CI gate actually decides on
 

@@ -8,8 +8,8 @@ What this audit has **not** established, stated as plainly as what it has.
 block, run on this commit. At the time of writing:
 
 ```
-ON DISK : 231
-READ    : 228
+ON DISK : 232
+READ    : 229
 MISSING : 3
 --- NOT READ ---
 apps/api/field-eval-report.md
@@ -23,7 +23,7 @@ skipped table below: two npm lockfiles and one gitignored generated report.
 There is no source file, no configuration file, no test file and no document
 left unopened — verified by the command above rather than asserted.
 
-That took 228 files. Where a file exceeded 400 lines it was read in consecutive
+That took 229 files. Where a file exceeded 400 lines it was read in consecutive
 chunks to the end, which is what produced several of the findings in this
 report: the advisory lock in `indexing.service.ts`, the `token_version` binding
 on reset tokens in `auth.service.ts`, and both count errors in
@@ -32,7 +32,7 @@ that summarises it wrongly.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 228 files read as at 231. A described fact — what a
+whole tree and is as true at 229 files read as at 232. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
 opened, and every non-generated file has been.
 
@@ -613,6 +613,58 @@ The common lesson is not "be careful". It is that **"measured by command" is not
 by itself evidence the command measured the right thing**, and the cheapest
 guard is to have two methods disagree. Every count in these reports that
 mattered was taken twice.
+
+### A dependency removal that looked like cleanup was load-bearing
+
+The advisory cleanup closed all nine findings and **broke every document upload**,
+and the failure is worth recording in full because nothing in this repository's
+local gate could see it.
+
+Forcing `multer` past a stale lockfile pin, I hand-deleted its
+`package-lock.json` node — the remedy `CLAUDE.md` prescribes for exactly that
+situation. The diff came back with seven removals and no additions, and I read it
+as multer 2.4.0 shedding dependencies it no longer needed: *"a smaller tree, not
+a wider one."*
+
+Three of those removals were `type-is@1.6.18`'s nested `media-typer@0.3.0` and
+`mime-types@2.x`. `type-is` pins them exactly, because its parsing depends on
+their pre-2.x API. Without them it resolved Express 5's hoisted `media-typer@1.1.1`
+and `mime-types@3.0.2`, and `is(req, ['multipart'])` began returning **false** for
+valid multipart requests. Multer gates on that single call and returns `next()`
+when it fails, so uploads stopped being parsed — silently. No exception, no log
+line, HTTP 200 from multer's own perspective. The handler received `undefined`,
+`isPdf(undefined)` was false, and the API answered 400.
+
+**What caught it, and what did not.** 412 unit tests, ESLint and `next build` were
+all green on the broken tree. The only thing that failed was CI's integration job
+— 85 of 229 tests — which needs a real PostgreSQL that this audit's container
+does not have. The gap named in risk 4 and risk 5 (no web tests; `storage/`
+executed by nothing) has a third member: **the multer wiring between the
+controller decorator and `isPdf()` had no coverage that runs without a database.**
+
+That one is now closed. `apps/api/src/documents/upload-wiring.spec.ts` boots the
+real `FileInterceptor` with the controller's exact options, posts a real
+multipart body, and asserts the file arrives as a `Buffer` and passes the
+signature check. It needs no database and no object store. It was verified by
+mutation in both directions: 4/4 fail against the broken dependency tree, 4/4
+pass against the fixed one.
+
+Three lessons, in descending order of how much they generalise:
+
+1. **A removal is a change.** Lockfile diffs get read for what was *added* or
+   *upgraded*; the removals scan as tidying. A nested pin exists precisely
+   because its parent could not tolerate the hoisted version, so deleting one is
+   never neutral.
+2. **`CLAUDE.md`'s gotcha has a sharp edge it does not mention.** Deleting a
+   stale lockfile node is sound advice for the node itself and takes its whole
+   nested subtree with it. Regenerating the lockfile achieves the same
+   re-resolution without that collateral.
+3. **I drew a confident wrong conclusion from a badly controlled comparison.** A
+   nested multer 2.3.0 passed and a hoisted 2.4.0 failed, and I reported "2.4.0
+   is broken". The nested copy had correct sub-dependencies and the hoisted one
+   did not; the variable was resolution, not version. On a properly regenerated
+   tree 2.4.0 works and is what ships. Two installs of the same package in one
+   tree are not a controlled experiment — they are two different environments.
 
 ## What remains of the audit itself
 

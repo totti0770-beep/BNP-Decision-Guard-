@@ -8,7 +8,7 @@ xargs cat | wc -l` on this commit; "specs" counts co-located `*.spec.ts`.
 | `rag/` | 20 | 2,852 | 9 | the retrieval + LLM pipeline — the product |
 | `auth/` | 7 | 1,226 | 2 | login, refresh, revocation, lockout, reset, MFA, demo-account sweep |
 | `eval/` | 4 | 1,133 | 2 | the field-set loader and the corpus-independent scoring core |
-| `documents/` | 6 | 1,098 | 2 | upload, listing, download URLs, the clinical-reference inventory |
+| `documents/` | 7 | 1,220 | 3 | upload, listing, download URLs, the clinical-reference inventory |
 | `common/` | 12 | 1,053 | 4 | decorators, four guards, the exception filter, the audit interceptor, the JSON logger, the pagination pipe |
 | `config/` | 3 | 831 | 1 | `env.ts` (the only secret-resolution path) and `data-source.ts` |
 | `entities/` | 6 | 616 | 0 | 15 TypeORM entities |

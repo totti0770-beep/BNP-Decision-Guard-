@@ -50,6 +50,7 @@ apps/api/src/documents/documents.service.spec.ts
 apps/api/src/documents/documents.service.ts
 apps/api/src/documents/inventory.service.spec.ts
 apps/api/src/documents/inventory.service.ts
+apps/api/src/documents/upload-wiring.spec.ts
 apps/api/src/dose/dose.controller.ts
 apps/api/src/dose/dose.module.ts
 apps/api/src/dose/dose.service.spec.ts

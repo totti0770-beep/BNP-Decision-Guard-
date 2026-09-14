@@ -33,7 +33,7 @@ and the UNIQUE constraint (revert each separately against a real database), the
 audit gate (stub a critical, stub an error, remove the lockfile), and every
 mobile assertion (checked against a deliberately broken copy of the module).
 
-**Measured on this commit:** 412 unit tests across 28 suites, 0 failures; lint 0
+**Measured on this commit:** 416 unit tests across 29 suites, 0 failures; lint 0
 errors / 10 warnings, all `no-explicit-any`; `next build` producing 20/20 static
 pages; `npm audit` 0 critical.
 
@@ -145,7 +145,18 @@ four documents against a limit of 50), and a grep-based lint rule is too fragile
 to trust. The class is caught by review, and saying so is better than a check
 that looks like coverage.
 
-### 🟠 5. `storage/` is executed by no test
+### 🟠 5. `storage/` is executed by no test — and a sibling gap that has now bitten
+
+**The sibling bit first, so it is no longer hypothetical.** The multer wiring
+between `@UseInterceptors(FileInterceptor(...))` and `isPdf()` had no coverage
+that runs without a database. A dependency change silently stopped multipart
+parsing, and 412 unit tests, lint and `next build` all stayed green while every
+document upload returned 400. Only CI's integration job — which needs a real
+PostgreSQL — caught it. That specific hole is now closed by
+`apps/api/src/documents/upload-wiring.spec.ts`, verified by mutation in both
+directions; see `09-GAPS.md`.
+
+The `storage/` hole is the same shape and still open.
 
 `StorageService` — S3 client construction, `ensureBucket()`, presigned-URL
 generation, `isHealthy()` — has no unit spec, and the integration suite cannot
@@ -279,7 +290,7 @@ Every instance found:
 | `PATCH /settings/:key`, `settings:write` | `SECURITY.md` | `PUT`, `settings:manage` |
 | Two undocumented routes | `docs/api.md` | inventory, chat answers |
 | Database tables / permissions | `REPO-DISCOVERY.md` | 17 tables, 22 permissions |
-| Test counts | `production-readiness.md` | 412 unit |
+| Test counts | `production-readiness.md` | 416 unit |
 
 Two of those had **operational consequences** rather than cosmetic ones: the
 missing retrieval filter would have led a reader to remove a load-bearing

@@ -95,7 +95,7 @@ remembers to follow — and each is pinned by a test.
 
 | Suite | Spec files | Tests | Measured here? |
 | --- | --- | --- | --- |
-| API unit | 28 | **412** | ✅ run on this commit — 28 suites, 0 failures |
+| API unit | 29 | **416** | ✅ run on this commit — 29 suites, 0 failures |
 | API integration | 12 | 229 | ❌ needs PostgreSQL; this container has none. CI runs it |
 | Mobile | 2 | 32 | ❌ separate install, absent here. CI runs it |
 | **Web** | **0** | **0** | there is no web test runner at all |

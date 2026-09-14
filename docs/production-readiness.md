@@ -346,7 +346,7 @@ production. Use this as the launch checklist.
 | **Clinical validation of answers** | 🔴 | 🔴 **blocker** | 🔴 — protocol in `docs/clinical-validation.md`, awaiting reviewer |
 | Dependency vulnerability posture | ✅ | ✅ | ✅ **0 findings at every severity** — `npm audit` on this commit. The 8 high / 1 moderate this row carried were closed without a framework major; see the Sep 2026 note above and `SECURITY.md` |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
-| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 412 unit (measured on this commit) + the integration suite against real Postgres+pgvector + the browser flow, all gate CI | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 416 unit (measured on this commit) + the integration suite against real Postgres+pgvector + the browser flow, all gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |

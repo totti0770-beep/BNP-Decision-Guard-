@@ -240,17 +240,19 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 230 | `packages/shared/src/rbac.ts` | ts | 141 | READ | The RBAC matrix, single source of truth. `RoleName` 7 roles (:1-9); `Permission` 22 values across users/roles, documents, AI, dose, governance (:11-42) with a comment explaining why no ROLES_MANAGE exists (:16-18); `CLINICAL_READ` bundle of 5 (:46-52); `ROLE_PERMISSIONS` mapping every role (:69-122) — SUPER_ADMIN gets all, NURSE_USER exactly CLINICAL_READ (:115), AUDITOR 4 read permissions (:116-121); `ROLE_DESCRIPTIONS` (:124-132); and `permissionsForRoles(roles)` which unions via a Set and silently ignores unknown roles (:134-141). |
 | 231 | `packages/shared/tsconfig.json` | json | 13 | READ | TypeScript config for the shared package: target ES2021, commonjs, `declaration: true`, `outDir: dist`, `rootDir: src`, `strict: true` (:2-11), including only `src` (:12). |
 
+| 232 | `apps/api/src/documents/upload-wiring.spec.ts` | ts | 129 | READ | 129 lines, **added by this audit** after a dependency change silently broke document upload. It covers the one layer nothing else did: the multer wiring between `@UseInterceptors(FileInterceptor(...))` and `isPdf()`. It boots a minimal Nest testing module with the real interceptor configured exactly as `documents.controller.ts:63-65`, posts a real multipart body through supertest, and asserts the part arrives as a `Buffer`, that a `%PDF-` payload passes the signature check while a client-declared PDF that is not one fails it, that text fields travel alongside the file, and that the 25 MB cap still rejects an oversized part. No database, no S3, no auth — which is the point: the regression it exists for left 412 unit tests, ESLint and `next build` all green while every upload returned 400, and only CI's integration job (which needs a real PostgreSQL) caught it. **Verified by mutation in both directions**: 4/4 fail against the broken dependency tree, 4/4 pass against the fixed one. Its header docblock records the failure mechanism so the next reader knows what the file is defending against. |
 
-**TOTAL FILES ON DISK: 231 | DOCUMENTED IN INDEX: 231 | MATCH: ✅**
+**TOTAL FILES ON DISK: 232 | DOCUMENTED IN INDEX: 232 | MATCH: ✅**
 
 > Both figures come from the shell, not from counting by eye: the denominator is
 > `wc -l < _inventory_all.txt`, and the numerator is the index's own rows extracted
 > with `sed -E -n 's/^\| [0-9]+ \| `([^`]+)` \|.*/\1/p'` and differenced against the
 > inventory in both directions — each direction returned nothing.
 >
-> The denominator moved from 227 to 231 during the audit, because the audit itself
+> The denominator moved from 227 to 232 during the audit, because the audit itself
 > added files while fixing defects it found: `apps/api/src/common/pagination.ts`, two
-> e2e specs, and `.github/scripts/audit-critical.mjs`. The inventory is regenerated
+> e2e specs, `.github/scripts/audit-critical.mjs`, and
+> `apps/api/src/documents/upload-wiring.spec.ts`. The inventory is regenerated
 > rather than frozen, so Phase 3's coverage check stays honest — a file this work
 > created is a file this work must also account for. The footer read 230 until that
 > regeneration caught it up.
