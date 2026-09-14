@@ -8,9 +8,9 @@ is left as `—` until the file has actually been read — a role inferred from 
 
 | # | Path | Type | Lines | Status | Role in project |
 |---|------|------|-------|--------|-----------------|
-| 1 | `.env.example` | example | 120 | PENDING | — |
-| 2 | `.github/workflows/ci.yml` | yml | 221 | PENDING | — |
-| 3 | `.gitignore` | gitignore | 13 | PENDING | — |
+| 1 | `.env.example` | example | 120 | READ | Documented environment template, 120 lines, nine sections: Database (:1-6), API/JWT (:8-16), Security incl. CORS, rate limits, body limit, lockout and reset-token lifetime (:18-33), Email (:35-49), the dev reset-token escape hatch (:51-56), demo-credential overrides (:58-64), MinIO/S3 (:66-72), AI/RAG incl. provider switches, EMBEDDING_DIM=384 and RAG_MIN_SIMILARITY=0.25 (:74-103), PHI screening with `PHI_MRN_PATTERN` commented out and `RAG_MAX_PER_DOCUMENT=3` (:105-117), and the web API URL (:119-120). |
+| 2 | `.github/workflows/ci.yml` | yml | 221 | READ | CI, six parallel jobs on push and PR to every branch (:3-7): `security` (npm audit, hard-fail critical :22, non-blocking high :28), `lint` (:30-45), `api` (pgvector service, build, unit tests, migrations, creates `bnp_e2e` via the `pg` client, runs e2e :47-106), `web` (:108-122), `smoke` (docker compose up, health polling, Playwright, screenshot upload, teardown :124-181) and `mobile` (separate `npm ci` in apps/mobile, typecheck, tests, own audit gate :183-221). No `needs:` anywhere. |
+| 3 | `.gitignore` | gitignore | 13 | READ | Root ignore list, 13 entries: build output (`node_modules/`, `dist/`, `build/`, `.next/`, `.expo/`, `coverage/`), `.env` and `.env.local` variants, `apps/api/uploads/` and `*.tsbuildinfo` (:1-13). |
 | 4 | `CLAUDE.md` | md | 242 | PENDING | — |
 | 5 | `README.md` | md | 508 | PENDING | — |
 | 6 | `REPO-DISCOVERY.md` | md | 2117 | PENDING | — |
@@ -211,29 +211,29 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 201 | `apps/web/src/lib/language.tsx` | tsx | 106 | PENDING | — |
 | 202 | `apps/web/tailwind.config.ts` | ts | 66 | PENDING | — |
 | 203 | `apps/web/tsconfig.json` | json | 30 | PENDING | — |
-| 204 | `docker-compose.yml` | yml | 133 | PENDING | — |
+| 204 | `docker-compose.yml` | yml | 133 | READ | Local full-stack definition, five services: `postgres` (`pgvector/pgvector:pg16`, initdb mount, pg_isready healthcheck, :4-20), `minio` (:22-38), `minio-init` (`minio/mc`, runs `mc mb`, :40-53), `api` (built from Dockerfile.api, 30 env vars, node-based /health/ready healthcheck with 60s start_period, :55-116) and `web` (build ARG `NEXT_PUBLIC_API_URL`, :118-129). `NODE_ENV` defaults to `development` here deliberately (:66-71). |
 | 205 | `docs/api.md` | md | 202 | PENDING | — |
 | 206 | `docs/architecture.md` | md | 105 | PENDING | — |
 | 207 | `docs/clinical-validation.md` | md | 241 | PENDING | — |
 | 208 | `docs/database-schema.md` | md | 63 | PENDING | — |
 | 209 | `docs/production-readiness.md` | md | 494 | PENDING | — |
-| 210 | `eslint.config.js` | js | 94 | PENDING | — |
-| 211 | `infra/docker/Dockerfile.api` | api | 64 | PENDING | — |
-| 212 | `infra/docker/Dockerfile.web` | web | 24 | PENDING | — |
-| 213 | `infra/docker/initdb/01-pgvector.sql` | sql | 2 | PENDING | — |
-| 214 | `infra/k8s/README.md` | md | 71 | PENDING | — |
-| 215 | `infra/k8s/api-deployment.yaml` | yaml | 67 | PENDING | — |
-| 216 | `infra/k8s/ingress.yaml` | yaml | 66 | PENDING | — |
-| 217 | `infra/k8s/secrets.example.yaml` | yaml | 24 | PENDING | — |
-| 218 | `infra/k8s/web-deployment.yaml` | yaml | 41 | PENDING | — |
-| 219 | `infra/railway/README.md` | md | 59 | PENDING | — |
+| 210 | `eslint.config.js` | js | 94 | READ | ESLint 9 flat config for the whole monorepo. Ignores `apps/mobile/**` and build output (:21-28); enables `js.configs.recommended` + `tseslint.configs.recommended` (:31-32); sets `no-unused-vars` to error with `^_` exemptions and `no-explicit-any` to warn (:39-46); adds react-hooks rules for `apps/web/**` (:52-58); relaxes three rules for spec files (:66-73); and grants Node + `document`/`window` globals to `**/*.mjs` because `page.evaluate` bodies run in the browser (:82-93). |
+| 211 | `infra/docker/Dockerfile.api` | api | 64 | READ | Two-stage API image. Build on `node:22-alpine` installs only the shared+api workspaces (:2-10); runtime copies `dist` and `node_modules`, sets `NODE_ENV=production`, exposes 4000 (:13-23). The CMD (:64) chains migrate → optional create-admin (fatal on failure) → optional seed (gated on NODE_ENV, non-fatal) → `node dist/main.js`; the 40-line comment above it records the 2026-08-22 incident where a 9-character ADMIN_PASSWORD left zero active users (:24-63). |
+| 212 | `infra/docker/Dockerfile.web` | web | 24 | READ | Two-stage web image. Build stage bakes `NEXT_PUBLIC_API_URL` as an ARG into the bundle (:4-5) — the reason changing it needs a rebuild; runtime copies the Next standalone output and serves `apps/web/server.js` on 3000 (:15-24). |
+| 213 | `infra/docker/initdb/01-pgvector.sql` | sql | 2 | READ | Two statements run by the Postgres container on first init: `CREATE EXTENSION IF NOT EXISTS vector` and `\"uuid-ossp\"` (:1-2). |
+| 214 | `infra/k8s/README.md` | md | 71 | READ | Operator guide for the k8s manifests: a file table (:6-11), the three-origins failure mode (:13-25), five pre-apply steps (:27-42), a nine-row table of what the manifests deliberately do not do — images, secret management, Postgres, object storage, TLS, the in-process expiry cron under replicas:2, backups, observability, NetworkPolicy/HPA/PDB (:44-60) — and the apply order (:62-71). |
+| 215 | `infra/k8s/api-deployment.yaml` | yaml | 67 | READ | Reference API Deployment (2 replicas) + Service. `envFrom` the `bnp-secrets` Secret (:18-19); sets NODE_ENV=production, CORS_ORIGINS, MAIL_PROVIDER=smtp, mock LLM/embedding providers and SEED_ON_BOOT=false (:20-39); readinessProbe on `/health/ready` and livenessProbe on `/health`, deliberately different endpoints (:40-54); Service maps port 80 to 4000 (:59-67). |
+| 216 | `infra/k8s/ingress.yaml` | yaml | 66 | READ | Two Ingress objects — web on `app.your-hospital.example` (:17-39) and API on `api.your-hospital.example` (:41-66) — with cert-manager annotations, a 1m body cap for web and 32m plus a 120s read timeout for the API because ingestion runs inside the request (:47-51). The header states the three origins that must agree (:7-13). |
+| 217 | `infra/k8s/secrets.example.yaml` | yaml | 24 | READ | Opaque Secret template with 16 `stringData` keys — Postgres, both JWT secrets, S3, OPENAI_API_KEY and the four MAIL_* values — every sensitive one set to the literal `REPLACE_ME` (:6-24). No real credential is present. |
+| 218 | `infra/k8s/web-deployment.yaml` | yaml | 41 | READ | Reference web Deployment (2 replicas) + Service, both probes on `/login` because it is statically prerendered and does not call the API (:18-28); Service maps 80 to 3000 (:33-41). |
+| 219 | `infra/railway/README.md` | md | 59 | READ | Documents the actual live deployment: project `bnp-decisionguard`, four services with build sources, domains and healthcheck paths (:26-33); why the config is documented rather than committed as `railway.json` (:11-24); the env-var names per service (:35-46); and two known gaps — `openai` providers rather than `mock`, and single replica/region (:53-59). |
 | 220 | `package-lock.json` | json | 11272 | GENERATED-SKIPPED | npm lockfile — machine-generated dependency graph; not read line by line. Resolved versions are queried with `npm ls` / `jq` instead (see 06-DEPENDENCIES.md). |
-| 221 | `package.json` | json | 42 | PENDING | — |
-| 222 | `packages/shared/package.json` | json | 13 | PENDING | — |
-| 223 | `packages/shared/src/constants.ts` | ts | 83 | PENDING | — |
-| 224 | `packages/shared/src/index.ts` | ts | 11 | PENDING | — |
-| 225 | `packages/shared/src/phi.ts` | ts | 159 | PENDING | — |
-| 226 | `packages/shared/src/rbac.ts` | ts | 141 | PENDING | — |
-| 227 | `packages/shared/tsconfig.json` | json | 13 | PENDING | — |
+| 221 | `package.json` | json | 42 | READ | Monorepo root manifest. Declares npm workspaces `packages/shared`, `apps/api`, `apps/web` (:6-10) — `apps/mobile` is absent, so it is not a workspace. 14 scripts (:11-25), `engines.node >=20` (:26-28), five `overrides` pinning lodash/multer/file-type/@nestjs (:29-35), and four ESLint devDependencies (:36-41). |
+| 222 | `packages/shared/package.json` | json | 13 | READ | Manifest for `@bnp/shared`: private, `main`/`types` point at `dist/` (:5-6) — the reason api and web fail until `build:shared` runs. One script (`tsc -p tsconfig.json`, :8) and one devDependency, typescript ^5.5.4 (:10-12). No runtime dependencies. |
+| 223 | `packages/shared/src/constants.ts` | ts | 83 | READ | The clinical contract plus seven enums. Three verbatim Arabic strings — `REFUSAL_MESSAGE_AR` (:5-6), `DOSE_SAFETY_WARNING_AR` (:8-9) and `PHI_REJECTION_MESSAGE_AR` (:18-19) — then `PLATFORM_NAME` (:21) and the enums `DocumentCategory` 5 values (:22-28), `DocumentStatus` 8 (:30-39), `ApprovalAction` 7 (:41-49), `ConfidenceLevel` 4 (:51-56), `AssistantType` 3 (:58-62), `DoseFormulaStatus` 3 (:64-68), `DoseFormulaType` 3 (:70-74) and `DoseRoute` 6 (:76-83). |
+| 224 | `packages/shared/src/index.ts` | ts | 11 | READ | Barrel re-exporting `./constants`, `./phi` and `./rbac` (:1-3). The comment (:5-11) records that a former `types.ts` of eight DTO interfaces was deleted after a sweep found zero consumers. |
+| 225 | `packages/shared/src/phi.ts` | ts | 159 | READ | Pure PHI scanner with no DB, request or logger. Exports `PhiCategory` 5 values (:16-27) and `PhiProfile` 2 (:44-47); `METADATA_CATEGORIES` limits the metadata profile to NATIONAL_ID/PHONE/MRN (:49-53). Four built-in patterns: NATIONAL_ID ten digits starting 1 or 2 (:68), DATE_OF_BIRTH full numeric date either order (:75-76), PHONE Saudi mobile in three forms (:79), IDENTIFYING_CONTEXT Arabic and English phrases each needing a trailing value (:98-99). `foldDigits` maps Arabic-Indic and Extended Arabic-Indic digits to ASCII before matching (:114-120). `scanForPhi(text, options)` returns every matching category and never any part of the text (:139-159); the MRN pattern runs only when supplied (:153-156). |
+| 226 | `packages/shared/src/rbac.ts` | ts | 141 | READ | The RBAC matrix, single source of truth. `RoleName` 7 roles (:1-9); `Permission` 22 values across users/roles, documents, AI, dose, governance (:11-42) with a comment explaining why no ROLES_MANAGE exists (:16-18); `CLINICAL_READ` bundle of 5 (:46-52); `ROLE_PERMISSIONS` mapping every role (:69-122) — SUPER_ADMIN gets all, NURSE_USER exactly CLINICAL_READ (:115), AUDITOR 4 read permissions (:116-121); `ROLE_DESCRIPTIONS` (:124-132); and `permissionsForRoles(roles)` which unions via a Set and silently ignores unknown roles (:134-141). |
+| 227 | `packages/shared/tsconfig.json` | json | 13 | READ | TypeScript config for the shared package: target ES2021, commonjs, `declaration: true`, `outDir: dist`, `rootDir: src`, `strict: true` (:2-11), including only `src` (:12). |
 
 **TOTAL FILES ON DISK: 227 | DOCUMENTED IN INDEX: 227 | MATCH: ✅**
