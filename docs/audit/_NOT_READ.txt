@@ -27,7 +27,6 @@ apps/mobile/test/mocks/async-storage.ts
 apps/mobile/test/mocks/expo-secure-store.ts
 apps/mobile/tsconfig.json
 apps/mobile/tsconfig.spec.json
-apps/web/src/lib/i18n.ts
 docs/api.md
 docs/architecture.md
 docs/clinical-validation.md
