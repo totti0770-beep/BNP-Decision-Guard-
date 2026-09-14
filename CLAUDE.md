@@ -13,7 +13,7 @@ npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
 npm test                      # API unit tests (403), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (213), real HTTP + real Postgres
+npm run test:e2e -w @bnp/api  # API integration tests (229), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web

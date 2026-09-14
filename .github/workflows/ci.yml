@@ -20,9 +20,14 @@ jobs:
       # Hard gate: a new critical vulnerability fails the build immediately.
       - name: Fail on critical vulnerabilities
         run: npm audit --audit-level=critical
-      # Soft gate: high/moderate findings are surfaced but do not block merges,
-      # since some remaining items (see docs/production-readiness.md) are only
-      # fixable by a NestJS 11 / Next.js 15 major-version migration.
+      # Soft gate: high/moderate findings are surfaced but do not block merges.
+      # This comment used to justify that by pointing at "a NestJS 11 /
+      # Next.js 15 major-version migration" still to come. Both majors shipped
+      # — the tree runs NestJS 11 and Next.js 16 — so the justification had
+      # outlived its reason while the gate it explains stayed in place. The
+      # current findings and their status are in SECURITY.md's
+      # dependency-scanning row, which names the actual packages rather than a
+      # migration.
       - name: Report high/moderate vulnerabilities (non-blocking)
         if: always()
         run: npm audit --audit-level=high || true
