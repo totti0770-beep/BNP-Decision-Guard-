@@ -1,17 +1,13 @@
 ON DISK : 231
-READ    : 208
-MISSING : 23
+READ    : 212
+MISSING : 19
 --- NOT READ ---
 CLAUDE.md
 README.md
 REPO-DISCOVERY.md
 SECURITY.md
 apps/api/field-eval-report.md
-apps/mobile/App.tsx
 apps/mobile/package-lock.json
-apps/mobile/src/components/BottomNav.tsx
-apps/mobile/src/i18n.spec.ts
-apps/mobile/src/i18n.ts
 apps/mobile/src/screens/AuditScreen.tsx
 apps/mobile/src/screens/ChatScreen.tsx
 apps/mobile/src/screens/DoseCalculatorScreen.tsx

@@ -136,6 +136,7 @@ apps/api/tsconfig.build.json
 apps/api/tsconfig.e2e.json
 apps/api/tsconfig.json
 apps/mobile/.gitignore
+apps/mobile/App.tsx
 apps/mobile/app.json
 apps/mobile/babel.config.js
 apps/mobile/eas.json
@@ -143,6 +144,9 @@ apps/mobile/jest.config.js
 apps/mobile/package.json
 apps/mobile/src/api.spec.ts
 apps/mobile/src/api.ts
+apps/mobile/src/components/BottomNav.tsx
+apps/mobile/src/i18n.spec.ts
+apps/mobile/src/i18n.ts
 apps/mobile/test/mocks/async-storage.ts
 apps/mobile/test/mocks/expo-secure-store.ts
 apps/mobile/tsconfig.json
