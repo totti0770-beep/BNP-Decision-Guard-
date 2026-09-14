@@ -502,7 +502,7 @@ export function SegmentedControl<T extends string>({
           >
             {o.label}
             {o.count != null && (
-              <span className="tnum ml-1.5 text-subtle">{o.count}</span>
+              <span className="tnum ms-1.5 text-subtle">{o.count}</span>
             )}
           </button>
         );

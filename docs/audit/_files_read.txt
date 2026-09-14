@@ -148,6 +148,7 @@ apps/web/src/app/(app)/drug-prep/page.tsx
 apps/web/src/app/(app)/layout.tsx
 apps/web/src/app/(app)/notifications/page.tsx
 apps/web/src/app/(app)/upload/page.tsx
+apps/web/src/app/globals.css
 apps/web/src/app/layout.tsx
 apps/web/src/app/page.tsx
 apps/web/src/components/assistant-chat.tsx

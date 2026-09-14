@@ -94,7 +94,7 @@ export default function UploadPage() {
               accept="application/pdf"
               required
               onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-              className="h-auto py-1.5 file:mr-3 file:rounded-control file:border-0 file:bg-sunken file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-text"
+              className="h-auto py-1.5 file:me-3 file:rounded-control file:border-0 file:bg-sunken file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-text"
             />
           </Field>
 

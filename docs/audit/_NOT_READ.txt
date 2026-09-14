@@ -36,7 +36,6 @@ apps/web/src/app/(app)/policies/page.tsx
 apps/web/src/app/(app)/security/page.tsx
 apps/web/src/app/(app)/settings/page.tsx
 apps/web/src/app/(app)/users/page.tsx
-apps/web/src/app/globals.css
 apps/web/src/app/login/forgot/page.tsx
 apps/web/src/app/login/page.tsx
 apps/web/src/components/formula-manager.tsx

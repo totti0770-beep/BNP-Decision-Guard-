@@ -9,11 +9,11 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 182
-MISSING : 49
+READ    : 183
+MISSING : 48
 ```
 
-**The file-by-file audit is 182 of 231 — it is not finished.** One area is:
+**The file-by-file audit is 183 of 231 — it is not finished.** One area is:
 **the whole of `apps/api` is now read** — src, test, config and eval data —
 verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
@@ -26,9 +26,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 182 files read as at 231. A described fact — what a
+whole tree and is as true at 183 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 182 have.
+opened, and only 183 have.
 
 ## Skipped deliberately, with reasons
 
@@ -135,6 +135,34 @@ and the identical one in `login/forgot`'s module-level `post()` helper —
 both outside any component, so no hook can reach them — and one false
 positive (`Promise` in a type annotation in `async.ts:31`).
 
+### Physical direction classes — three real, three false alarms
+
+`CLAUDE.md` requires logical Tailwind classes (`start-*`/`end-*`, `ps-`/`pe-`,
+`border-s`/`border-e`, `text-start`/`text-end`) and forbids the physical ones,
+because physical classes do not mirror — "which is how you get `dir="rtl"`
+with a sidebar still pinned left". Scanning `apps/web/src` for them
+(`grep -rnoE` over `*.tsx` and `*.css`, excluding `rtl:` variants) found seven
+sites. Four needed no change:
+
+- `dashboard/page.tsx:186`, `dose-calculator/page.tsx:314` and
+  `assistant-chat.tsx:147` use `text-right` **deliberately**, each with a
+  comment saying why (`dashboard:179-182`, `dose-calculator:308-310`): these
+  elements carry the contractual Arabic strings with `dir="rtl" lang="ar"`
+  and must read right-aligned even in an English session, so they must *not*
+  follow page direction. `text-end` would be the bug here.
+- One hit was the word "right-aligned" inside that very comment.
+
+Three were genuine and are fixed in this branch: `globals.css:136`
+(`left-4` on the focused skip link), `upload/page.tsx:97` (`file:mr-3`) and
+`ui/index.tsx:505` (`ml-1.5` on the segmented-control count).
+
+A fourth, subtler one came out of the same read: the mobile drawer is pinned
+at `start-0` — the right edge under RTL — but animated with a single
+`translateX(-100%)` keyframe, and a CSS transform is a physical movement that
+`dir` does not mirror. The two disagree, so under Arabic the drawer slid in
+across the page rather than from the edge it is attached to. Now two
+keyframes selected by `[dir='rtl']`.
+
 ### A component-level instance, fixed
 
 `ErrorState` and `Pagination` in `apps/web/src/components/ui/index.tsx`
@@ -162,7 +190,7 @@ kind of thing an audit exists to surface:
 
 ## What remains of the audit itself
 
-The remaining 49 files, read in the batches named in the plan, each appended to
+The remaining 48 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.
