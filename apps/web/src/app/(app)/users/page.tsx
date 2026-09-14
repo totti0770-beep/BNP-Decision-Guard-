@@ -88,7 +88,7 @@ export default function UsersPage() {
       setForm({ email: '', fullName: '', password: '', role: 'NURSE_USER' });
       reload();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not create the user');
+      setFormError(err instanceof Error ? err.message : t('createUserFailed'));
     } finally {
       setCreating(false);
     }
@@ -103,7 +103,7 @@ export default function UsersPage() {
       });
       reload();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not update the user');
+      setFormError(err instanceof Error ? err.message : t('updateUserFailed'));
     } finally {
       setTogglingId(null);
     }
@@ -221,7 +221,7 @@ export default function UsersPage() {
                   label={t('password')}
                   required
                   hint={t('atLeast8CharsHint')}
-                  error={passwordTooShort ? 'Too short — use 8 characters or more' : undefined}
+                  error={passwordTooShort ? t('passwordTooShort') : undefined}
                 >
                   <Input
                     type="password"

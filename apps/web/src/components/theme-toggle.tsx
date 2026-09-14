@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/language';
 
 type Theme = 'light' | 'dark';
 const KEY = 'bnp.theme';
@@ -14,6 +15,7 @@ function resolveTheme(): Theme {
 }
 
 export function ThemeToggle({ className }: { className?: string }) {
+  const t = useT();
   const [theme, setTheme] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
 
@@ -33,12 +35,13 @@ export function ThemeToggle({ className }: { className?: string }) {
   if (!mounted) return <div className={className} style={{ width: 32, height: 32 }} />;
 
   const next = theme === 'dark' ? 'light' : 'dark';
+  const label = next === 'dark' ? t('switchToThemeDark') : t('switchToThemeLight');
   return (
     <button
       type="button"
       onClick={() => setTheme(next)}
-      title={`Switch to ${next} theme`}
-      aria-label={`Switch to ${next} theme`}
+      title={label}
+      aria-label={label}
       className={`inline-flex h-8 w-8 items-center justify-center rounded-control text-muted transition-colors hover:bg-sunken hover:text-text ${className ?? ''}`}
     >
       {theme === 'dark' ? (

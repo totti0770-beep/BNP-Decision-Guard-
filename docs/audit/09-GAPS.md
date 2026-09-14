@@ -82,7 +82,7 @@ that this audit did **not** prove.
 
 ## Found by reading, and not guarded by any test
 
-### The i18n claim is broader than the implementation
+### The i18n claim was broader than the implementation — now closed
 
 `CLAUDE.md` describes the web app as bilingual EN/AR with a dictionary and a
 `t()` helper, and the screens' *headings, labels and buttons* genuinely are.
@@ -126,6 +126,14 @@ The pattern is consistent and tells you how it happened: whatever a developer
 saw on screen while building got a dictionary key, and whatever only appears
 when something fails or when a list is empty did not. That is exactly the
 copy a user meets on a bad day.
+
+**Closed.** All of the above are now dictionary-backed. Re-running the same
+scan leaves **9 literals**, every one of them in the deliberate list:
+the two `Metadata` strings, the refusal-gate explanation, the
+"Switch to English" label, the `Request failed (N)` fallback in `api.ts`
+and the identical one in `login/forgot`'s module-level `post()` helper —
+both outside any component, so no hook can reach them — and one false
+positive (`Promise` in a type annotation in `async.ts:31`).
 
 ### A component-level instance, fixed
 

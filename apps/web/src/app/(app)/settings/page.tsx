@@ -125,7 +125,7 @@ export default function SettingsPage() {
       const outcome = await api<ReindexOutcome>('/rag/reindex', { method: 'POST' });
       setReindexOutcome(outcome);
     } catch (err) {
-      setSaveError(err instanceof Error ? `Reindex: ${err.message}` : 'Reindex failed');
+      setSaveError(err instanceof Error ? `Reindex: ${err.message}` : t('reindexFailed'));
     } finally {
       setReindexing(false);
     }
@@ -156,7 +156,7 @@ export default function SettingsPage() {
       setSavedKey(key);
       reload();
     } catch (err) {
-      setSaveError(err instanceof Error ? `${key}: ${err.message}` : 'Save failed');
+      setSaveError(err instanceof Error ? `${key}: ${err.message}` : t('saveFailed'));
     } finally {
       setSavingKey(null);
     }

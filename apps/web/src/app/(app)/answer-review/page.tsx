@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAsyncData } from '@/lib/async';
 import { useT } from '@/lib/language';
+import type { Key } from '@/lib/i18n';
 import {
   Alert,
   Badge,
@@ -47,21 +48,15 @@ const CONFIDENCE_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutra
   NONE: 'neutral',
 };
 
-const EMPTY_COPY: Record<Status, { title: string; description: string }> = {
-  UNREVIEWED: {
-    title: 'Nothing awaiting review',
-    description:
-      'Every answer the assistant has given has been signed off. New answers appear here as nurses ask questions — refusals need no review, since no clinical claim was made.',
-  },
-  APPROVED: {
-    title: 'No approved answers yet',
-    description: 'Answers you approve from the pending queue will be listed here.',
-  },
-  FLAGGED: {
-    title: 'No flagged answers',
-    description:
-      'Nothing has been raised for follow-up. Flag an answer when its wording or sourcing needs a second look.',
-  },
+/**
+ * Dictionary keys rather than literals: this copy only renders when a queue is
+ * empty, which is exactly the layer that stayed English while every heading
+ * around it translated.
+ */
+const EMPTY_KEYS: Record<Status, { title: Key; description: Key }> = {
+  UNREVIEWED: { title: 'emptyUnreviewedTitle', description: 'emptyUnreviewedDesc' },
+  APPROVED: { title: 'emptyApprovedTitle', description: 'emptyApprovedDesc' },
+  FLAGGED: { title: 'emptyFlaggedTitle', description: 'emptyFlaggedDesc' },
 };
 
 export default function AnswerReviewPage() {
@@ -90,7 +85,7 @@ export default function AnswerReviewPage() {
       });
       reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Review failed');
+      setError(e instanceof Error ? e.message : t('reviewFailed'));
     } finally {
       setBusyId(null);
     }
@@ -111,9 +106,9 @@ export default function AnswerReviewPage() {
           value={status}
           onChange={setStatus}
           options={[
-            { value: 'UNREVIEWED', label: 'Pending' },
-            { value: 'APPROVED', label: 'Approved' },
-            { value: 'FLAGGED', label: 'Flagged' },
+            { value: 'UNREVIEWED', label: t('tabPending') },
+            { value: 'APPROVED', label: t('tabApproved') },
+            { value: 'FLAGGED', label: t('tabFlagged') },
           ]}
         />
       </div>
@@ -126,7 +121,10 @@ export default function AnswerReviewPage() {
         <ErrorState message={loadError} onRetry={reload} />
       ) : items.length === 0 ? (
         <Panel>
-          <EmptyState {...EMPTY_COPY[status]} />
+          <EmptyState
+            title={t(EMPTY_KEYS[status].title)}
+            description={t(EMPTY_KEYS[status].description)}
+          />
         </Panel>
       ) : (
         <div className="space-y-4">
@@ -140,13 +138,13 @@ export default function AnswerReviewPage() {
                     {item.assistantType?.replaceAll('_', ' ')} ·{' '}
                     {item.askedBy
                       ? `${item.askedBy.fullName} (${item.askedBy.email})`
-                      : 'unknown user'}{' '}
+                      : t('unknownUser')}{' '}
                     · {new Date(item.createdAt).toLocaleString()}
                   </p>
                   <h2 dir="auto" className="mt-1 text-base font-medium text-text">{item.question}</h2>
                 </div>
                 <Badge tone={CONFIDENCE_TONE[item.confidence] ?? 'neutral'}>
-                  {item.confidence} confidence
+                  {t('confidenceLevel', { level: item.confidence })}
                 </Badge>
               </div>
 
@@ -190,11 +188,14 @@ export default function AnswerReviewPage() {
                       <li key={i} className="flex flex-wrap items-baseline gap-x-2 text-sm">
                         <span className="font-medium text-text">{c.documentTitle}</span>
                         {c.pageNumber != null && (
-                          <span className="tnum text-xs text-muted">p.{c.pageNumber}</span>
+                          <span className="tnum text-xs text-muted">
+                            {t('pageAbbrev')}
+                            {c.pageNumber}
+                          </span>
                         )}
                         {c.approvalDate && (
                           <span className="tnum text-xs text-subtle">
-                            approved {c.approvalDate.slice(0, 10)}
+                            {t('approvedOn', { date: c.approvalDate.slice(0, 10) })}
                           </span>
                         )}
                       </li>
@@ -226,7 +227,7 @@ export default function AnswerReviewPage() {
           ))}
 
           <p className="tnum text-xs text-subtle">
-            {data?.total ?? items.length} total in this view.
+            {t('totalInView', { count: data?.total ?? items.length })}
           </p>
         </div>
       )}

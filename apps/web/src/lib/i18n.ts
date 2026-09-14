@@ -465,6 +465,56 @@ export const dict = {
     save: 'Save',
     search: 'Search',
     switchToArabic: 'التبديل إلى العربية',
+    // ---- Copy that only appears when something fails or a list is empty.
+    // This layer was English until the audit: whatever a developer saw while
+    // building got a key, and whatever needs a failure or an empty result to
+    // appear did not. That is the copy a user meets on a bad day.
+    uploadOnlyPdf: 'Only PDF files can be indexed. Choose a .pdf file.',
+    uploadTooLarge: 'That file is {size}. The limit is 25 MB.',
+    uploadFileHint: 'PDF only, up to 25 MB',
+    uploadFailed: 'Upload failed',
+    expiryMustBeFuture: 'Expiry must be in the future',
+    uploadAsDraft: 'Upload as draft',
+
+    tabPending: 'Pending',
+    tabApproved: 'Approved',
+    tabFlagged: 'Flagged',
+    emptyUnreviewedTitle: 'Nothing awaiting review',
+    emptyUnreviewedDesc:
+      'Every answer the assistant has given has been signed off. New answers appear here as nurses ask questions — refusals need no review, since no clinical claim was made.',
+    emptyApprovedTitle: 'No approved answers yet',
+    emptyApprovedDesc: 'Answers you approve from the pending queue will be listed here.',
+    emptyFlaggedTitle: 'No flagged answers',
+    emptyFlaggedDesc:
+      'Nothing has been raised for follow-up. Flag an answer when its wording or sourcing needs a second look.',
+    reviewFailed: 'Review failed',
+    unknownUser: 'unknown user',
+    confidenceLevel: '{level} confidence',
+    totalInView: '{count} total in this view.',
+
+    needsYourAction: 'Needs your action',
+    allDocuments: 'All documents',
+    nothingWaitingTitle: 'Nothing waiting on you',
+    nothingWaitingDesc:
+      'Every document is either live or waiting on someone else in the workflow. Switch to All documents to see the full library.',
+    noDocumentsTitle: 'No documents yet',
+    noDocumentsDesc:
+      'Upload a PDF to start the approval workflow. Until a document reaches ACTIVE the assistant cannot cite it.',
+    hideApprovalHistory: 'Hide history',
+    showApprovalHistory: 'History',
+    actionFailed: 'Action failed',
+    lifecycleStage: 'Lifecycle stage: {status}',
+
+    downloadLinkFailed: 'Could not generate a download link',
+    reindexFailed: 'Reindex failed',
+    saveFailed: 'Save failed',
+    createUserFailed: 'Could not create the user',
+    updateUserFailed: 'Could not update the user',
+    passwordTooShort: 'Too short — use 8 characters or more',
+    requestFailed: 'Request failed',
+    resetFailed: 'Reset failed',
+    switchToThemeLight: 'Switch to light theme',
+    switchToThemeDark: 'Switch to dark theme',
     switchToEnglish: 'Switch to English',
   },
 
@@ -863,6 +913,52 @@ export const dict = {
     save: 'حفظ',
     search: 'بحث',
     switchToArabic: 'التبديل إلى العربية',
+    uploadOnlyPdf: 'يمكن فهرسة ملفات PDF فقط. اختر ملفًا بامتداد ‎.pdf‎.',
+    uploadTooLarge: 'حجم هذا الملف {size}. الحد الأقصى ٢٥ ميجابايت.',
+    uploadFileHint: 'PDF فقط، حتى ٢٥ ميجابايت',
+    uploadFailed: 'فشل الرفع',
+    expiryMustBeFuture: 'يجب أن يكون تاريخ الانتهاء في المستقبل',
+    uploadAsDraft: 'رفع كمسودة',
+
+    tabPending: 'قيد المراجعة',
+    tabApproved: 'معتمدة',
+    tabFlagged: 'مُعلَّمة',
+    emptyUnreviewedTitle: 'لا توجد إجابات بانتظار المراجعة',
+    emptyUnreviewedDesc:
+      'تمت مراجعة كل إجابة قدّمها المساعد. ستظهر الإجابات الجديدة هنا مع طرح الممرضين أسئلتهم — أما الرفض فلا يحتاج مراجعة، إذ لم يُقدَّم فيه أي ادعاء سريري.',
+    emptyApprovedTitle: 'لا توجد إجابات معتمدة بعد',
+    emptyApprovedDesc: 'ستُدرج هنا الإجابات التي تعتمدها من قائمة الانتظار.',
+    emptyFlaggedTitle: 'لا توجد إجابات مُعلَّمة',
+    emptyFlaggedDesc:
+      'لم يُرفع أي بند للمتابعة. علِّم الإجابة عندما تحتاج صياغتها أو مصادرها إلى مراجعة ثانية.',
+    reviewFailed: 'فشلت المراجعة',
+    unknownUser: 'مستخدم غير معروف',
+    confidenceLevel: 'ثقة {level}',
+    totalInView: '{count} إجمالاً في هذا العرض.',
+
+    needsYourAction: 'بانتظار إجراء منك',
+    allDocuments: 'كل الوثائق',
+    nothingWaitingTitle: 'لا شيء بانتظارك',
+    nothingWaitingDesc:
+      'كل وثيقة إما فعّالة أو بانتظار شخص آخر في سير العمل. انتقل إلى «كل الوثائق» لعرض المكتبة كاملة.',
+    noDocumentsTitle: 'لا توجد وثائق بعد',
+    noDocumentsDesc:
+      'ارفع ملف PDF لبدء سير الاعتماد. لا يمكن للمساعد الاستشهاد بوثيقة حتى تصل إلى الحالة ACTIVE.',
+    hideApprovalHistory: 'إخفاء السجل',
+    showApprovalHistory: 'السجل',
+    actionFailed: 'فشل الإجراء',
+    lifecycleStage: 'مرحلة دورة الحياة: {status}',
+
+    downloadLinkFailed: 'تعذّر إنشاء رابط التنزيل',
+    reindexFailed: 'فشلت إعادة الفهرسة',
+    saveFailed: 'فشل الحفظ',
+    createUserFailed: 'تعذّر إنشاء المستخدم',
+    updateUserFailed: 'تعذّر تحديث المستخدم',
+    passwordTooShort: 'قصيرة جدًا — استخدم ٨ أحرف أو أكثر',
+    requestFailed: 'فشل الطلب',
+    resetFailed: 'فشلت إعادة التعيين',
+    switchToThemeLight: 'التبديل إلى المظهر الفاتح',
+    switchToThemeDark: 'التبديل إلى المظهر الداكن',
     switchToEnglish: 'Switch to English',
   },
 } as const;
