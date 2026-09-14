@@ -1,26 +1,12 @@
 ON DISK : 231
-READ    : 141
-MISSING : 90
+READ    : 155
+MISSING : 76
 --- NOT READ ---
 CLAUDE.md
 README.md
 REPO-DISCOVERY.md
 SECURITY.md
-apps/api/.gitignore
-apps/api/eval/README.md
-apps/api/eval/field-set.starter.jsonl
 apps/api/field-eval-report.md
-apps/api/jest-e2e.config.js
-apps/api/package.json
-apps/api/test/answer-quality.e2e-spec.ts
-apps/api/test/document-lifecycle.e2e-spec.ts
-apps/api/test/inventory.e2e-spec.ts
-apps/api/test/phi-screening.e2e-spec.ts
-apps/api/test/rag-integrity.e2e-spec.ts
-apps/api/test/rbac-and-dose.e2e-spec.ts
-apps/api/tsconfig.build.json
-apps/api/tsconfig.e2e.json
-apps/api/tsconfig.json
 apps/mobile/.gitignore
 apps/mobile/App.tsx
 apps/mobile/app.json
