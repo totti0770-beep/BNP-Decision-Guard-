@@ -9,17 +9,17 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 221
-MISSING : 10
+READ    : 223
+MISSING : 8
 ```
 
-**The file-by-file audit is 221 of 231 — it is not finished.** One area is:
-**every source file in the repository is now read** — `apps/api`, `apps/web`,
-`apps/mobile` and `packages/shared` in full, plus all infra and CI config** — src, test, config and eval data —
-verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
+**The file-by-file audit is 223 of 231 — it is not finished.** One area is
+complete: **every source file in the repository is now read** — `apps/api`,
+`apps/web`, `apps/mobile` and `packages/shared` in full, plus all infra and CI
+config, across src, test, config and eval data — verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
 gitignored generated report already listed in the skipped table below. What
-remains is nine markdown documents and three generated files (two npm
+remains is five markdown documents and three generated files (two npm
 lockfiles and the gitignored eval report), all listed in the skipped table
 below or pending in the next batch. Any statement in
 these reports about a file in `_NOT_READ.txt` would be unsupported, and there
@@ -29,9 +29,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 221 files read as at 231. A described fact — what a
+whole tree and is as true at 223 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 221 have.
+opened, and only 223 have.
 
 ## Skipped deliberately, with reasons
 
@@ -233,9 +233,90 @@ kind of thing an audit exists to surface:
   rule too fragile to trust. The class is caught by review, and that is
   stated rather than papered over.
 
+### The API reference was missing two routes
+
+`docs/api.md` documents the REST surface and is where anyone looks a route up.
+Comparing it against the code — documented method+path pairs parsed from the
+document, real ones parsed from every `@Get`/`@Post`/`@Patch`/`@Put`/`@Delete`
+decorator under `apps/api/src` — found two endpoints present in code and absent
+from the document:
+
+- **`GET /documents/inventory`** (`documents.controller.ts:98`, `documents:read`)
+- **`GET /chat/answers`** (`chat.controller.ts:54`, `ai:review-answers`)
+
+The first is the one that stings. This same file, two sections up, names
+`GET /documents/inventory` as the single thing that would answer what the
+production corpus actually contains — roughly 2,706 chunks nobody in this audit
+has seen — and it was not in the API reference someone would look it up in. An
+endpoint that is not documented is, for most purposes, an endpoint that does
+not exist. Both are added to `docs/api.md` in this branch.
+
+The comparison threw five other differences, and every one turned out to be an
+artifact of the extraction rather than a gap. They are worth naming because
+each one would have been a false finding:
+
+- `POST /documents/:id/reject` is documented, in the abbreviated form
+  ``` `POST /documents/:id/approve` / `.../reject` ``` (`docs/api.md:91`).
+- `GET /analytics/overview`, `GET /settings` and `PUT /settings/:key` are real
+  but declared by `@Controller` blocks **inside module files** —
+  `analytics.module.ts:60` and `settings.module.ts:54` — not in any
+  `*.controller.ts`, so a parser that globs controller files cannot see them.
+  That also confirms the 50-route figure in `05-API-SURFACE.md`: 47 in
+  controller files plus these three.
+- `POST /roles` and `PATCH /roles/:id` were matched out of the sentence at
+  `docs/api.md:75` that says they no longer exist.
+
+Checked in the other direction too, because it is a security claim rather than
+a convenience one: the document states that exactly seven routes carry
+`@Public()` and names them. `grep -rn '@Public()' apps/api/src` returns exactly
+those seven — `auth.controller.ts:55,69,76,83,90` and
+`health.controller.ts:30,36` — and the prose warning that *not all of `/auth/*`
+is public* matches the comment at `auth.controller.ts:102`.
+
+### `CLAUDE.md` undercounted two safety-relevant things
+
+`CLAUDE.md` is the guide every agent reads before touching this repository, so
+a wrong number there propagates. Two were wrong, and both understated a
+governed surface:
+
+1. **"two Arabic strings returned verbatim"** — there are three.
+   `PHI_REJECTION_MESSAGE_AR` (`packages/shared/src/constants.ts:18`) is thrown
+   by `phi-screen.guard.ts:105` and asserted with `toBe` in five tests
+   (`phi-screen.guard.spec.ts:100`; `phi-screening.e2e-spec.ts:137,273,299,331`).
+   It is under exactly the same exact-equality contract as the other two. A
+   developer reading "two" and finding a third might reasonably assume the
+   third was ordinary copy, and reword it.
+2. **"returns the exact refusal at three independent points"** — there are
+   four. `rag-query.service.ts:55-59` declares four `refusedAt` values and the
+   service returns a refusal at four sites: `NO_CANDIDATES` (`:129`),
+   `BELOW_THRESHOLD` (`:160`), `MODEL_ERROR` (`:171`) and
+   `MODEL_FOUND_NOTHING` (`:182`). The file already disagreed with itself — its
+   field-set section at `:94` says "one of the four gates".
+
+The second undercount has a reason behind it that is worth keeping rather than
+deleting: `MODEL_ERROR` is an infrastructure failure that happens to return the
+governed refusal string, which is exactly why `src/eval/field-eval.ts` refuses
+to score it as governance. "Three" was a defensible thing to *mean* and an
+indefensible thing to *write*, because the code's own enum says four. The
+correction in this branch names all four and states the distinction.
+
+### One row of this audit was wrong, and it is the audit's own failure mode
+
+`00-FILE-INDEX.md`'s row for `docker-compose.yml` said the file defines **five**
+services and listed a `minio-init` service running `minio/mc` at `:40-53`. The
+file defines **four** — `postgres`, `minio`, `api`, `web` — and lines `:48-53`
+are a *comment explaining why `minio-init` was deleted*. The row read a comment
+that names a service as a service.
+
+That is precisely the error this audit's rules exist to prevent: a role
+inferred from something that mentions a name rather than from what the file
+does. It is corrected in place, and recorded here rather than quietly
+overwritten, because an audit that silently fixes its own mistakes is making
+the same claim to trust that the drift it reports has already broken.
+
 ## What remains of the audit itself
 
-The remaining 10 files, read in the batches named in the plan, each appended to
+The remaining 8 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.

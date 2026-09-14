@@ -85,12 +85,26 @@ roles travel in the JWT: use `POST /users` and `PATCH /users/:id`.
 | `POST /documents/upload` (multipart: `file` PDF + `title`, `category`, `description?`, `expiryDate?`, `documentId?` for a new version) | `documents:upload` |
 | `GET /documents?category=&status=&search=&limit=&offset=` | `documents:read` |
 | `GET /documents/:id` · `GET /documents/:id/versions` · `GET /documents/:id/approval-history` | `documents:read` |
+| `GET /documents/inventory` — every document with its indexing state (see below) | `documents:read` |
 | `PATCH /documents/:id` `{title?, description?, expiryDate?}` | `documents:manage` |
 | `GET /documents/:id/download-url` (5-min presigned URL, audited) | `documents:download` |
 | `POST /documents/:id/submit-review` `{comment?}` | `documents:submit-review` |
 | `POST /documents/:id/approve` / `.../reject` `{comment?}` | `documents:approve` |
 | `POST /documents/:id/index` (extract→chunk→embed→ACTIVE) | `documents:index` |
 | `POST /documents/:id/deactivate` `{comment?}` (removes from AI) | `documents:deactivate` |
+
+`GET /documents/inventory` is the one endpoint that answers *"what can the
+assistant actually cite right now"* rather than *"what has been uploaded"*.
+Per document it reports `chunkCount`, `supersededChunks`, `embeddingProviders`,
+`firstIndexedAt`/`lastIndexedAt` and a `notRetrievableReason` that is non-null
+whenever a document is nominally ACTIVE but excluded by one of the four
+retrieval filters (`inventory.service.ts:42-65`). The `summary` block totals
+`retrievableDocuments`, `retrievableChunks`, `documentsWithNoChunks`,
+`documentsExpired`, `documentsOnAnotherProvider` and the
+`activeEmbeddingProvider` (`inventory.service.ts:67-83`). It is declared
+*before* `@Get(':id')` on purpose — Express matches in declaration order, so
+below it the literal path would be parsed as a document id
+(`documents.controller.ts:88-101`).
 
 ## RAG & chat
 
@@ -100,6 +114,7 @@ roles travel in the JWT: use `POST /users` and `PATCH /users/:id`.
 | `GET /rag/search?q=&category=` — semantic search, returns chunks | `ai:search` |
 | `POST /chat/ask` `{question, assistantType?: NURSING\|DRUG_PREPARATION\|CBAHI, category?, channel?}` — persisted + audited | `ai:ask` |
 | `GET /chat/history?limit=` — own Q&A history | `ai:ask` |
+| `GET /chat/answers?reviewStatus=&limit=&offset=` — the review queue; non-refused answers only, `reviewStatus` defaults to `UNREVIEWED`, `limit` capped at 100 | `ai:review-answers` |
 | `POST /chat/answers/:id/review` `{status: APPROVED\|FLAGGED}` — committee review | `ai:review-answers` |
 | `POST /rag/reindex` — re-embed every ACTIVE document with the current provider | `documents:index` |
 | `POST /rag/reindex/stale` — re-embed only documents whose chunks retrieval cannot currently see | `documents:index` |

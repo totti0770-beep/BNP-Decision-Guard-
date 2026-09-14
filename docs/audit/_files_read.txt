@@ -2,6 +2,7 @@
 .github/scripts/audit-critical.mjs
 .github/workflows/ci.yml
 .gitignore
+CLAUDE.md
 apps/api/.gitignore
 apps/api/eval/README.md
 apps/api/eval/field-set.starter.jsonl
@@ -200,6 +201,7 @@ apps/web/src/lib/language.tsx
 apps/web/tailwind.config.ts
 apps/web/tsconfig.json
 docker-compose.yml
+docs/api.md
 docs/architecture.md
 docs/database-schema.md
 eslint.config.js

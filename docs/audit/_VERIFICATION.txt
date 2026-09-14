@@ -1,14 +1,12 @@
 ON DISK : 231
-READ    : 221
-MISSING : 10
+READ    : 223
+MISSING : 8
 --- NOT READ ---
-CLAUDE.md
 README.md
 REPO-DISCOVERY.md
 SECURITY.md
 apps/api/field-eval-report.md
 apps/mobile/package-lock.json
-docs/api.md
 docs/clinical-validation.md
 docs/production-readiness.md
 package-lock.json

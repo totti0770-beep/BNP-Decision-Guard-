@@ -1,10 +1,8 @@
-CLAUDE.md
 README.md
 REPO-DISCOVERY.md
 SECURITY.md
 apps/api/field-eval-report.md
 apps/mobile/package-lock.json
-docs/api.md
 docs/clinical-validation.md
 docs/production-readiness.md
 package-lock.json

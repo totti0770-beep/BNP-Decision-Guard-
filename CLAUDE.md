@@ -171,13 +171,32 @@ npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 16 App Rout
 
 ### The clinical safety contract
 
-`packages/shared/src/constants.ts` holds two Arabic strings returned **verbatim** — tests assert exact string equality. Never reword, translate, or reformat them:
+`packages/shared/src/constants.ts` holds three Arabic strings returned **verbatim** — tests assert exact string equality. Never reword, translate, or reformat them:
 - `REFUSAL_MESSAGE_AR` — returned whenever no approved source qualifies
 - `DOSE_SAFETY_WARNING_AR` — attached to every dose calculation result
+- `PHI_REJECTION_MESSAGE_AR` — thrown by `PhiScreenGuard` when a request carries patient-identifying data (`phi-screen.guard.ts:105`)
+
+This section listed only the first two until an audit compared it against the
+file. The third is under exactly the same contract, not a lesser one: five
+tests assert it with `toBe` — `phi-screen.guard.spec.ts:100` and
+`phi-screening.e2e-spec.ts:137,273,299,331` — so rewording it fails the build
+the same way rewording a refusal does.
 
 ### Refusal-first RAG chain (`apps/api/src/rag/`)
 
-`RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **three** independent points: no candidates, nothing above `RAG_MIN_SIMILARITY`, or the LLM produced an empty answer. Non-refused answers always carry citations (document, page, approval date, confidence).
+`RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **four** independent points, which `RagDiagnostics.refusedAt` names (`rag-query.service.ts:55-59`):
+
+1. `NO_CANDIDATES` — retrieval returned nothing (`:129`)
+2. `BELOW_THRESHOLD` — nothing scored above `RAG_MIN_SIMILARITY` (`:160`)
+3. `MODEL_ERROR` — the LLM call itself failed (`:171`)
+4. `MODEL_FOUND_NOTHING` — the LLM produced an empty answer (`:182`)
+
+Three of those are governance and one is not, and the difference is
+load-bearing: `MODEL_ERROR` is an infrastructure failure wearing a refusal's
+clothes, which is why `src/eval/field-eval.ts` refuses to score it as
+governance. This section used to say "three", silently folding `MODEL_ERROR`
+into the same list — while the field-set section further up already said
+"one of the four gates". Non-refused answers always carry citations (document, page, approval date, confidence).
 
 `RetrievalService.search()` applies four hard SQL filters — all four are load-bearing safety constraints, don't relax them:
 1. `status = ACTIVE` (only fully approved+indexed docs)
