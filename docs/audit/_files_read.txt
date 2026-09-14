@@ -135,6 +135,7 @@ apps/api/test/support/gold-set.ts
 apps/api/tsconfig.build.json
 apps/api/tsconfig.e2e.json
 apps/api/tsconfig.json
+apps/web/e2e-smoke.mjs
 apps/web/next-env.d.ts
 apps/web/next.config.mjs
 apps/web/package.json
@@ -158,6 +159,7 @@ apps/web/src/app/(app)/upload/page.tsx
 apps/web/src/app/(app)/users/page.tsx
 apps/web/src/app/globals.css
 apps/web/src/app/layout.tsx
+apps/web/src/app/login/forgot/page.tsx
 apps/web/src/app/login/page.tsx
 apps/web/src/app/page.tsx
 apps/web/src/components/assistant-chat.tsx

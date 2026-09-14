@@ -196,6 +196,7 @@ function ForgotPasswordForm() {
  * prerender at build time.
  */
 export default function ForgotPasswordPage() {
+  const t = useT();
   return (
     <Suspense
       fallback={
@@ -204,7 +205,7 @@ export default function ForgotPasswordPage() {
           role="status"
           aria-live="polite"
         >
-          Loading…
+          {t('loading')}
         </main>
       }
     >
