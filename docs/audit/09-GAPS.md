@@ -579,10 +579,25 @@ The file-by-file read is **done**: `_VERIFICATION.txt` reports `MISSING : 3`,
 and all three lines appear in the skipped table above with a reason, which is
 the completion condition the audit was given.
 
-What is not done is the report set. `01-OVERVIEW`, `02-ARCHITECTURE`,
-`03-MODULES-*`, `06-DEPENDENCIES`, `07-QUALITY-AND-RISKS` and `08-BUILD-AND-RUN`
-are still to be written from the material now gathered in `00-FILE-INDEX.md`.
-`04-DATA-MODEL`, `05-API-SURFACE`, `09-GAPS` and `10-EXECUTIVE-SUMMARY` exist.
+The report set is complete too — eleven documents:
+
+```
+00-FILE-INDEX          231 rows, one per file, each with an evidence-backed role
+01-OVERVIEW            what this is, sized by command
+02-ARCHITECTURE        four Mermaid diagrams, every edge cited
+03-MODULES-backend     21 directories
+03-MODULES-frontend    19 routes, 7 components, 5 libraries
+03-MODULES-mobile      6 screens, and what has no runtime coverage
+03-MODULES-shared      394 lines, zero runtime dependencies
+03-MODULES-infra       what is live, what is reference, what is unused
+04-DATA-MODEL          15 entities against 17 tables and 5 migrations
+05-API-SURFACE         all 50 routes with auth, request, response, errors
+06-DEPENDENCIES        declared beside installed, and the advisory triage
+07-QUALITY-AND-RISKS   ordered by what would hurt a patient first
+08-BUILD-AND-RUN       what ran here, and what could not
+09-GAPS                this file
+10-EXECUTIVE-SUMMARY   the seven CTO deliverables
+```
 
 And the five open questions above are still open. None of them is an
 engineering task, and none of them can be closed by reading this repository —
