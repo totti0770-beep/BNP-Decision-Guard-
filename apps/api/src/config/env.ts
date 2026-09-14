@@ -65,6 +65,45 @@ export const DEFAULT_RAG_MIN_SIMILARITY = 0.25;
  * `loadEnv()` calls this too, so a bad value fails the boot rather than
  * waiting for the first question.
  */
+/**
+ * The three integer RAG tuning knobs, validated the same way and for the same
+ * reason as `ragMinSimilarity()` above.
+ *
+ * Each was read with a bare `parseInt(process.env.X ?? '8', 10)` at its call
+ * site, and each failed differently on a typo — silently, in two of the three
+ * cases, which is the worse half:
+ *
+ * - `RAG_TOP_K=abc` put `LIMIT NaN` into the pgvector query
+ *   (`retrieval.service.ts`), so **every question errored**.
+ * - `RAG_FINAL_K=abc` made the shortlist length NaN in `rerank.service.ts`.
+ * - `RAG_MAX_PER_DOCUMENT=abc` was the quiet one. `Math.max(1, NaN)` is NaN,
+ *   and `used >= NaN` is always false, so the per-document cap **stopped
+ *   applying entirely** — with no error and no log line. That cap exists
+ *   because a live question about paediatric vancomycin dilution was answered
+ *   from a compatibility manual while the dilution manual never reached the
+ *   model at all (see `rerank.service.ts`), so losing it silently is a
+ *   clinical regression, not a tuning one.
+ *
+ * A misconfigured knob now stops the boot, where an operator sees it, instead
+ * of degrading retrieval for a nurse who cannot.
+ */
+function ragInt(variable: string, fallback: number, min: number): number {
+  const raw = process.env[variable]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min) {
+    throw new Error(
+      `[env] ${variable}="${raw}" is not usable. It must be a whole number ` +
+        `of at least ${min}.`,
+    );
+  }
+  return value;
+}
+
+export const ragTopK = () => ragInt('RAG_TOP_K', 8, 1);
+export const ragFinalK = () => ragInt('RAG_FINAL_K', 4, 1);
+export const ragMaxPerDocument = () => ragInt('RAG_MAX_PER_DOCUMENT', 3, 1);
+
 export function ragMinSimilarity(): number {
   const raw = process.env.RAG_MIN_SIMILARITY?.trim();
   if (!raw) return DEFAULT_RAG_MIN_SIMILARITY;
@@ -226,10 +265,6 @@ export function loadEnv(): AppEnv {
   // the bucket at all, so leaving it out of the fail-fast only moved the
   // failure from boot to the first document upload.
   required('S3_ACCESS_KEY', DEMO_S3_ACCESS_KEY);
-  // Paired with the secret. A demo access key plus a real secret cannot reach
-  // the bucket at all, so leaving it out of the fail-fast only moved the
-  // failure from boot to the first document upload.
-
 
   // Mail is deliberately NOT part of the secret fail-fast. A missing secret is
   // a security hole that must stop the boot; log-only mail is a degraded
@@ -247,6 +282,37 @@ export function loadEnv(): AppEnv {
         'MAIL_PROVIDER=smtp with MAIL_HOST before onboarding real users.',
     );
   }
+
+  // An explicitly chosen `openai` provider with no key is a hard config error,
+  // for the same reason MAIL_PROVIDER=smtp with no MAIL_HOST is: the operator
+  // has stated an intention the process cannot honour.
+  //
+  // Silence here was the dangerous option. Provider selection
+  // (llm.service.ts:152-155, embedding.service.ts:167-171) reads
+  // `PROVIDER === 'openai' && OPENAI_API_KEY`, so a missing key fell through to
+  // the mock — and the mock is not a degraded version of the product, it is a
+  // different one: an extractive sentence-picker over hashed bag-of-words
+  // vectors. A hospital that set LLM_PROVIDER=openai, watched answers come
+  // back, and never noticed the key had not reached the container would have
+  // been running a demo stand-in on live clinical questions. Refusing to boot
+  // is loud, immediate, and happens before a nurse can ask anything.
+  for (const variable of ['LLM_PROVIDER', 'EMBEDDING_PROVIDER'] as const) {
+    if (process.env[variable] === 'openai' && !process.env.OPENAI_API_KEY?.trim()) {
+      throw new Error(
+        `[env] ${variable}=openai requires OPENAI_API_KEY. Without it the ` +
+          'process would silently fall back to the mock provider, which is a ' +
+          'stand-in for offline development and not the product. Supply the ' +
+          `key, or set ${variable}=mock to choose the stand-in deliberately.`,
+      );
+    }
+  }
+
+  // Same reason as the pattern below: a knob that only fails on the first
+  // question fails in front of a nurse, not an operator.
+  ragTopK();
+  ragFinalK();
+  ragMaxPerDocument();
+  ragMinSimilarity();
 
   // Validate here so a malformed pattern stops the boot rather than being
   // discovered by the first request it fails to screen.

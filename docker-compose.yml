@@ -19,8 +19,16 @@ services:
       timeout: 5s
       retries: 10
 
+  # MinIO is pulled from quay.io, not Docker Hub. `minio/minio` and `minio/mc`
+  # were withdrawn from Docker Hub — both now return 404 on the repository API
+  # and 401 on an anonymous manifest fetch, while `pgvector/pgvector` beside
+  # them returns 200 — so `docker compose up` and CI's browser smoke both died
+  # at image resolution, before a container existed:
+  #   minio Error pull access denied for minio/minio, repository does not exist
+  # quay.io/minio/minio is MinIO's own alternative registry, so this is a
+  # registry change and not a change of software.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: bnp-minio
     command: server /data --console-address ":9001"
     environment:
@@ -31,26 +39,18 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+    # Deliberately no healthcheck. The previous one shelled out to `mc` inside
+    # this image, which ties liveness to a binary the image is not obliged to
+    # ship; the API's own /health/ready already probes object storage
+    # (health.controller.ts:41 -> storage.service.ts:45), and it is the `api`
+    # healthcheck that gates `web` below.
 
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing local/${S3_BUCKET:-bnp-documents} &&
-      echo 'MinIO bucket ready'
-      "
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-bnp_minio}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-bnp_minio_secret}
+  # `minio-init` is gone, not replaced. Its only job was `mc mb`, and
+  # StorageService.ensureBucket() (storage.service.ts:53-64) already creates the
+  # bucket on demand — it is called from documents.service.ts:82 on every upload
+  # and from seed.ts:160 on boot when SEED_ON_BOOT is true, which is the
+  # default. A second service pulling a second withdrawn image to do work the
+  # application already does was one more thing to break.
 
   api:
     build:
@@ -60,8 +60,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # service_started, not service_healthy: minio has no healthcheck now (see
+      # above). The API tolerates object storage arriving late — ensureBucket is
+      # lazy and /health/ready reports `objectStorage: down` with a 503 until it
+      # is reachable, which is what the 60s start_period below is for.
       minio:
-        condition: service_healthy
+        condition: service_started
     environment:
       # This file is the local demo stack, and it ships the shipped-default
       # secrets below. NODE_ENV=production here made the API's secret

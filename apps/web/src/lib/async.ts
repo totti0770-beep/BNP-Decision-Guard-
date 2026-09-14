@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useT } from './language';
 
 export interface AsyncResult<T> {
   data: T | null;
@@ -31,6 +32,7 @@ export function useAsyncData<T>(
   fetcher: () => Promise<T>,
   deps: React.DependencyList,
 ): AsyncResult<T> {
+  const t = useT();
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(true);
@@ -56,7 +58,7 @@ export function useAsyncData<T>(
       })
       .catch((e: unknown) => {
         if (mine !== seq.current) return;
-        setError(e instanceof Error ? e.message : 'Request failed');
+        setError(e instanceof Error ? e.message : t('requestFailed'));
       })
       .finally(() => {
         if (mine === seq.current) setPending(false);

@@ -37,7 +37,8 @@ docs/         Architecture, database schema, API reference
 JWT auth (+ refresh, self-service TOTP MFA), Docker Compose.
 
 **RAG pipeline**: PDF → page-aware extraction → chunking → embeddings →
-pgvector → cosine retrieval (**restricted to ACTIVE, non-expired documents**)
+pgvector → cosine retrieval (**four hard filters: ACTIVE, not expired, the
+document's current version, and the currently configured embedding provider**)
 → rerank → threshold check → context-only LLM → citations (document, page,
 approval date, confidence) → exact refusal when no source qualifies.
 
@@ -102,7 +103,7 @@ boot.
 ## Run locally (without Docker for the apps)
 
 ```bash
-docker compose up -d postgres minio minio-init   # infra only
+docker compose up -d postgres minio              # infra only
 npm install
 npm run build:shared
 npm run seed          # migrations + demo data (idempotent)
@@ -268,8 +269,8 @@ every question until a document is indexed.
 ## Tests
 
 ```bash
-npm test                        # 396 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 209 integration tests — real HTTP + real Postgres
+npm test                        # 416 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 229 integration tests — real HTTP + real Postgres
 cd apps/mobile && npm test      # 32 mobile unit tests — separate install
 ```
 
@@ -389,12 +390,12 @@ See `.env.example`. Key ones:
 | --- | --- | --- |
 | `LLM_PROVIDER` / `EMBEDDING_PROVIDER` | `mock` | `mock` or `openai` |
 | `OPENAI_API_KEY` | — | required only for `openai` providers |
-| `RAG_MIN_SIMILARITY` | `0.25` | refusal threshold |
+| `RAG_MIN_SIMILARITY` | `0.25` | refusal threshold; must be a finite number in `[0, 1]` or the API refuses to boot |
 | `RAG_TOP_K` / `RAG_FINAL_K` | `8` / `4` | retrieval / rerank depth |
+| `RAG_MAX_PER_DOCUMENT` | `3` | cap on chunks any one document contributes to an answer |
 | `MAIL_PROVIDER` | `log` | `log` writes reset links to the app log; set `smtp` before real users |
 | `MAIL_HOST` / `MAIL_FROM` / `APP_BASE_URL` | — | `MAIL_HOST` required for `smtp`; reset links resolve against `APP_BASE_URL` (defaults to the first `CORS_ORIGINS` entry) |
 | `NODE_ENV` | `development` | `production`, `development` or `test`. An unrecognised value refuses to boot rather than silently selecting the development security posture |
-| `RAG_MIN_SIMILARITY` | `0.25` | refusal threshold; must be a finite number in `[0, 1]` or the API refuses to boot |
 | `SEED_ON_BOOT` | `true` (docker) | seed demo data on API start — ignored when `NODE_ENV=production` |
 | `SEED_ALLOW_PRODUCTION` | unset | allow seeding published demo accounts in production |
 | `ALLOW_DEMO_ACCOUNTS` | unset | keep default-password demo accounts enabled in production |
@@ -434,8 +435,11 @@ institutional process. Highlights:
   enforced by a global guard. The matrix is the single source of truth — the
   persisted `role_permissions` rows exist so the UI can display it and are
   never consulted when authorizing a request.
-- **Refusal-first AI**: retrieval is hard-filtered to ACTIVE, non-expired
-  document versions; sub-threshold matches refuse with the exact Arabic string;
+- **Refusal-first AI**: retrieval is hard-filtered four ways — ACTIVE, not
+  expired, the document's current version, and the currently configured
+  embedding provider (the last is what makes a provider switch refuse safely
+  rather than compare incomparable vectors);
+  sub-threshold matches refuse with the exact Arabic string;
   the mock LLM is extractive (cannot generate beyond context) and the OpenAI
   provider runs under a context-only prompt with the same server-side gate.
 - **Audit**: every login, question, answer (incl. refusals), document action,
@@ -467,11 +471,14 @@ institutional process. Highlights:
   MinIO or your cloud bucket; Postgres supports TDE/disk encryption at the
   infrastructure layer.
 - **Dependency vulnerability scanning**: CI hard-fails on any **critical**
-  `npm audit` finding. As of the August 2026 audit there are **0 critical, 5
-  high and 9 moderate** findings; because the gate only blocks critical, the
-  five highs currently pass CI. See `docs/production-readiness.md`. (The
-  NestJS 11 and Next.js 16 majors that once blocked some of these have since
-  landed — `e0662bd` and `b62443d`.)
+  `npm audit` finding. Measured on this commit: **0 findings at every
+  severity**. The 8 high and 1 moderate this line used to carry were closed
+  without a framework major — `multer` to 2.4.0 via the root override, and
+  `js-yaml` ×2 and `qs` by lockfile re-resolution inside ranges their own
+  parents already allowed. `SECURITY.md`'s dependency-scanning row has the
+  detail. Any count here is still a reading with a date on it, not a property of
+  the tree: advisories get published against code that has not changed, which is
+  why the CI gate and not this sentence is what protects a merge.
 - **No public self-registration**: accounts are provisioned by an administrator
   via `POST /users`. Roles are read-only over the API — permissions live in
   `packages/shared/src/rbac.ts`, which is what the guard actually enforces.

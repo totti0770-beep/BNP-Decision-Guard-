@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { IsNull, LessThan, Repository } from 'typeorm';
 import { DocumentStatus, RoleName } from '@bnp/shared';
 import { Document, Notification, User } from '../entities';
 import { ApprovalService } from '../approval/approval.service';
@@ -22,9 +22,22 @@ export class NotificationsService {
     private readonly mail: MailService,
   ) {}
 
+  /**
+   * The caller's notifications, plus any addressed to nobody in particular.
+   *
+   * `user_id` is nullable (`entities/misc.entity.ts:47-48`) so a row can be a
+   * broadcast. The second branch used to read `{ userId: undefined as never }`,
+   * which TypeORM contributes nothing for: the effective predicate was
+   * `user_id = $1` alone, so a broadcast row would have been delivered to
+   * nobody. Nothing writes one today, which is why it never showed up — the
+   * branch was dead rather than dangerous. `IsNull()` is what that branch was
+   * reaching for, and `test/notifications.e2e-spec.ts` pins both halves:
+   * another user's row is never returned, and an unaddressed row reaches
+   * everyone.
+   */
   listForUser(userId: string) {
     return this.notifications.find({
-      where: [{ userId }, { userId: undefined as never }],
+      where: [{ userId }, { userId: IsNull() }],
       order: { createdAt: 'DESC' },
       take: 100,
     });

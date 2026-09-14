@@ -53,13 +53,14 @@ type Filter = 'NEEDS_ACTION' | 'ALL';
 
 /** Where this document sits in DRAFT → IN REVIEW → APPROVED → INDEXED → ACTIVE. */
 function LifecycleTrack({ status }: { status: string }) {
+  const t = useT();
   const index = STAGES.indexOf(status as (typeof STAGES)[number]);
   const derailed = status === 'REJECTED' || status === 'EXPIRED' || status === 'INACTIVE';
 
   if (derailed) return null;
 
   return (
-    <ol className="flex items-center gap-1" aria-label={`Lifecycle stage: ${status}`}>
+    <ol className="flex items-center gap-1" aria-label={t('lifecycleStage', { status })}>
       {STAGES.map((s, i) => (
         <li
           key={s}
@@ -121,7 +122,7 @@ export default function ApprovalsPage() {
       reload();
       if (expanded === id) await showHistory(id);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Action failed');
+      setActionError(err instanceof Error ? err.message : t('actionFailed'));
     } finally {
       setBusyId(null);
     }
@@ -162,8 +163,8 @@ export default function ApprovalsPage() {
           value={filter}
           onChange={setFilter}
           options={[
-            { value: 'NEEDS_ACTION', label: 'Needs your action', count: actionable.length },
-            { value: 'ALL', label: 'All documents', count: docs.length },
+            { value: 'NEEDS_ACTION', label: t('needsYourAction'), count: actionable.length },
+            { value: 'ALL', label: t('allDocuments'), count: docs.length },
           ]}
         />
       </div>
@@ -178,12 +179,12 @@ export default function ApprovalsPage() {
         <Panel>
           <EmptyState
             title={
-              filter === 'NEEDS_ACTION' ? 'Nothing waiting on you' : 'No documents yet'
+              filter === 'NEEDS_ACTION' ? t('nothingWaitingTitle') : t('noDocumentsTitle')
             }
             description={
               filter === 'NEEDS_ACTION'
-                ? 'Every document is either live or waiting on someone else in the workflow. Switch to All documents to see the full library.'
-                : 'Upload a PDF to start the approval workflow. Until a document reaches ACTIVE the assistant cannot cite it.'
+                ? t('nothingWaitingDesc')
+                : t('noDocumentsDesc')
             }
           />
         </Panel>
@@ -201,7 +202,7 @@ export default function ApprovalsPage() {
                       <StatusBadge status={d.status} />
                     </div>
                     <p className="mt-1 text-xs text-subtle">
-                      {d.category.replaceAll('_', ' ')} · v{d.versionNumber} · uploaded by{' '}
+                      {d.category.replaceAll('_', ' ')} · v{d.versionNumber} · {t('uploadedByLabel')}{' '}
                       {d.uploadedBy?.fullName ?? '—'} · {d.createdAt.slice(0, 10)}
                     </p>
                     <div className="mt-2">
@@ -270,7 +271,7 @@ export default function ApprovalsPage() {
                       aria-controls={`history-${d.id}`}
                       onClick={() => (open ? setExpanded(null) : showHistory(d.id))}
                     >
-                      {open ? 'Hide history' : 'History'}
+                      {open ? t('hideApprovalHistory') : t('showApprovalHistory')}
                     </Button>
                   </div>
                 </div>

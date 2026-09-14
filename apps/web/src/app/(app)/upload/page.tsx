@@ -38,11 +38,11 @@ export default function UploadPage() {
     if (!f) return setFile(null);
     if (f.type !== 'application/pdf') {
       setFile(null);
-      return setFileError('Only PDF files can be indexed. Choose a .pdf file.');
+      return setFileError(t('uploadOnlyPdf'));
     }
     if (f.size > MAX_BYTES) {
       setFile(null);
-      return setFileError(`That file is ${formatSize(f.size)}. The limit is 25 MB.`);
+      return setFileError(t('uploadTooLarge', { size: formatSize(f.size) }));
     }
     setFile(f);
   }
@@ -65,7 +65,7 @@ export default function UploadPage() {
       await api('/documents/upload', { method: 'POST', body: form });
       router.push('/approvals');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error ? err.message : t('uploadFailed'));
       setBusy(false);
     }
   }
@@ -86,7 +86,7 @@ export default function UploadPage() {
             hint={
               file
                 ? `${file.name} · ${formatSize(file.size)}`
-                : 'PDF only, up to 25 MB'
+                : t('uploadFileHint')
             }
           >
             <Input
@@ -94,7 +94,7 @@ export default function UploadPage() {
               accept="application/pdf"
               required
               onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-              className="h-auto py-1.5 file:mr-3 file:rounded-control file:border-0 file:bg-sunken file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-text"
+              className="h-auto py-1.5 file:me-3 file:rounded-control file:border-0 file:bg-sunken file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-text"
             />
           </Field>
 
@@ -129,7 +129,7 @@ export default function UploadPage() {
             <Field
               label={t('expiryDate')}
               hint={t('expiryHint')}
-              error={expiryInvalid ? 'Expiry must be in the future' : undefined}
+              error={expiryInvalid ? t('expiryMustBeFuture') : undefined}
             >
               <Input
                 type="date"
@@ -150,7 +150,7 @@ export default function UploadPage() {
             loading={busy}
             disabled={!file || !title || expiryInvalid}
           >
-            Upload as draft
+            {t('uploadAsDraft')}
           </Button>
         </Card>
       </form>

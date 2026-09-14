@@ -16,6 +16,7 @@ import {
   ScreenForPhi,
 } from '../common/decorators';
 import { ChatService } from './chat.service';
+import { PAGE_INT } from '../common/pagination';
 
 class AskDto {
   @IsString() @IsNotEmpty() question: string;
@@ -45,23 +46,19 @@ export class ChatController {
   @Permissions(Permission.AI_ASK)
   history(
     @CurrentUser() actor: AuthenticatedUser,
-    @Query('limit') limit?: string,
+    @Query('limit', PAGE_INT) limit?: number,
   ) {
-    return this.chat.history(actor, limit ? parseInt(limit, 10) : undefined);
+    return this.chat.history(actor, limit);
   }
 
   @Get('answers')
   @Permissions(Permission.AI_REVIEW_ANSWERS)
   listAnswersForReview(
     @Query('reviewStatus') reviewStatus?: string,
-    @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
+    @Query('limit', PAGE_INT) limit?: number,
+    @Query('offset', PAGE_INT) offset?: number,
   ) {
-    return this.chat.listAnswersForReview({
-      reviewStatus,
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
-    });
+    return this.chat.listAnswersForReview({ reviewStatus, limit, offset });
   }
 
   @Post('answers/:id/review')

@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (396), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (209), real HTTP + real Postgres
+npm test                      # API unit tests (416), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (229), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
@@ -150,7 +150,18 @@ what lets a test assert that tokens reach SecureStore and never AsyncStorage.
 The screens have no runtime coverage; that would need `jest-expo` plus
 `@testing-library/react-native`.
 
-Full stack via Docker (`docker compose up --build`) → web :3000, API :4000, MinIO console :9001. Infra only: `docker compose up -d postgres minio minio-init`.
+Full stack via Docker (`docker compose up --build`) → web :3000, API :4000, MinIO console :9001. Infra only: `docker compose up -d postgres minio`.
+
+**MinIO comes from `quay.io`, not Docker Hub.** `minio/minio` and `minio/mc` were
+withdrawn from Docker Hub — both answer 404 on the repository API while
+`pgvector/pgvector` beside them answers 200 — so every `docker compose up` and
+every CI browser-smoke run died at image resolution with `pull access denied for
+minio/minio`, before any container existed. `quay.io/minio/minio` is MinIO's own
+registry, so this is a registry change, not a change of software. The
+`minio-init` service was deleted rather than repointed: its only job was
+`mc mb`, and `StorageService.ensureBucket()` (`storage.service.ts:53-64`) already
+creates the bucket, called from `documents.service.ts:82` on every upload and
+from `seed.ts:160` on boot.
 
 Migrations run automatically on API container boot; standalone: `node apps/api/dist/scripts/migrate.js`.
 
@@ -160,13 +171,32 @@ npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 16 App Rout
 
 ### The clinical safety contract
 
-`packages/shared/src/constants.ts` holds two Arabic strings returned **verbatim** — tests assert exact string equality. Never reword, translate, or reformat them:
+`packages/shared/src/constants.ts` holds three Arabic strings returned **verbatim** — tests assert exact string equality. Never reword, translate, or reformat them:
 - `REFUSAL_MESSAGE_AR` — returned whenever no approved source qualifies
 - `DOSE_SAFETY_WARNING_AR` — attached to every dose calculation result
+- `PHI_REJECTION_MESSAGE_AR` — thrown by `PhiScreenGuard` when a request carries patient-identifying data (`phi-screen.guard.ts:105`)
+
+This section listed only the first two until an audit compared it against the
+file. The third is under exactly the same contract, not a lesser one: five
+tests assert it with `toBe` — `phi-screen.guard.spec.ts:100` and
+`phi-screening.e2e-spec.ts:137,273,299,331` — so rewording it fails the build
+the same way rewording a refusal does.
 
 ### Refusal-first RAG chain (`apps/api/src/rag/`)
 
-`RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **three** independent points: no candidates, nothing above `RAG_MIN_SIMILARITY`, or the LLM produced an empty answer. Non-refused answers always carry citations (document, page, approval date, confidence).
+`RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **four** independent points, which `RagDiagnostics.refusedAt` names (`rag-query.service.ts:55-59`):
+
+1. `NO_CANDIDATES` — retrieval returned nothing (`:129`)
+2. `BELOW_THRESHOLD` — nothing scored above `RAG_MIN_SIMILARITY` (`:160`)
+3. `MODEL_ERROR` — the LLM call itself failed (`:171`)
+4. `MODEL_FOUND_NOTHING` — the LLM produced an empty answer (`:182`)
+
+Three of those are governance and one is not, and the difference is
+load-bearing: `MODEL_ERROR` is an infrastructure failure wearing a refusal's
+clothes, which is why `src/eval/field-eval.ts` refuses to score it as
+governance. This section used to say "three", silently folding `MODEL_ERROR`
+into the same list — while the field-set section further up already said
+"one of the four gates". Non-refused answers always carry citations (document, page, approval date, confidence).
 
 `RetrievalService.search()` applies four hard SQL filters — all four are load-bearing safety constraints, don't relax them:
 1. `status = ACTIVE` (only fully approved+indexed docs)
@@ -228,6 +258,7 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 - **Production fail-fast**: with `NODE_ENV=production`, `config/env.ts` refuses to boot if `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, `S3_ACCESS_KEY` or `S3_SECRET_KEY` is missing or left at its shipped default. This is intended — supply real secrets.
 - **`loadEnv()` is the only secret-resolution path.** Don't reintroduce `process.env.X ?? '<literal>'` at a call site: a fallback there resolves to a value published in this repository whenever the variable is unset, and unset only fail-fasts in production. `data-source.ts` matters most — the container runs `dist/scripts/migrate.js` before `main.js`, so it is the earliest code that touches production secrets.
 - **`NODE_ENV` is validated.** Only `production`, `development` and `test` are accepted; unset means development. An unrecognised value used to select the development security posture silently, taking the secret fail-fast, CORS fail-closed, 5xx suppression, the reset-token refusal and the seed refusal down together.
+- **Every RAG knob is validated, not `parseInt`-ed.** `ragMinSimilarity()`, `ragTopK()`, `ragFinalK()` and `ragMaxPerDocument()` all live in `config/env.ts` and all run from `loadEnv()`, so a typo stops the boot in front of an operator rather than degrading retrieval in front of a nurse. The one that mattered was `RAG_MAX_PER_DOCUMENT`: it was read as `Math.max(1, parseInt(...))`, and `Math.max(1, NaN)` is `NaN` while `used >= NaN` is always false — so a typo silently switched the per-document cap **off**, with no error and no log line, undoing the fix that exists because a live vancomycin-dilution question was answered from a compatibility manual. `RAG_TOP_K` failed louder (`LIMIT NaN`, every question erroring) and `RAG_FINAL_K` in between.
 - **`RAG_MIN_SIMILARITY` is validated on every read** (`ragMinSimilarity()`), not `parseFloat`-ed. It must be a finite number in `[0, 1]`. It is read per `ask()` rather than cached so the answer-quality harness can sweep it; `loadEnv()` calls it too so a bad value fails the boot.
 - **Demo accounts are neutralised in production.** The seed refuses under `NODE_ENV=production` (in `seed-policy.ts` *and* in the container CMD), and `DemoAccountGuardService` disables any account still using a README-published password at boot. It compares against the shipped literal only, never `SEED_PASSWORD_*`, so it cannot false-positive on a rotated account. `scripts/create-admin.ts` is the break-glass.
 - **`MAIL_PROVIDER` deliberately does NOT fail-fast.** It is `log` (default) or `smtp`; `smtp` requires `MAIL_HOST` or boot fails, but a production deploy left on `log` only warns. Mail is a degraded feature, not a security hole, and refusing to boot would take the whole clinical assistant offline over undelivered reset links. `log` writes the reset link into the application log, so it must not serve real users.

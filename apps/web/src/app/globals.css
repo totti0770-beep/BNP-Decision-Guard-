@@ -133,7 +133,7 @@
     @apply sr-only rounded-md bg-surface px-4 py-2 text-sm font-medium shadow-lg;
   }
   .skip-link:focus {
-    @apply not-sr-only fixed left-4 top-4 z-50;
+    @apply not-sr-only fixed start-4 top-4 z-50;
   }
 
   .shimmer {
@@ -158,7 +158,24 @@
   to { opacity: 1; transform: none; }
 }
 
+/*
+ * The mobile drawer sits at `start-0`, which is the right edge under RTL — but
+ * a CSS transform is a physical movement and is not mirrored by `dir`. So a
+ * single `translateX(-100%)` keyframe opens the drawer from the left in both
+ * directions, sliding it across the page instead of in from its own edge.
+ * Two keyframes, selected by direction, keep the motion attached to the edge
+ * the drawer is actually pinned to.
+ */
 @keyframes slide-in-left {
   from { transform: translateX(-100%); }
   to { transform: none; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+[dir='rtl'] .animate-slide-in-left {
+  animation-name: slide-in-right;
 }

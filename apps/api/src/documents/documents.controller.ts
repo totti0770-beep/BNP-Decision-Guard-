@@ -22,6 +22,7 @@ import {
 import { DocumentsService } from './documents.service';
 import { ApprovalService } from '../approval/approval.service';
 import { InventoryService } from './inventory.service';
+import { PAGE_INT } from '../common/pagination';
 
 class UploadDto {
   @IsString() @IsNotEmpty() title: string;
@@ -76,16 +77,10 @@ export class DocumentsController {
     @Query('category') category?: string,
     @Query('status') status?: string,
     @Query('search') search?: string,
-    @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
+    @Query('limit', PAGE_INT) limit?: number,
+    @Query('offset', PAGE_INT) offset?: number,
   ) {
-    return this.documents.findAll({
-      category,
-      status,
-      search,
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
-    });
+    return this.documents.findAll({ category, status, search, limit, offset });
   }
 
   /**

@@ -281,6 +281,59 @@ production. Use this as the launch checklist.
 > about it. It says nothing about a real embedding provider, which is the
 > configuration a pilot would run.
 
+> **Audit update (Sep 2026) — scorecard resync.** A file-by-file audit
+> (`docs/audit/`) read this document against the code and found the *dated
+> notes* sound and the *scorecard* stale. That distinction is this file's own:
+> an old note is a record of its date and is left alone, but the scorecard and
+> the two "fastest path" sections are statements about now, and three of their
+> rows had drifted.
+>
+> - **Dependency posture** said `14 findings: 5 high, 9 moderate`. `npm audit`
+>   on this commit reports **9 findings: 8 high, 1 moderate, 0 critical** — the
+>   NestJS 12 chain plus `multer`, `js-yaml` and `qs`. `SECURITY.md`'s
+>   dependency-scanning row carries the triage.
+> - **Test counts** said `211 unit + 68 e2e`. `npm test` on this commit reports
+>   **412 unit** across 28 suites.
+> - **"Fastest path to PRODUCTION" item 1** still opened with "as of the August
+>   2026 audit the count is **0 findings of any severity**", which the Next.js
+>   16 note above had already superseded in the notes — but the superseding
+>   note lives in the log, and the claim it supersedes was sitting in the
+>   forward-looking section someone reads to plan the work.
+>
+> - **The corpus row contradicted the runbook.** The scorecard marked
+>   *Approved clinical content corpus* ✅ "real, governed" for Pilot, while the
+>   operator runbook lists *Real approved clinical corpus* as an item still
+>   standing, and the clinical-validation row two lines above is 🔴 blocker for
+>   the same column. 725 chunks being *indexed* is not the same claim as their
+>   being approved through the governed workflow, and no one has audited their
+>   provenance — `GET /documents/inventory` would, and has not been run.
+>
+> The 725-chunk figure itself is left as it stands: it is sourced, to the boot
+> log quoted in the go-live table below. It is a reading taken on 2026-08-22,
+> not a property of the system today.
+
+> **Audit update (Sep 2026) — all dependency advisories closed, no framework
+> major.** The scorecard row and the item below both said the remaining highs
+> were gated on a NestJS 12 major. Neither was right. `npm audit --json` marks a
+> package vulnerable when a *dependency* of it is, and six of the seven packages
+> in that "NestJS 12 chain" had no advisory of their own — they all traced to
+> `multer`.
+>
+> | Package | Was | Now | How |
+> | --- | --- | --- | --- |
+> | `multer` (+ 6 inherited `@nestjs/*` markers) | 2.2.0 | **2.4.0** | root `overrides` bumped `^2.2.0` → `^2.3.0`; `platform-express` pins it exactly, so an override is genuinely needed here |
+> | `js-yaml` (ESLint path) | 4.3.1 | **4.3.2** | already inside `@eslint/eslintrc`'s `^4.3.0` |
+> | `js-yaml` (jest coverage path) | 3.15.1 | **3.15.2** | already inside `@istanbuljs/load-nyc-config`'s `^3.13.1` |
+> | `qs` (Express body-parser) | 6.15.3 | **6.16.0** | already inside `express`'s `^6.14.0` |
+>
+> Three of the four needed no override at all — they were held below floors their
+> own parents already allowed, by a stale lockfile. That is the failure mode
+> `CLAUDE.md` documents from the `next` upgrade, and it had been costing this
+> project three closable advisories since August. `npm audit` now reports
+> `{"info":0,"low":0,"moderate":0,"high":0,"critical":0,"total":0}`, with
+> resolved versions verified on disk after `npm ci` — including both `js-yaml`
+> copies, since the nested one is invisible to an ordinary `require.resolve`.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
@@ -291,13 +344,13 @@ production. Use this as the launch checklist.
 | Single validated secret-resolution path (`loadEnv()`) | ✅ | ✅ | ✅ |
 | Index integrity (advisory lock + UNIQUE constraint, real column-width check) | ✅ | ✅ | ✅ `staleRetrievable=0` on 725 chunks |
 | **Clinical validation of answers** | 🔴 | 🔴 **blocker** | 🔴 — protocol in `docs/clinical-validation.md`, awaiting reviewer |
-| Dependency vulnerability posture | ✅ 0 critical | 🟡 5 high pass CI | 🟡 (14 findings: 5 high, 9 moderate — see below) |
+| Dependency vulnerability posture | ✅ | ✅ | ✅ **0 findings at every severity** — `npm audit` on this commit. The 8 high / 1 moderate this row carried were closed without a framework major; see the Sep 2026 note above and `SECURITY.md` |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
-| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 211 unit + 68 e2e + 13-step browser flow, all gate CI | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 416 unit (measured on this commit) + the integration suite against real Postgres+pgvector + the browser flow, all gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
-| Approved clinical content corpus | 🔴 synthetic | ✅ real, governed (725 chunks indexed in production) | ✅ |
+| Approved clinical content corpus | 🔴 synthetic | 🟡 725 chunks **indexed** in production (`chunks=725`, go-live log below); whether they were approved through the governed workflow is unaudited — see the runbook row *Real approved clinical corpus* | ✅ |
 | High availability (HA Postgres, replicas, HPA, Ingress+TLS) | ➖ | 🟡 | ✅ required |
 | Observability (logs/metrics/traces/alerts) | 🟡 structured JSON logs + liveness/readiness | 🟡 | ✅ required |
 | Compliance (CBAHI/HIPAA, pen-test, DPIA, BAA) | ➖ | 🟡 in progress | ✅ signed off |
@@ -437,13 +490,20 @@ No engineering work substitutes for it.
 
 ## Fastest path to PRODUCTION
 
-1. **Framework major-version migration** — as of the August 2026 audit the
-   count is **0 findings of any severity**. Both framework majors have since
-   been done: NestJS 10→11 closed every moderate (the transitive
-   `express`/`body-parser`/`qs`/`uuid` chain went with it) and Next.js 14→16
-   closed the last two highs in `next` and its bundled `postcss`. The CI gate
-   still hard-fails on critical and reports high/moderate non-blocking, so a
-   newly published advisory surfaces without blocking merges.
+1. **Framework major-version migration** — both of the majors this item was
+   written for are done: NestJS 10→11 and Next.js 14→16. The item then said the
+   remaining highs were gated on a **NestJS 12** major. **That was wrong, and it
+   is closed without one.** Six of the seven packages in that "chain" carried no
+   advisory of their own; all of them traced to `multer`, fixed in 2.3.0. A
+   one-line bump to the root override this repository already had takes the tree
+   to **0 findings at every severity** — see the Sep 2026 note above.
+
+   NestJS 12 exists (12.0.2, published 2026-09-14) and remains a sensible
+   routine upgrade, but it is no longer a security item and should not be rushed
+   on a platform that answers clinical questions. The CI gate still hard-fails on
+   critical and reports high/moderate non-blocking, so a newly published advisory
+   surfaces without blocking merges — and a count in a document is a reading with
+   a date on it, never a property.
 2. **HA infrastructure** — managed PostgreSQL 16 with `vector`, object store
    with SSE/KMS, API replicas behind an Ingress with TLS + HPA; move the
    near-expiry cron to a singleton Job.

@@ -34,7 +34,19 @@ trail are non-negotiable.
 | **MFA (TOTP)** | `otplib`, `/auth/mfa/{enroll,enable,disable,verify}` | Self-service two-step enrolment: `enroll` mints a secret without arming it, `enable` arms it only after verifying a live code, `disable` requires the account password. Login then issues a half-authenticated token exchangeable only at `/auth/mfa/verify`. |
 | **Answer governance review** | `GET /chat/answers`, `POST /chat/answers/:id/review`, `/answer-review` web screen | Pharmacist/quality/knowledge-manager roles review AI answers across all nurses (not just their own) and approve or flag them. Verified end-to-end incl. RBAC (nurse: 403 on both endpoints). |
 | **PHI screening on free-text input** | `packages/shared/src/phi.ts`, `common/guards/phi-screen.guard.ts`, `@ScreenForPhi` | Patient identifiers are rejected before any store is written. Four patterns are active — Saudi national ID/Iqama, full numeric date of birth, Saudi mobile, and explicit identifying phrases (`اسم المريض`, `patient name`, `MRN` …) — plus an optional hospital MRN format. Arabic-Indic digits fold to ASCII first, so switching keyboards is not a bypass. Rejection returns `PHI_REJECTION_MESSAGE_AR` from `@bnp/shared`, and the only record written is `SECURITY:PHI_BLOCKED` carrying the pattern categories, never the text. See *PHI screening* below. |
-| **Dependency vulnerability scanning** | `.github/workflows/ci.yml` (`security` job) | `npm audit --audit-level=critical` fails CI on any critical finding (hard gate); `--audit-level=high` reports the rest without blocking. The hard gate has bitten for real: `next@16.3.1` carried GHSA-p293-qw3h-jr36 (CVSS 9.0, unauthenticated RCE) and failed the pipeline until the bump to `^16.3.3`. The non-blocking findings are currently **9 high and 1 moderate** — the `@nestjs/core` chain and its five dependents, `multer`, `js-yaml`, `nodemailer`, and `qs` — none of them Next.js. Most resolve only through majors; `nodemailer` is the one with a product path (password reset) and a non-major fix. Count measured at the time of writing; `npm audit` is the authority. |
+| **Dependency vulnerability scanning** | `.github/workflows/ci.yml` (`security` job) | `.github/scripts/audit-critical.mjs` fails CI on any critical finding (hard gate); `npm audit --audit-level=high` reports the rest without blocking. The hard gate reads `npm audit --json` rather than relying on `npm audit --audit-level=critical`'s exit code: that path calls the registry's legacy "quick" audit endpoint, which npm is retiring and which returned `400 Invalid package tree` on an unchanged lockfile `npm ci` had installed cleanly seconds earlier — a red light with no finding behind it, and indistinguishable from a real critical. The script also fails when the audit could not run at all, so a missing advisory feed is never a silent pass. The hard gate has bitten for real: `next@16.3.1` carried GHSA-p293-qw3h-jr36 (CVSS 9.0, unauthenticated RCE) and failed the pipeline until the bump to `^16.3.3`. **`npm audit` on this commit reports 0 findings at every severity.** It reported 9 (8 high, 1 moderate) until the fix described below:
+
+- **`nodemailer` — fixed.** It was the one advisory on a live product path (password reset) and the one with a fix that was not a framework major. Bumped `^9.0.5` → `^10.0.10`, which clears all four of its advisories (`resolveContent()` bypassing `disableFileAccess`, two recipient-domain validation bypasses, and quadratic address parsing). Resolved version verified after `npm ci`, not from the declared range — see the nested-lockfile gotcha in `CLAUDE.md`.
+- **`multer` — fixed, and it never needed the framework major.** This row previously read *"the NestJS 12 chain — accepted, needs a major"*, listing `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/schedule`, `@nestjs/testing`, `@nestjs/throttler`, `@nestjs/typeorm` and `multer` as one blocked group. Six of those seven had **no advisory of their own** — `npm audit --json` marks them vulnerable only because a dependency is, and that dependency was `multer` in every case. `multer` was vulnerable at `<=2.2.0` and fixed in 2.3.0 (published 2026-08-28); the whole `@nestjs/*` chain collapses with it. `@nestjs/platform-express@11.2.1` pins `multer` at exactly `2.2.0`, which is why this needed the root `overrides` entry that already existed: `^2.2.0` → `^2.3.0`, resolving to **2.4.0**. The four denial-of-service advisories on multipart parsing — the document-upload path — are closed. That path remains bounded at 25 MB by `FileInterceptor` (`documents.controller.ts:62-64`) and reachable only with `documents:upload`.
+
+  The error in the old text was reading `npm audit`'s package list as seven findings rather than one finding and six inherited markers. Distinguishing them is a single pass over `via`: an entry whose `via` array holds only strings has no advisory of its own.
+- **`js-yaml` and `qs` — fixed, and neither needed an override.** This row previously said `js-yaml` could not be fixed because *"forcing a single version would break the 3.x consumer, whose API differs"*. True, and beside the point: **nothing had to be forced to a single version.** Each copy had a patched release inside its own parent's declared range. ESLint's `@eslint/eslintrc` declares `^4.3.0` and 4.3.2 closes the 4.x advisory; jest's `@istanbuljs/load-nyc-config` declares `^3.13.1` and **3.15.2** closes the 3.x one. Both shipped in late August. The tree is now 4.3.2 hoisted and 3.15.2 nested, each satisfying its own consumer.
+
+  `qs` is the same shape. `express@5.2.1` declares `^6.14.0` and `body-parser` `^6.15.2`; 6.16.0 satisfies both. The earlier attempt failed because it reached for an **override**, which is what emptied the entry — a plain lockfile re-resolution (`npm update qs --package-lock-only`) lifts it cleanly, because the declared ranges already permitted it.
+
+  All three were held below floors their own parents allowed by a stale lockfile. That is the failure mode `CLAUDE.md` already documents from the `next` upgrade, and it cost this project three advisories it could have closed in August.
+
+Counts measured on this commit; `npm audit` is the authority — `{"info":0,"low":0,"moderate":0,"high":0,"critical":0,"total":0}`. Resolved versions were verified on disk after `npm ci`, not from declared ranges, including **both** `js-yaml` copies: the nested one is invisible to an ordinary `require.resolve`. |
 
 ## PHI screening
 
@@ -66,7 +78,7 @@ against a real database by searching whole rows and whole `jsonb` documents
 single total. In the first weeks of use the operating question is not how many
 inputs were rejected but *which pattern is rejecting legitimate clinical
 questions*, and a total cannot answer that. Query it with
-`GET /audit?action=SECURITY:PHI_BLOCKED`.
+`GET /audit-logs?action=SECURITY:PHI_BLOCKED`.
 
 ### Which fields, and why two profiles
 
@@ -100,11 +112,11 @@ Three routes are screened for reasons worth stating:
 - **`fullName` on `POST /users` / `PATCH /users/:id`** is a structured field for
   staff names, and a name in it is its purpose. This control targets identifiers
   that leak into a *free-text* field, not fields designed to hold a name.
-- **`PATCH /settings/:key`** takes `{ value: unknown }` — an operator-set
+- **`PUT /settings/:key`** takes `{ value: unknown }` — an operator-set
   configuration value of unconstrained type. This is a **known, accepted
   limitation** rather than a field judged out of scope: it is reachable only by
-  `settings:write` holders, and screening it would mean type-narrowing the
-  settings contract. Revisit if free-text settings are ever exposed more widely.
+  `settings:manage` holders (`settings.module.ts:64`), and screening it would
+  mean type-narrowing the settings contract. Revisit if free-text settings are ever exposed more widely.
 
 ### The MRN pattern ships disabled
 
@@ -251,7 +263,7 @@ table. It never echoes the password to stdout.
 
 **Verifying it fired.** After the next production deploy, the application log
 carries one `Disabled "<email>"` line per affected account plus a summary
-naming how many active accounts remain, and `GET /audit?action=SECURITY:DEMO_ACCOUNT_DISABLED`
+naming how many active accounts remain, and `GET /audit-logs?action=SECURITY:DEMO_ACCOUNT_DISABLED`
 returns the corresponding rows.
 
 **Web UI.** The login page no longer prefills a demo email or renders a demo
@@ -278,12 +290,20 @@ production sign-off — see `docs/production-readiness.md`.
   themselves (`/auth/mfa/enroll` → `/auth/mfa/enable`), but nothing lets an
   administrator *require* it for a role — there is no org-wide MFA policy, so
   adoption is voluntary per user.
-- ~~**High-severity dependency advisories pass CI.**~~ ✅ Root workspaces are
-  at **0 findings of any severity** (re-run 21 Aug 2026): the NestJS 10→11
-  upgrade closed all 9 moderates, and Next.js 14→16 closed the last 2 highs in
-  `next` and its bundled `postcss`. The CI gate still hard-fails only on
-  critical and reports high/moderate, so a new advisory surfaces without
-  blocking.
+- **High-severity dependency advisories pass CI — still true, and the count is
+  no longer zero.** This bullet was struck through and marked ✅ "0 findings of
+  any severity (re-run 21 Aug 2026)". That was accurate on the day: the NestJS
+  10→11 upgrade closed all 9 moderates and Next.js 14→16 closed the last 2 highs.
+  It is not accurate now. `npm audit` on this commit reports **9 vulnerabilities
+  (8 high, 1 moderate, 0 critical)** — the NestJS 12 advisory chain and `multer`
+  appeared afterwards. The implemented-controls table above has carried the
+  current figure the whole time, so the file disagreed with itself, with the ✅
+  sitting in the section a reviewer reads to find out what is still open. A
+  resolved-and-struck-through entry is a claim with a timestamp on it; when the
+  underlying number can move, striking it through is how it stops being read.
+  The triage of those 9 is in the dependency-scanning row above. The CI gate
+  still hard-fails only on critical and reports high/moderate, so a new advisory
+  surfaces without blocking.
 - **`apps/mobile` dependencies are scanned AND gated.** It is deliberately not
   an npm workspace, so the root `npm audit` gate never sees it; the mobile CI
   job scans it and hard-fails on critical, matching the root job. The Expo

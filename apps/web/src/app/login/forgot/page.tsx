@@ -58,7 +58,7 @@ function ForgotPasswordForm() {
       // a local install; normally the token arrives by email and never here.
       if (data.resetToken) setToken(data.resetToken);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
+      setError(err instanceof Error ? err.message : t('requestFailed'));
     } finally {
       setBusy(false);
     }
@@ -72,7 +72,7 @@ function ForgotPasswordForm() {
       await post('/auth/reset-password', { token, newPassword });
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Reset failed');
+      setError(err instanceof Error ? err.message : t('resetFailed'));
     } finally {
       setBusy(false);
     }
@@ -196,6 +196,7 @@ function ForgotPasswordForm() {
  * prerender at build time.
  */
 export default function ForgotPasswordPage() {
+  const t = useT();
   return (
     <Suspense
       fallback={
@@ -204,7 +205,7 @@ export default function ForgotPasswordPage() {
           role="status"
           aria-live="polite"
         >
-          Loading…
+          {t('loading')}
         </main>
       }
     >

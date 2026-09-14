@@ -274,3 +274,126 @@ describe('ragMinSimilarity', () => {
     expect(() => require('./env').loadEnv()).toThrow(/RAG_MIN_SIMILARITY/);
   });
 });
+
+/**
+ * An `openai` provider with no key used to fall through to the mock, silently.
+ *
+ * That is not a degraded version of the product — the mock LLM is an extractive
+ * sentence-picker and the mock embedder is a hashed bag-of-words, so a
+ * deployment that lost its key kept answering, from a different system than the
+ * one the operator selected. Boot now refuses, which is loud and happens before
+ * any nurse can ask a question.
+ */
+describe('openai provider requires a key', () => {
+  const ORIGINAL = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL };
+    jest.resetModules();
+  });
+
+  function freshLoad() {
+    jest.resetModules();
+    return require('./env').loadEnv;
+  }
+
+  it.each(['LLM_PROVIDER', 'EMBEDDING_PROVIDER'])(
+    'refuses to boot when %s=openai and OPENAI_API_KEY is missing',
+    (variable) => {
+      process.env[variable] = 'openai';
+      delete process.env.OPENAI_API_KEY;
+      expect(() => freshLoad()()).toThrow(new RegExp(`${variable}=openai requires OPENAI_API_KEY`));
+    },
+  );
+
+  it.each(['LLM_PROVIDER', 'EMBEDDING_PROVIDER'])(
+    'treats a whitespace-only %s key as missing',
+    (variable) => {
+      // A key set to "" or " " in a dashboard is the common way this happens —
+      // the variable exists, so nothing looks unset.
+      process.env[variable] = 'openai';
+      process.env.OPENAI_API_KEY = '   ';
+      expect(() => freshLoad()()).toThrow(/OPENAI_API_KEY/);
+    },
+  );
+
+  it('boots with openai selected and a key present', () => {
+    process.env.LLM_PROVIDER = 'openai';
+    process.env.EMBEDDING_PROVIDER = 'openai';
+    process.env.OPENAI_API_KEY = 'sk-a-real-looking-key';
+    expect(() => freshLoad()()).not.toThrow();
+  });
+
+  it('leaves the mock provider alone — no key is required for it', () => {
+    // The offline path is the whole reason this platform runs with no API key,
+    // and a fail-fast that caught it would break every local run and CI job.
+    process.env.LLM_PROVIDER = 'mock';
+    process.env.EMBEDDING_PROVIDER = 'mock';
+    delete process.env.OPENAI_API_KEY;
+    expect(() => freshLoad()()).not.toThrow();
+  });
+
+  it('does not fire when the provider is unset', () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.EMBEDDING_PROVIDER;
+    delete process.env.OPENAI_API_KEY;
+    expect(() => freshLoad()()).not.toThrow();
+  });
+});
+
+/**
+ * The three integer RAG knobs. Each was a bare parseInt at its call site, and
+ * the interesting one is RAG_MAX_PER_DOCUMENT: `Math.max(1, NaN)` is NaN and
+ * `used >= NaN` is always false, so a typo did not error — it silently
+ * switched off the per-document cap that exists because a live question was
+ * answered from the wrong manual.
+ */
+describe('RAG integer knobs are validated', () => {
+  const ORIGINAL = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL };
+    jest.resetModules();
+  });
+
+  function fresh() {
+    jest.resetModules();
+    return require('./env');
+  }
+
+  it.each(['RAG_TOP_K', 'RAG_FINAL_K', 'RAG_MAX_PER_DOCUMENT'])(
+    'refuses to boot on a non-numeric %s',
+    (variable) => {
+      process.env[variable] = 'abc';
+      expect(() => fresh().loadEnv()).toThrow(new RegExp(`${variable}="abc"`));
+    },
+  );
+
+  it.each(['RAG_TOP_K', 'RAG_FINAL_K', 'RAG_MAX_PER_DOCUMENT'])(
+    'refuses %s below 1',
+    (variable) => {
+      process.env[variable] = '0';
+      expect(() => fresh().loadEnv()).toThrow(new RegExp(variable));
+    },
+  );
+
+  it('refuses a fractional value rather than truncating it', () => {
+    // parseInt('2.7') was 2 — a silent reinterpretation of what the operator
+    // wrote. Number('2.7') is 2.7 and fails Number.isInteger, which says so.
+    process.env.RAG_TOP_K = '2.7';
+    expect(() => fresh().loadEnv()).toThrow(/RAG_TOP_K/);
+  });
+
+  it('applies the documented defaults when unset', () => {
+    for (const v of ['RAG_TOP_K', 'RAG_FINAL_K', 'RAG_MAX_PER_DOCUMENT']) delete process.env[v];
+    const env = fresh();
+    expect(env.ragTopK()).toBe(8);
+    expect(env.ragFinalK()).toBe(4);
+    expect(env.ragMaxPerDocument()).toBe(3);
+  });
+
+  it('reads a well-formed override', () => {
+    process.env.RAG_TOP_K = '12';
+    expect(fresh().ragTopK()).toBe(12);
+  });
+});

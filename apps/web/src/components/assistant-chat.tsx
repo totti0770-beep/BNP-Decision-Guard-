@@ -291,20 +291,19 @@ export function AssistantChat({
     const id = Date.now();
     setQuestion('');
     setBusy(true);
-    setTurns((t) => [...t, { id, question: q }]);
+    setTurns((turns) => [...turns, { id, question: q }]);
     try {
       const answer = await api<Answer>('/chat/ask', {
         method: 'POST',
         body: JSON.stringify({ question: q, assistantType, ...(category ? { category } : {}) }),
       });
-      setTurns((t) => t.map((x) => (x.id === id ? { ...x, answer } : x)));
+      setTurns((turns) => turns.map((x) => (x.id === id ? { ...x, answer } : x)));
     } catch (err) {
-      setTurns((t) =>
-        t.map((x) =>
-          x.id === id
-            ? { ...x, error: err instanceof Error ? err.message : 'Request failed' }
-            : x,
-        ),
+      // Resolved before the updater runs: inside `setTurns((turns) => …)` the
+      // parameter would shadow the translate function `t`.
+      const message = err instanceof Error ? err.message : t('requestFailed');
+      setTurns((turns) =>
+        turns.map((x) => (x.id === id ? { ...x, error: message } : x)),
       );
     } finally {
       setBusy(false);

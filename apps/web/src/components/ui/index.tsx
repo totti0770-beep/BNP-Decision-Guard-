@@ -12,6 +12,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
+import { useT } from '@/lib/language';
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
@@ -397,7 +398,15 @@ export function EmptyState({
   );
 }
 
-/** Calm, human error presentation — no stack traces, always an action. */
+/**
+ * Calm, human error presentation — no stack traces, always an action.
+ *
+ * The title and the retry label come from the dictionary. They were English
+ * literals, and this component is rendered on fourteen screens, so an Arabic
+ * user hit a load failure and read an English heading above a translated page.
+ * `message` stays as passed: it is the API's own text, which the server already
+ * returns in a fixed language.
+ */
 export function ErrorState({
   message,
   onRetry,
@@ -405,13 +414,14 @@ export function ErrorState({
   message: string;
   onRetry?: () => void;
 }) {
+  const t = useT();
   return (
     <div role="alert" className="rounded-card border border-danger/30 bg-danger-soft p-4">
-      <p className="text-sm font-medium text-danger">Something went wrong</p>
-      <p className="mt-1 text-sm text-muted">{message}</p>
+      <p className="text-sm font-medium text-danger">{t('errorTitle')}</p>
+      <p dir="auto" className="mt-1 text-sm text-muted">{message}</p>
       {onRetry && (
         <Button size="sm" className="mt-3" onClick={onRetry}>
-          Try again
+          {t('retry')}
         </Button>
       )}
     </div>
@@ -492,7 +502,7 @@ export function SegmentedControl<T extends string>({
           >
             {o.label}
             {o.count != null && (
-              <span className="tnum ml-1.5 text-subtle">{o.count}</span>
+              <span className="tnum ms-1.5 text-subtle">{o.count}</span>
             )}
           </button>
         );
@@ -506,13 +516,20 @@ export function SegmentedControl<T extends string>({
 /**
  * The range is announced via `aria-live`, because previously the only feedback
  * that Next/Previous did anything was rows silently changing.
+ *
+ * The range sentence is a dictionary template rather than concatenation: every
+ * caller already translated `noun` (`t('documentsNoun')`, `t('eventsNoun')`)
+ * while the words around it stayed English, so an Arabic table read
+ * "1–20 of 45 مستندات" with English buttons beneath it. Word order differs
+ * between the two languages, which is exactly what splicing fragments cannot
+ * express — hence `{from}`/`{to}`/`{total}`/`{noun}` placeholders.
  */
 export function Pagination({
   offset,
   limit,
   total,
   onChange,
-  noun = 'results',
+  noun,
 }: {
   offset: number;
   limit: number;
@@ -520,13 +537,17 @@ export function Pagination({
   onChange: (next: number) => void;
   noun?: string;
 }) {
+  const t = useT();
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + limit, total);
+  const things = noun ?? t('resultsNoun');
 
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
       <p aria-live="polite" className="tnum text-xs text-subtle">
-        {total === 0 ? `No ${noun}` : `${from}–${to} of ${total} ${noun}`}
+        {total === 0
+          ? t('paginationEmpty', { noun: things })
+          : t('paginationRange', { from, to, total, noun: things })}
       </p>
       <div className="flex gap-2">
         <Button
@@ -534,14 +555,14 @@ export function Pagination({
           disabled={offset === 0}
           onClick={() => onChange(Math.max(0, offset - limit))}
         >
-          Previous
+          {t('previous')}
         </Button>
         <Button
           size="sm"
           disabled={offset + limit >= total}
           onClick={() => onChange(offset + limit)}
         >
-          Next
+          {t('next')}
         </Button>
       </div>
     </div>

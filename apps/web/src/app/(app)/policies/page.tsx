@@ -86,7 +86,7 @@ export default function PoliciesPage() {
       const { url } = await api<{ url: string }>(`/documents/${id}/download-url`);
       window.open(url, '_blank', 'noopener');
     } catch (e) {
-      setDownloadError(e instanceof Error ? e.message : 'Could not generate a download link');
+      setDownloadError(e instanceof Error ? e.message : t('downloadLinkFailed'));
     } finally {
       setDownloadingId(null);
     }
@@ -201,10 +201,7 @@ export default function PoliciesPage() {
       )}
 
       {!canDownload && (
-        <p className="mt-3 text-xs text-subtle">
-          Source PDFs are download-protected for your role. Use the assistant to
-          get cited answers drawn from these documents.
-        </p>
+        <p className="mt-3 text-xs text-subtle">{t('downloadProtectedNote')}</p>
       )}
     </>
   );

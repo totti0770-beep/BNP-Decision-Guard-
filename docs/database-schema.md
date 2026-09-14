@@ -19,7 +19,7 @@ migration `apps/api/src/migrations/1720000000000-initial-schema.ts`.
 | --- | --- | --- |
 | `documents` | Governed document registry | `category`, `status` (lifecycle), `version_number`, `storage_key` (S3), `approval_date`, `expiry_date`, `uploaded_by_id`, `approved_by_id` |
 | `document_versions` | Immutable version history | `(document_id, version_number)` unique, `change_note`, `storage_key` |
-| `document_chunks` | RAG index | `content`, `page_number`, `embedding vector(384)` + **HNSW cosine index**, `version_number` (must match parent doc for retrieval) |
+| `document_chunks` | RAG index | `content`, `page_number`, `embedding vector(384)` + **HNSW cosine index**, `version_number` (must match parent doc for retrieval), `embedding_provider` (must match the configured provider — see the retrieval invariant), `UNIQUE (document_id, version_number, chunk_index)` |
 | `document_approvals` | Workflow trail | `action`, `from_status`, `to_status`, `actor_id`, `comment` |
 
 ## AI Q&A
@@ -47,7 +47,8 @@ migration `apps/api/src/migrations/1720000000000-initial-schema.ts`.
 
 ## Retrieval invariant
 
-The only query path that reaches the LLM is:
+The only query path that reaches the LLM is
+(`apps/api/src/rag/retrieval.service.ts:62-78`):
 
 ```sql
 SELECT ... FROM document_chunks c
@@ -55,9 +56,22 @@ JOIN documents d ON d.id = c.document_id
 WHERE d.status = 'ACTIVE'
   AND (d.expiry_date IS NULL OR d.expiry_date > now())
   AND c.version_number = d.version_number
+  AND c.embedding_provider = $configured_provider
 ORDER BY c.embedding <=> $query_vector
 LIMIT $k;
 ```
 
-Draft, in-review, rejected, expired, deactivated documents and stale versions
-are structurally unreachable.
+**All four predicates are load-bearing.** Draft, in-review, rejected, expired
+and deactivated documents and stale versions are structurally unreachable —
+and so are chunks embedded by a provider other than the one currently
+configured.
+
+That fourth filter is the least obvious and the easiest to drop by accident.
+Vectors from different embedding providers occupy incompatible spaces, so
+comparing across them yields a similarity score that is arithmetically valid
+and clinically meaningless. Filtering instead means switching
+`EMBEDDING_PROVIDER` makes the assistant **refuse everything** — visibly
+wrong, and safe — rather than answer from junk similarity, until
+`POST /rag/reindex` re-embeds the corpus. `providerCoverage()` reports how
+many chunks are affected, and `test/rag-integrity.e2e-spec.ts` pins the
+behaviour against a real database.

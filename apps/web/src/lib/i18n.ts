@@ -445,6 +445,18 @@ export const dict = {
       'Re-embed only the documents with stale retrievable chunks? This may consume external API quota.',
 
     genericError: 'Something went wrong. Please try again.',
+    // Shared chrome for ErrorState and Pagination. These lived as English
+    // literals inside the components, so a load failure or a paginated table
+    // stayed English on 14 and 3 surfaces respectively while everything around
+    // them translated.
+    errorTitle: 'Something went wrong',
+    paginationRange: '{from}–{to} of {total} {noun}',
+    paginationEmpty: 'No {noun}',
+    previous: 'Previous',
+    next: 'Next',
+    // Default for Pagination when a caller passes no noun. Every current caller
+    // does pass one; this keeps the fallback translated rather than English.
+    resultsNoun: 'results',
 
     // Generic
     loading: 'Loading…',
@@ -453,6 +465,74 @@ export const dict = {
     save: 'Save',
     search: 'Search',
     switchToArabic: 'التبديل إلى العربية',
+    // ---- Copy that only appears when something fails or a list is empty.
+    // This layer was English until the audit: whatever a developer saw while
+    // building got a key, and whatever needs a failure or an empty result to
+    // appear did not. That is the copy a user meets on a bad day.
+    uploadOnlyPdf: 'Only PDF files can be indexed. Choose a .pdf file.',
+    uploadTooLarge: 'That file is {size}. The limit is 25 MB.',
+    uploadFileHint: 'PDF only, up to 25 MB',
+    uploadFailed: 'Upload failed',
+    expiryMustBeFuture: 'Expiry must be in the future',
+    uploadAsDraft: 'Upload as draft',
+
+    tabPending: 'Pending',
+    tabApproved: 'Approved',
+    tabFlagged: 'Flagged',
+    emptyUnreviewedTitle: 'Nothing awaiting review',
+    emptyUnreviewedDesc:
+      'Every answer the assistant has given has been signed off. New answers appear here as nurses ask questions — refusals need no review, since no clinical claim was made.',
+    emptyApprovedTitle: 'No approved answers yet',
+    emptyApprovedDesc: 'Answers you approve from the pending queue will be listed here.',
+    emptyFlaggedTitle: 'No flagged answers',
+    emptyFlaggedDesc:
+      'Nothing has been raised for follow-up. Flag an answer when its wording or sourcing needs a second look.',
+    reviewFailed: 'Review failed',
+    unknownUser: 'unknown user',
+    confidenceLevel: '{level} confidence',
+    totalInView: '{count} total in this view.',
+
+    needsYourAction: 'Needs your action',
+    allDocuments: 'All documents',
+    nothingWaitingTitle: 'Nothing waiting on you',
+    nothingWaitingDesc:
+      'Every document is either live or waiting on someone else in the workflow. Switch to All documents to see the full library.',
+    noDocumentsTitle: 'No documents yet',
+    noDocumentsDesc:
+      'Upload a PDF to start the approval workflow. Until a document reaches ACTIVE the assistant cannot cite it.',
+    hideApprovalHistory: 'Hide history',
+    showApprovalHistory: 'History',
+    actionFailed: 'Action failed',
+    lifecycleStage: 'Lifecycle stage: {status}',
+
+    downloadLinkFailed: 'Could not generate a download link',
+    reindexFailed: 'Reindex failed',
+    saveFailed: 'Save failed',
+    createUserFailed: 'Could not create the user',
+    updateUserFailed: 'Could not update the user',
+    passwordTooShort: 'Too short — use 8 characters or more',
+    requestFailed: 'Request failed',
+    resetFailed: 'Reset failed',
+    switchToThemeLight: 'Switch to light theme',
+    switchToThemeDark: 'Switch to dark theme',
+    // A second pass found these: the first scan could not see JSX text nodes
+    // that span lines, so prose sitting directly inside an element was
+    // invisible to it. The operator-facing lines that name English identifiers
+    // (EMBEDDING_PROVIDER, staleRetrievable) stay English deliberately, on the
+    // same reasoning as the refusal-gate explanations in assistant-chat.
+    refusalRateCaption: 'Share of questions with no approved source behind them',
+    refusalRateExplainer:
+      'A refusal is a correct outcome, not a failure — it means the assistant declined to answer rather than guessing. A rising rate points at gaps in the approved library, not at a broken assistant.',
+    downloadProtectedNote:
+      'Source PDFs are download-protected for your role. Use the assistant to get cited answers drawn from these documents.',
+    noActiveDocsToReindex: 'No active documents to reindex.',
+    invalidJson: 'Not valid JSON — wrap text in quotes',
+    roleCannotChangeConfig: 'Your role can view configuration but not change it.',
+    reindex: 'Reindex',
+    uploadedByLabel: 'uploaded by',
+    providerLabel: 'Provider:',
+    chunksCount: '{count} chunks',
+    failed: 'Failed',
     switchToEnglish: 'Switch to English',
   },
 
@@ -838,6 +918,12 @@ export const dict = {
       'إعادة تضمين الوثائق ذات الأجزاء المتقادمة فقط؟ قد يستهلك ذلك حصة الواجهة الخارجية.',
 
     genericError: 'حدث خطأ ما. حاول مرة أخرى.',
+    errorTitle: 'حدث خطأ ما',
+    paginationRange: '{from}–{to} من {total} {noun}',
+    paginationEmpty: 'لا توجد {noun}',
+    previous: 'السابق',
+    next: 'التالي',
+    resultsNoun: 'نتيجة',
 
     loading: 'جارٍ التحميل…',
     retry: 'إعادة المحاولة',
@@ -845,6 +931,65 @@ export const dict = {
     save: 'حفظ',
     search: 'بحث',
     switchToArabic: 'التبديل إلى العربية',
+    uploadOnlyPdf: 'يمكن فهرسة ملفات PDF فقط. اختر ملفًا بامتداد ‎.pdf‎.',
+    uploadTooLarge: 'حجم هذا الملف {size}. الحد الأقصى ٢٥ ميجابايت.',
+    uploadFileHint: 'PDF فقط، حتى ٢٥ ميجابايت',
+    uploadFailed: 'فشل الرفع',
+    expiryMustBeFuture: 'يجب أن يكون تاريخ الانتهاء في المستقبل',
+    uploadAsDraft: 'رفع كمسودة',
+
+    tabPending: 'قيد المراجعة',
+    tabApproved: 'معتمدة',
+    tabFlagged: 'مُعلَّمة',
+    emptyUnreviewedTitle: 'لا توجد إجابات بانتظار المراجعة',
+    emptyUnreviewedDesc:
+      'تمت مراجعة كل إجابة قدّمها المساعد. ستظهر الإجابات الجديدة هنا مع طرح الممرضين أسئلتهم — أما الرفض فلا يحتاج مراجعة، إذ لم يُقدَّم فيه أي ادعاء سريري.',
+    emptyApprovedTitle: 'لا توجد إجابات معتمدة بعد',
+    emptyApprovedDesc: 'ستُدرج هنا الإجابات التي تعتمدها من قائمة الانتظار.',
+    emptyFlaggedTitle: 'لا توجد إجابات مُعلَّمة',
+    emptyFlaggedDesc:
+      'لم يُرفع أي بند للمتابعة. علِّم الإجابة عندما تحتاج صياغتها أو مصادرها إلى مراجعة ثانية.',
+    reviewFailed: 'فشلت المراجعة',
+    unknownUser: 'مستخدم غير معروف',
+    confidenceLevel: 'ثقة {level}',
+    totalInView: '{count} إجمالاً في هذا العرض.',
+
+    needsYourAction: 'بانتظار إجراء منك',
+    allDocuments: 'كل الوثائق',
+    nothingWaitingTitle: 'لا شيء بانتظارك',
+    nothingWaitingDesc:
+      'كل وثيقة إما فعّالة أو بانتظار شخص آخر في سير العمل. انتقل إلى «كل الوثائق» لعرض المكتبة كاملة.',
+    noDocumentsTitle: 'لا توجد وثائق بعد',
+    noDocumentsDesc:
+      'ارفع ملف PDF لبدء سير الاعتماد. لا يمكن للمساعد الاستشهاد بوثيقة حتى تصل إلى الحالة ACTIVE.',
+    hideApprovalHistory: 'إخفاء السجل',
+    showApprovalHistory: 'السجل',
+    actionFailed: 'فشل الإجراء',
+    lifecycleStage: 'مرحلة دورة الحياة: {status}',
+
+    downloadLinkFailed: 'تعذّر إنشاء رابط التنزيل',
+    reindexFailed: 'فشلت إعادة الفهرسة',
+    saveFailed: 'فشل الحفظ',
+    createUserFailed: 'تعذّر إنشاء المستخدم',
+    updateUserFailed: 'تعذّر تحديث المستخدم',
+    passwordTooShort: 'قصيرة جدًا — استخدم ٨ أحرف أو أكثر',
+    requestFailed: 'فشل الطلب',
+    resetFailed: 'فشلت إعادة التعيين',
+    switchToThemeLight: 'التبديل إلى المظهر الفاتح',
+    switchToThemeDark: 'التبديل إلى المظهر الداكن',
+    refusalRateCaption: 'نسبة الأسئلة التي لا تستند إلى مصدر معتمد',
+    refusalRateExplainer:
+      'الرفض نتيجة صحيحة وليس فشلًا — فهو يعني أن المساعد امتنع عن الإجابة بدل التخمين. ارتفاع النسبة يشير إلى ثغرات في المكتبة المعتمدة، لا إلى خلل في المساعد.',
+    downloadProtectedNote:
+      'تنزيل ملفات PDF المصدرية محجوب عن دورك. استخدم المساعد للحصول على إجابات موثّقة مستمدة من هذه الوثائق.',
+    noActiveDocsToReindex: 'لا توجد وثائق فعّالة لإعادة فهرستها.',
+    invalidJson: 'ليست JSON صالحة — ضع النص بين علامتَي اقتباس',
+    roleCannotChangeConfig: 'يمكن لدورك عرض الإعدادات دون تغييرها.',
+    reindex: 'إعادة الفهرسة',
+    uploadedByLabel: 'رفعها',
+    providerLabel: 'المزوّد:',
+    chunksCount: '{count} مقطعًا',
+    failed: 'فشل',
     switchToEnglish: 'Switch to English',
   },
 } as const;

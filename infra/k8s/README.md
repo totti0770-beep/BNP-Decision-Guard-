@@ -40,6 +40,13 @@ blocked by CORS while the API itself reports itself perfectly healthy.
    `MAIL:LOG_PROVIDER_IN_PRODUCTION` entry in the audit trail.
 5. **`SEED_ON_BOOT=false`** (already set). The demo seed creates accounts with
    passwords published in the README.
+6. **Supply `OPENAI_API_KEY`.** `api-deployment.yaml` selects the `openai`
+   provider for both the LLM and embeddings, and the API refuses to boot if
+   either says `openai` while the key is missing or blank. That refusal is the
+   point: these manifests previously shipped `mock` for both, so a cluster that
+   applied them unchanged served the offline stand-in — an extractive
+   sentence-picker over hashed bag-of-words vectors — to nurses, with nothing
+   anywhere saying so. Choose `mock` explicitly if you want an offline demo.
 
 ## What these manifests deliberately do not do
 

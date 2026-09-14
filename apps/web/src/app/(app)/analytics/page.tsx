@@ -152,15 +152,11 @@ export default function AnalyticsPage() {
             </span>
             <div>
               <p className="text-sm font-medium text-text">{t('refusalRate')}</p>
-              <p className="text-xs text-subtle">
-                Share of questions with no approved source behind them
-              </p>
+              <p className="text-xs text-subtle">{t('refusalRateCaption')}</p>
             </div>
           </div>
           <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
-            A refusal is a correct outcome, not a failure — it means the assistant
-            declined to answer rather than guessing. A rising rate points at gaps in
-            the approved library, not at a broken assistant.
+            {t('refusalRateExplainer')}
           </p>
         </Panel>
 

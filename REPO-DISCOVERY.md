@@ -54,6 +54,62 @@ Everything else in this report — the RAG chain, the refusal gates, the
 governance filters, the security inventory, the dead-code findings in §23.1–23.4,
 the git archaeology — was unaffected by `503cef4` and still holds.
 
+## 0.2 Addendum — two errors in the body, and what has been superseded since
+
+Added 2026-09-14 by the file-by-file audit in `docs/audit/`, which read this
+document in full against the code. Written as an addendum for the reason the
+closing note gives: the body describes `114e655` and is not rewritten.
+
+### Two claims that were wrong when this report was written
+
+These are **not** drift. Both were already false at the pinned commit, and in
+both cases this report's own enumeration disagrees with its own heading — which
+is what makes them findable at all.
+
+| Claim | Where | At `114e655` |
+| --- | --- | --- |
+| "14 database tables" | §6 diagram, §11 heading, §12 migration row 1, §31 | **17.** `git show 114e655:apps/api/src/migrations/1720000000000-initial-schema.ts \| grep -c 'CREATE TABLE'` → 17, and §11's own table lists all 17 by name and line |
+| "7 roles × **21** permissions" | §10 heading, §28 RBAC row | **22.** The `Permission` enum at that commit has 22 members, and §10's own list at `:770-776` enumerates 22 |
+
+Both are the same shape: a count written above a list, and the list is right.
+Nothing in this report recomputed the number from the list it had just produced.
+
+### Superseded since `114e655`, beyond what §0.1 records
+
+§0.1 covers the route-reachability changes from `503cef4`. These are later, and
+touch other sections. Each is a change to the repository, not a correction to
+this report — the findings below were accurate when made.
+
+| Finding | Section(s) | Since |
+| --- | --- | --- |
+| `redis` compose service, 💀 unreferenced | §11, §16, §19, §23.4, §24, §28, §31 | **Removed.** `docker-compose.yml` no longer declares it |
+| `minio-init` service | §19 local-targets table | **Removed**, and MinIO now comes from `quay.io/minio/minio:latest` — `minio/minio` and `minio/mc` were withdrawn from Docker Hub. `StorageService.ensureBucket()` already did `minio-init`'s only job |
+| `packages/shared/src/types.ts`, 💀 whole file, 0 consumers | §23.1, §28, §31 | **Deleted.** `packages/shared/src/` now holds `constants.ts`, `index.ts`, `phi.ts`, `rbac.ts` |
+| `PLATFORM_TAGLINE`, `RETRIEVABLE_STATUSES`, 💀 | §23.2, §28, §31 | **Both removed** |
+| `@nestjs/config`, 💀 installed and never used | §23.3, §24, §28, §31 | **No longer declared** in `apps/api/package.json` |
+| "two contractual Arabic strings" | §14 | **Three.** `packages/shared/src/phi.ts` did not exist at `114e655`; PHI screening added `PHI_REJECTION_MESSAGE_AR`, under the same exact-equality contract |
+| 49 routes | §8, §28, §31 | **50** — `GET /documents/inventory` was added |
+| 213 unit / 68 e2e tests | §17, §27, §31 | **412 unit** (re-measured 2026-09-14) and 229 integration per `CLAUDE.md`; the integration figure was not re-run in the audit container, which has no Postgres |
+| 202 tracked files, 108 commits | §1, §31 | **240** and **173** |
+| `docs/api.md` exempts all of `/auth/*` — CONTRADICTED | §22, §31 | **Fixed.** `docs/api.md:11-13` now states outright that *not all of `/auth/*` is public* and names the four authenticated routes |
+| "Next.js 14" at `README.md:25` — CONTRADICTED | §22, §31 | **Fixed.** That line now reads Next.js 16 |
+
+All four 💀 dead-code findings in §23.1–23.3 have been acted on. That is worth
+stating plainly, because a discovery report's value is only realised if someone
+uses it, and this one was.
+
+### One methodological note, from the audit that found the above
+
+Both of this report's errors, and one of the audit's own, share a cause worth
+naming: **a comment that mentions a thing is not the thing.** The audit's index
+row for `docker-compose.yml` reported a `minio-init` service that is in fact a
+comment explaining its deletion; and a route count taken by grepping
+`@Get|@Post|…` across `apps/api/src` returns 51 rather than 50, because
+`documents.controller.ts:90` is a comment containing the text `@Get(':id')`.
+Counting by pattern over prose-bearing files needs the prose excluded, and
+saying "measured by command" is not by itself a guarantee that the command
+measured the right thing.
+
 ## How to read this document
 
 Every substantive claim below carries a `path:line`, a command output, or a
@@ -2115,3 +2171,9 @@ secret value appears anywhere in it.*
 *Amended 2026-08-31 with §0.1, recording what `503cef4` (PR #41) changed. The
 body above is unchanged and still describes `114e655` exactly — the amendment
 adds a section and three pointers to it, and rewrites no finding.*
+
+*Amended 2026-09-14 with §0.2, by the file-by-file audit in `docs/audit/`: two
+counts that were already wrong at `114e655` (14 tables → 17, 21 permissions →
+22, each contradicted by this report's own enumeration), and a second round of
+supersessions. The body is again unchanged. All four 💀 dead-code findings in
+§23.1–23.3 have since been acted on in the repository.*
