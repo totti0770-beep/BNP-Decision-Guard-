@@ -80,9 +80,7 @@ apps/api/src/rag/rag-query.service.ts
 apps/api/src/rag/rag.controller.ts
 apps/api/src/rag/rag.module.ts
 apps/api/src/rag/rerank.service.spec.ts
-apps/api/src/rag/rerank.service.ts
 apps/api/src/rag/retrieval-dimension-mismatch.spec.ts
-apps/api/src/rag/retrieval.service.ts
 apps/api/src/scripts/create-admin.spec.ts
 apps/api/src/scripts/create-admin.ts
 apps/api/src/scripts/field-eval.ts

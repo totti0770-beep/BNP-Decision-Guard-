@@ -340,3 +340,60 @@ describe('openai provider requires a key', () => {
     expect(() => freshLoad()()).not.toThrow();
   });
 });
+
+/**
+ * The three integer RAG knobs. Each was a bare parseInt at its call site, and
+ * the interesting one is RAG_MAX_PER_DOCUMENT: `Math.max(1, NaN)` is NaN and
+ * `used >= NaN` is always false, so a typo did not error — it silently
+ * switched off the per-document cap that exists because a live question was
+ * answered from the wrong manual.
+ */
+describe('RAG integer knobs are validated', () => {
+  const ORIGINAL = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL };
+    jest.resetModules();
+  });
+
+  function fresh() {
+    jest.resetModules();
+    return require('./env');
+  }
+
+  it.each(['RAG_TOP_K', 'RAG_FINAL_K', 'RAG_MAX_PER_DOCUMENT'])(
+    'refuses to boot on a non-numeric %s',
+    (variable) => {
+      process.env[variable] = 'abc';
+      expect(() => fresh().loadEnv()).toThrow(new RegExp(`${variable}="abc"`));
+    },
+  );
+
+  it.each(['RAG_TOP_K', 'RAG_FINAL_K', 'RAG_MAX_PER_DOCUMENT'])(
+    'refuses %s below 1',
+    (variable) => {
+      process.env[variable] = '0';
+      expect(() => fresh().loadEnv()).toThrow(new RegExp(variable));
+    },
+  );
+
+  it('refuses a fractional value rather than truncating it', () => {
+    // parseInt('2.7') was 2 — a silent reinterpretation of what the operator
+    // wrote. Number('2.7') is 2.7 and fails Number.isInteger, which says so.
+    process.env.RAG_TOP_K = '2.7';
+    expect(() => fresh().loadEnv()).toThrow(/RAG_TOP_K/);
+  });
+
+  it('applies the documented defaults when unset', () => {
+    for (const v of ['RAG_TOP_K', 'RAG_FINAL_K', 'RAG_MAX_PER_DOCUMENT']) delete process.env[v];
+    const env = fresh();
+    expect(env.ragTopK()).toBe(8);
+    expect(env.ragFinalK()).toBe(4);
+    expect(env.ragMaxPerDocument()).toBe(3);
+  });
+
+  it('reads a well-formed override', () => {
+    process.env.RAG_TOP_K = '12';
+    expect(fresh().ragTopK()).toBe(12);
+  });
+});

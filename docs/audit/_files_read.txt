@@ -39,3 +39,5 @@ apps/api/src/roles/roles.controller.ts
 apps/api/src/roles/roles.module.ts
 apps/api/src/roles/roles.service.ts
 apps/api/src/users/users.module.ts
+apps/api/src/rag/retrieval.service.ts
+apps/api/src/rag/rerank.service.ts

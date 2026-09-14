@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { DocumentStatus } from '@bnp/shared';
+import { ragTopK } from '../config/env';
 import { EmbeddingService } from './embedding.service';
 
 export interface RetrievedChunk {
@@ -39,7 +40,7 @@ export class RetrievalService {
     query: string,
     opts: { topK?: number; category?: string } = {},
   ): Promise<RetrievedChunk[]> {
-    const topK = opts.topK ?? parseInt(process.env.RAG_TOP_K ?? '8', 10);
+    const topK = opts.topK ?? ragTopK();
     const queryVector = await this.embeddings.embedOne(query);
     const vectorLiteral = `[${queryVector.join(',')}]`;
 

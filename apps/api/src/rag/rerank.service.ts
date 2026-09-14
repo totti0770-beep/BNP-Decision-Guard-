@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ragFinalK, ragMaxPerDocument } from '../config/env';
 import { tokenize } from './embedding.service';
 import { RetrievedChunk } from './retrieval.service';
 
@@ -10,7 +11,7 @@ import { RetrievedChunk } from './retrieval.service';
 @Injectable()
 export class RerankService {
   rerank(query: string, chunks: RetrievedChunk[], finalK?: number): RetrievedChunk[] {
-    const k = finalK ?? parseInt(process.env.RAG_FINAL_K ?? '4', 10);
+    const k = finalK ?? ragFinalK();
     const qTokens = tokenize(query);
     if (qTokens.length === 0) return this.selectDiverse(chunks, k);
     const qSet = new Set(qTokens);
@@ -58,10 +59,7 @@ export class RerankService {
    * RAG_MAX_PER_DOCUMENT >= RAG_FINAL_K to restore pure score ordering.
    */
   private selectDiverse(ranked: RetrievedChunk[], k: number): RetrievedChunk[] {
-    const maxPerDoc = Math.max(
-      1,
-      parseInt(process.env.RAG_MAX_PER_DOCUMENT ?? '3', 10),
-    );
+    const maxPerDoc = ragMaxPerDocument();
     const usedByDoc = new Map<string, number>();
     const picked: RetrievedChunk[] = [];
     const overCap: RetrievedChunk[] = [];
