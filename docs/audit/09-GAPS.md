@@ -9,11 +9,11 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 155
-MISSING : 76
+READ    : 173
+MISSING : 58
 ```
 
-**The file-by-file audit is 155 of 231 — it is not finished.** One area is:
+**The file-by-file audit is 173 of 231 — it is not finished.** One area is:
 **the whole of `apps/api` is now read** — src, test, config and eval data —
 verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
@@ -26,9 +26,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 155 files read as at 231. A described fact — what a
+whole tree and is as true at 173 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 155 have.
+opened, and only 173 have.
 
 ## Skipped deliberately, with reasons
 
@@ -82,7 +82,7 @@ that this audit did **not** prove.
 
 ## What remains of the audit itself
 
-The remaining 76 files, read in the batches named in the plan, each appended to
+The remaining 58 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.
