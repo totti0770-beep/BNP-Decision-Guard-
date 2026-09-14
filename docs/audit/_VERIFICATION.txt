@@ -1,6 +1,6 @@
 ON DISK : 231
-READ    : 105
-MISSING : 126
+READ    : 120
+MISSING : 111
 --- NOT READ ---
 CLAUDE.md
 README.md
@@ -15,31 +15,16 @@ apps/api/package.json
 apps/api/src/approval/approval.service.spec.ts
 apps/api/src/auth/account-security.spec.ts
 apps/api/src/auth/demo-account-guard.service.spec.ts
-apps/api/src/chat/chat-diagnostics.spec.ts
-apps/api/src/common/guards/permissions.guard.spec.ts
 apps/api/src/common/guards/phi-scanner.spec.ts
 apps/api/src/common/guards/phi-screen.guard.spec.ts
-apps/api/src/common/logging/json-logger.service.spec.ts
 apps/api/src/config/env.spec.ts
-apps/api/src/documents/documents.service.spec.ts
 apps/api/src/documents/inventory.service.spec.ts
-apps/api/src/dose/dose.service.spec.ts
 apps/api/src/eval/field-eval.spec.ts
 apps/api/src/eval/field-set.spec.ts
-apps/api/src/health.controller.spec.ts
-apps/api/src/mail/mail.service.spec.ts
 apps/api/src/notifications/notifications.service.spec.ts
-apps/api/src/rag/chunking.service.spec.ts
-apps/api/src/rag/embedding.service.spec.ts
-apps/api/src/rag/openai-http.spec.ts
-apps/api/src/rag/pdf-extraction.service.spec.ts
 apps/api/src/rag/provider-consistency.spec.ts
 apps/api/src/rag/rag-provider-check.spec.ts
 apps/api/src/rag/rag-query.service.spec.ts
-apps/api/src/rag/rerank.service.spec.ts
-apps/api/src/rag/retrieval-dimension-mismatch.spec.ts
-apps/api/src/scripts/create-admin.spec.ts
-apps/api/src/seed/seed-policy.spec.ts
 apps/api/test/answer-quality.e2e-spec.ts
 apps/api/test/auth.e2e-spec.ts
 apps/api/test/create-admin.e2e-spec.ts
