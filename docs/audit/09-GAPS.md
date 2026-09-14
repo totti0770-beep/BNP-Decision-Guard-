@@ -9,17 +9,17 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 226
-MISSING : 5
+READ    : 227
+MISSING : 4
 ```
 
-**The file-by-file audit is 226 of 231 — it is not finished.** One area is
+**The file-by-file audit is 227 of 231 — it is not finished.** One area is
 complete: **every source file in the repository is now read** — `apps/api`,
 `apps/web`, `apps/mobile` and `packages/shared` in full, plus all infra and CI
 config, across src, test, config and eval data — verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
 gitignored generated report already listed in the skipped table below. What
-remains is two markdown documents and three generated files (two npm
+remains is one markdown document and three generated files (two npm
 lockfiles and the gitignored eval report), all listed in the skipped table
 below or pending in the next batch. Any statement in
 these reports about a file in `_NOT_READ.txt` would be unsupported, and there
@@ -29,9 +29,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 226 files read as at 231. A described fact — what a
+whole tree and is as true at 227 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 226 have.
+opened, and only 227 have.
 
 ## Skipped deliberately, with reasons
 
@@ -462,9 +462,56 @@ document says to confirm the deployed value before reviewing anything. And
 NURSE_USER, but a nurse cannot open the cited PDF — and resolves it by
 splitting asking from citation-checking rather than writing around it.
 
+### A stale advisory count in three documents at once
+
+Four documents in this repository state how many dependency advisories the tree
+carries. On this commit `npm audit` reports **0 critical, 8 high, 1 moderate**.
+Before this audit they said:
+
+| Document | Said | Correct |
+| --- | --- | --- |
+| `SECURITY.md`, controls table | 8 high, 1 moderate | ✅ |
+| `SECURITY.md`, Known Gaps | ~~0 findings of any severity~~ ✅ | ✗ |
+| `docs/production-readiness.md`, scorecard | 14 findings: 5 high, 9 moderate | ✗ |
+| `docs/production-readiness.md`, path to production | 0 findings of any severity | ✗ |
+| `README.md`, security highlights | 0 critical, 5 high, 9 moderate | ✗ |
+
+Only one of the five was right, and it was right because it had been updated by
+hand during the `nodemailer` work. The other four are the same defect in three
+files: a number that was true when it was written, restated as a property.
+
+This is a documentation failure with a mechanical fix available, and it is worth
+naming what the fix is not. It is **not** more diligence — the four stale
+statements were written by people (and agents) who cared enough to write a
+triage paragraph underneath each one. A count that ages cannot be maintained by
+remembering to maintain it. Either CI writes these numbers, or the documents
+stop stating them and point at the one place that does. `SECURITY.md`'s
+dependency-scanning row is the natural home: it already carries the per-package
+triage that gives the number meaning.
+
+Recorded as a gap rather than fixed structurally, because building that
+generator is a change to CI rather than a documentation correction, and nothing
+in this audit has established that the user wants it.
+
+### The retrieval invariant was understated in a fourth place
+
+`README.md:40` described retrieval as "restricted to ACTIVE, non-expired
+documents" and `:437` as "hard-filtered to ACTIVE, non-expired document
+versions". There are four filters (`retrieval.service.ts:62-78`), and the one
+both lines omit is the embedding-provider match — the same omission already
+found and corrected in `docs/database-schema.md` and `docs/architecture.md`.
+
+That makes three documents, written at different times, that independently
+dropped the same predicate. The reason is visible in the README itself: sixteen
+lines above the first omission, `:56-60` explains provider-stamping correctly
+and at length, in the section about switching providers. The filter is
+understood as *a thing that happens when you change providers* rather than as a
+standing clause of the query, so it gets left out whenever the query is
+summarised. Corrected in this branch, stated as four in both places.
+
 ## What remains of the audit itself
 
-The remaining 5 files, read in the batches named in the plan, each appended to
+The remaining 4 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.

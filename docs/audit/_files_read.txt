@@ -3,6 +3,7 @@
 .github/workflows/ci.yml
 .gitignore
 CLAUDE.md
+README.md
 SECURITY.md
 apps/api/.gitignore
 apps/api/eval/README.md
