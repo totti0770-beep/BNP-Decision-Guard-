@@ -1,22 +1,14 @@
 ON DISK : 231
-READ    : 196
-MISSING : 35
+READ    : 208
+MISSING : 23
 --- NOT READ ---
 CLAUDE.md
 README.md
 REPO-DISCOVERY.md
 SECURITY.md
 apps/api/field-eval-report.md
-apps/mobile/.gitignore
 apps/mobile/App.tsx
-apps/mobile/app.json
-apps/mobile/babel.config.js
-apps/mobile/eas.json
-apps/mobile/jest.config.js
 apps/mobile/package-lock.json
-apps/mobile/package.json
-apps/mobile/src/api.spec.ts
-apps/mobile/src/api.ts
 apps/mobile/src/components/BottomNav.tsx
 apps/mobile/src/i18n.spec.ts
 apps/mobile/src/i18n.ts
@@ -27,10 +19,6 @@ apps/mobile/src/screens/HomeScreen.tsx
 apps/mobile/src/screens/LoginScreen.tsx
 apps/mobile/src/screens/PoliciesScreen.tsx
 apps/mobile/src/theme.ts
-apps/mobile/test/mocks/async-storage.ts
-apps/mobile/test/mocks/expo-secure-store.ts
-apps/mobile/tsconfig.json
-apps/mobile/tsconfig.spec.json
 docs/api.md
 docs/architecture.md
 docs/clinical-validation.md
