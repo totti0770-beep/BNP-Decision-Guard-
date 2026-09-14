@@ -150,7 +150,18 @@ what lets a test assert that tokens reach SecureStore and never AsyncStorage.
 The screens have no runtime coverage; that would need `jest-expo` plus
 `@testing-library/react-native`.
 
-Full stack via Docker (`docker compose up --build`) → web :3000, API :4000, MinIO console :9001. Infra only: `docker compose up -d postgres minio minio-init`.
+Full stack via Docker (`docker compose up --build`) → web :3000, API :4000, MinIO console :9001. Infra only: `docker compose up -d postgres minio`.
+
+**MinIO comes from `quay.io`, not Docker Hub.** `minio/minio` and `minio/mc` were
+withdrawn from Docker Hub — both answer 404 on the repository API while
+`pgvector/pgvector` beside them answers 200 — so every `docker compose up` and
+every CI browser-smoke run died at image resolution with `pull access denied for
+minio/minio`, before any container existed. `quay.io/minio/minio` is MinIO's own
+registry, so this is a registry change, not a change of software. The
+`minio-init` service was deleted rather than repointed: its only job was
+`mc mb`, and `StorageService.ensureBucket()` (`storage.service.ts:53-64`) already
+creates the bucket, called from `documents.service.ts:82` on every upload and
+from `seed.ts:160` on boot.
 
 Migrations run automatically on API container boot; standalone: `node apps/api/dist/scripts/migrate.js`.
 

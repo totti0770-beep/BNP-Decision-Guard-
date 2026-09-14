@@ -102,7 +102,7 @@ boot.
 ## Run locally (without Docker for the apps)
 
 ```bash
-docker compose up -d postgres minio minio-init   # infra only
+docker compose up -d postgres minio              # infra only
 npm install
 npm run build:shared
 npm run seed          # migrations + demo data (idempotent)
