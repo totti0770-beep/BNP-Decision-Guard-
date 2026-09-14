@@ -204,7 +204,9 @@ apps/web/tsconfig.json
 docker-compose.yml
 docs/api.md
 docs/architecture.md
+docs/clinical-validation.md
 docs/database-schema.md
+docs/production-readiness.md
 eslint.config.js
 infra/docker/Dockerfile.api
 infra/docker/Dockerfile.web

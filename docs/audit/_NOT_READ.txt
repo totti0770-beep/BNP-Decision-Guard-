@@ -2,6 +2,4 @@ README.md
 REPO-DISCOVERY.md
 apps/api/field-eval-report.md
 apps/mobile/package-lock.json
-docs/clinical-validation.md
-docs/production-readiness.md
 package-lock.json

@@ -63,7 +63,7 @@ the clinical-validation row.
 ## 3. Critical missing components
 
 1. **Clinical validation has never been performed.** `docs/production-readiness.md:260` carries it as 🔴. The instrument now exists (`npm run eval:field` emits the §5.2 sheet with the machine columns filled and the four judgement columns blank); a filled sheet does not.
-2. **No approved clinical corpus.** The four seeded documents are synthetic by design. Production reports ~2,706 chunks whose provenance is unaudited — `GET /documents/inventory` answers this, and has not yet been run against it.
+2. **No approved clinical corpus.** The four seeded documents are synthetic by design. Production is documented at **725 chunks** (`docs/production-readiness.md:343` quotes the boot log: `chunks=725 staleRetrievable=0 staleOrphaned=0`), and their provenance is unaudited — `GET /documents/inventory` answers that, and has not yet been run against the deployment. *This line previously said ~2,706 chunks, a figure with no source anywhere in the repository; see the correction in `09-GAPS.md`.*
 3. **`documents` records no issuing authority.** There is no column for it, so a citation cannot state which body published the source. For an IRB or CBAHI reviewer this is the first question.
 4. **No backup or restore.** Nothing in the repository backs anything up; a restore that has never been rehearsed is not a backup.
 5. **No observability.** `/health` and `/health/ready` exist and logs are structured JSON, but nothing ships them anywhere and nothing measures latency, refusal rate or error rate in production.
@@ -82,7 +82,7 @@ the clinical-validation row.
 
 ## 5. Recommended next actions
 
-1. **Run `GET /documents/inventory` against production** and reconcile the 2,706 chunks. Until their provenance is known, nothing else about the corpus can be asserted. *You, today, five minutes.*
+1. **Run `GET /documents/inventory` against production** and reconcile the documented 725 chunks against what is actually there. Until their provenance is known, nothing else about the corpus can be asserted — and the only figure anyone has is a boot log quoted in a document, not a reading taken today. *You, today, five minutes.*
 2. **Commission the clinical review.** 40 questions from ward staff, ≥12 unanswerable, scored by a clinician per §5.2. The runner produces the paperwork. *Nurse educator + reviewer, ~2 weeks.*
 3. **Add an issuing-authority column** and surface it in citations. *~1 day.*
 4. **Managed Postgres backups + one rehearsed restore.** *~1 day.*

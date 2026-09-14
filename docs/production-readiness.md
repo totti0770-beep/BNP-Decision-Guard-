@@ -281,6 +281,37 @@ production. Use this as the launch checklist.
 > about it. It says nothing about a real embedding provider, which is the
 > configuration a pilot would run.
 
+> **Audit update (Sep 2026) — scorecard resync.** A file-by-file audit
+> (`docs/audit/`) read this document against the code and found the *dated
+> notes* sound and the *scorecard* stale. That distinction is this file's own:
+> an old note is a record of its date and is left alone, but the scorecard and
+> the two "fastest path" sections are statements about now, and three of their
+> rows had drifted.
+>
+> - **Dependency posture** said `14 findings: 5 high, 9 moderate`. `npm audit`
+>   on this commit reports **9 findings: 8 high, 1 moderate, 0 critical** — the
+>   NestJS 12 chain plus `multer`, `js-yaml` and `qs`. `SECURITY.md`'s
+>   dependency-scanning row carries the triage.
+> - **Test counts** said `211 unit + 68 e2e`. `npm test` on this commit reports
+>   **412 unit** across 28 suites.
+> - **"Fastest path to PRODUCTION" item 1** still opened with "as of the August
+>   2026 audit the count is **0 findings of any severity**", which the Next.js
+>   16 note above had already superseded in the notes — but the superseding
+>   note lives in the log, and the claim it supersedes was sitting in the
+>   forward-looking section someone reads to plan the work.
+>
+> - **The corpus row contradicted the runbook.** The scorecard marked
+>   *Approved clinical content corpus* ✅ "real, governed" for Pilot, while the
+>   operator runbook lists *Real approved clinical corpus* as an item still
+>   standing, and the clinical-validation row two lines above is 🔴 blocker for
+>   the same column. 725 chunks being *indexed* is not the same claim as their
+>   being approved through the governed workflow, and no one has audited their
+>   provenance — `GET /documents/inventory` would, and has not been run.
+>
+> The 725-chunk figure itself is left as it stands: it is sourced, to the boot
+> log quoted in the go-live table below. It is a reading taken on 2026-08-22,
+> not a property of the system today.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |
@@ -291,13 +322,13 @@ production. Use this as the launch checklist.
 | Single validated secret-resolution path (`loadEnv()`) | ✅ | ✅ | ✅ |
 | Index integrity (advisory lock + UNIQUE constraint, real column-width check) | ✅ | ✅ | ✅ `staleRetrievable=0` on 725 chunks |
 | **Clinical validation of answers** | 🔴 | 🔴 **blocker** | 🔴 — protocol in `docs/clinical-validation.md`, awaiting reviewer |
-| Dependency vulnerability posture | ✅ 0 critical | 🟡 5 high pass CI | 🟡 (14 findings: 5 high, 9 moderate — see below) |
+| Dependency vulnerability posture | ✅ 0 critical | 🟡 8 high pass CI | 🟡 (9 findings: 8 high, 1 moderate, 0 critical — measured on this commit; triage in `SECURITY.md`) |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
-| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 211 unit + 68 e2e + 13-step browser flow, all gate CI | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 412 unit (measured on this commit) + the integration suite against real Postgres+pgvector + the browser flow, all gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
-| Approved clinical content corpus | 🔴 synthetic | ✅ real, governed (725 chunks indexed in production) | ✅ |
+| Approved clinical content corpus | 🔴 synthetic | 🟡 725 chunks **indexed** in production (`chunks=725`, go-live log below); whether they were approved through the governed workflow is unaudited — see the runbook row *Real approved clinical corpus* | ✅ |
 | High availability (HA Postgres, replicas, HPA, Ingress+TLS) | ➖ | 🟡 | ✅ required |
 | Observability (logs/metrics/traces/alerts) | 🟡 structured JSON logs + liveness/readiness | 🟡 | ✅ required |
 | Compliance (CBAHI/HIPAA, pen-test, DPIA, BAA) | ➖ | 🟡 in progress | ✅ signed off |
@@ -437,13 +468,19 @@ No engineering work substitutes for it.
 
 ## Fastest path to PRODUCTION
 
-1. **Framework major-version migration** — as of the August 2026 audit the
-   count is **0 findings of any severity**. Both framework majors have since
-   been done: NestJS 10→11 closed every moderate (the transitive
+1. **Framework major-version migration** — both of the majors this item was
+   written for are done: NestJS 10→11 closed every moderate (the transitive
    `express`/`body-parser`/`qs`/`uuid` chain went with it) and Next.js 14→16
-   closed the last two highs in `next` and its bundled `postcss`. The CI gate
-   still hard-fails on critical and reports high/moderate non-blocking, so a
-   newly published advisory surfaces without blocking merges.
+   closed the last two highs in `next` and its bundled `postcss`. On the day
+   that landed the audit read zero findings at every severity, and this item
+   said so for a while afterwards. It no longer does, because that was a
+   reading and not a property: advisories are published against code that has
+   not changed, and `npm audit` on this commit reports **9 findings (8 high, 1
+   moderate, 0 critical)**. The high ones now chain from `@nestjs/*` and
+   `multer` and are gated on a **NestJS 12** major, which is the live version of
+   this item; `SECURITY.md`'s dependency-scanning row carries the triage. The CI
+   gate still hard-fails on critical and reports high/moderate non-blocking, so
+   a newly published advisory surfaces without blocking merges.
 2. **HA infrastructure** — managed PostgreSQL 16 with `vector`, object store
    with SSE/KMS, API replicas behind an Ingress with TLS + HPA; move the
    near-expiry cron to a singleton Job.

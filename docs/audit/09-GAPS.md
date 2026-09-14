@@ -9,17 +9,17 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 224
-MISSING : 7
+READ    : 226
+MISSING : 5
 ```
 
-**The file-by-file audit is 224 of 231 — it is not finished.** One area is
+**The file-by-file audit is 226 of 231 — it is not finished.** One area is
 complete: **every source file in the repository is now read** — `apps/api`,
 `apps/web`, `apps/mobile` and `packages/shared` in full, plus all infra and CI
 config, across src, test, config and eval data — verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
 gitignored generated report already listed in the skipped table below. What
-remains is four markdown documents and three generated files (two npm
+remains is two markdown documents and three generated files (two npm
 lockfiles and the gitignored eval report), all listed in the skipped table
 below or pending in the next batch. Any statement in
 these reports about a file in `_NOT_READ.txt` would be unsupported, and there
@@ -29,9 +29,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 224 files read as at 231. A described fact — what a
+whole tree and is as true at 226 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 224 have.
+opened, and only 226 have.
 
 ## Skipped deliberately, with reasons
 
@@ -49,11 +49,29 @@ found **zero** binaries.
 These are not claims. They are things a reader might assume from the reports
 that this audit did **not** prove.
 
-1. **That the production corpus is what anyone thinks it is.** Production
-   reports roughly 2,706 chunks. I have never seen those documents, their
-   titles, their sources, or their approval history. `GET /documents/inventory`
-   answers this and has not been run against production. Nothing in any report
-   here describes the real corpus.
+1. **That the production corpus is what anyone thinks it is.** The figure
+   documented in this repository is **725 chunks** — `docs/clinical-validation.md:26,57`
+   and `docs/production-readiness.md:292,300`, the last of which quotes the
+   boot log line it came from: `Embedding index: provider="openai-embedding"
+   chunks=725 staleRetrievable=0 staleOrphaned=0 columnDimensions=384`
+   (`:343`). That is a claim about a running deployment which **this audit did
+   not contact**, so it is repeated here as a documented figure and not as a
+   verified one — `REPO-DISCOVERY.md:1516` reaches the same verdict and marks it
+   NOT DETERMINED. Either way, I have never seen those documents, their titles,
+   their sources, or their approval history. `GET /documents/inventory` answers
+   that and has not been run against production. Nothing in any report here
+   describes the real corpus.
+
+   **Correction.** Earlier versions of this file and of
+   `10-EXECUTIVE-SUMMARY.md` stated "roughly 2,706 chunks", five times across
+   the two reports. That number has no source. It appears nowhere in the
+   repository outside these audit files — `git log -S'2,706'` traces it to
+   `b798be9`, the commit that wrote the executive summary, and no earlier — and
+   the project's own three documents say 725. It is withdrawn. An audit whose
+   first rule is that every factual statement carries a citation put an
+   uncited production figure in its headline summary and repeated it until it
+   read like a fact; that is the failure mode the rule exists to prevent, and
+   catching it required reading a document the audit had not yet reached.
 2. **That the live deployment matches this commit.** `infra/railway/README.md`
    documents auto-deploy from `main`; I have not queried the running service to
    confirm which commit it serves, and this branch is not merged.
@@ -73,8 +91,10 @@ that this audit did **not** prove.
 
 ## Open questions for a developer or operator
 
-1. Where did the 2,706 production chunks come from, and were those documents
-   approved through the governed workflow?
+1. Where did the 725 production chunks come from, and were those documents
+   approved through the governed workflow? (The figure is
+   `docs/production-readiness.md:343`'s quoted boot log; nothing in this audit
+   contacted the deployment to confirm it still holds.)
 2. Which commit is the Railway deployment currently serving?
 3. Is `EMBEDDING_PROVIDER` on production `openai`, and does the stored corpus
    match it? A mismatch makes the assistant refuse everything — safe, but
@@ -246,8 +266,9 @@ from the document:
 
 The first is the one that stings. This same file, two sections up, names
 `GET /documents/inventory` as the single thing that would answer what the
-production corpus actually contains — roughly 2,706 chunks nobody in this audit
-has seen — and it was not in the API reference someone would look it up in. An
+production corpus actually contains — 725 chunks by the repository's own
+documentation, none of which anyone in this audit has seen — and it was not in
+the API reference someone would look it up in. An
 endpoint that is not documented is, for most purposes, an endpoint that does
 not exist. Both are added to `docs/api.md` in this branch.
 
@@ -377,9 +398,73 @@ Repeating a command until it agrees with you is how a real intermittent fault
 gets talked out of existence, so the disagreement stays on the record with its
 evidence.
 
+### The scorecard drifted while the log it sits under stayed honest
+
+`docs/production-readiness.md` is the launch checklist, and it opens by
+declaring itself an **append-only log of dated notes**: an older note describes
+what was true on its date, a superseded claim is struck through with a pointer
+to the note that replaced it, and rewriting an old note "would destroy the
+record this file exists to be" (`:6-11`).
+
+That rule held. Every one of its eleven dated notes reads correctly as a record
+of its date. The drift is entirely in the parts of the file that speak about
+*now* — the scorecard and the two "fastest path" sections — which the rule does
+not protect and which nothing had been re-measuring:
+
+| Claim | Where | Measured on this commit |
+| --- | --- | --- |
+| `14 findings: 5 high, 9 moderate` | scorecard | **9 findings: 8 high, 1 moderate, 0 critical** (`npm audit`) |
+| `211 unit + 68 e2e` | scorecard | **412 unit** across 28 suites (`npm test`) |
+| "the count is **0 findings of any severity**" | Fastest path to PRODUCTION, item 1 | contradicted by the above |
+
+The third is the one worth dwelling on, because the file had *already caught
+it*. Its own Next.js 16 note at `:216-223` strikes that claim through and
+explains why — *"advisories are published against code that has not changed… A
+zero-findings audit is a reading, never a property"* — but the correction lives
+in the log, and the claim it corrects was still sitting in the section someone
+opens to plan the remaining work. A correction filed in the right place is not
+the same as a correction applied. The live version of that item is now the
+**NestJS 12** major, which is what the 8 high advisories are gated on.
+
+**And one contradiction that matters more than any count.** The scorecard
+marked *Approved clinical content corpus* as ✅ "real, governed (725 chunks
+indexed in production)" for the Pilot column, while:
+
+- the operator runbook at `:473` lists *Real approved clinical corpus* as an
+  item still standing, owned by the hospital, and
+- the clinical-validation row two lines above it is 🔴 **blocker** for that same
+  Pilot column.
+
+"725 chunks are indexed" and "the corpus is real and governed" are different
+claims, and only the first has evidence — a boot log line quoted at `:343`.
+Whether those documents went through `DRAFT → … → ACTIVE` with real reviewers
+is exactly what nobody has checked. The row is now 🟡 and says which half is
+evidenced. Corrections to the current-state block are recorded in a new dated
+note, which is this file's own prescribed way of changing it.
+
+### `docs/clinical-validation.md` checks out entirely
+
+Recorded because an audit that only lists defects is not measuring anything.
+Every checkable claim in the clinical-validation protocol verifies against the
+code: both contractual Arabic strings quoted at `:183` and `:185` match
+`constants.ts:6` and `:9` character for character; the four refusal gates and
+four retrieval filters match `rag-query.service.ts:55-59` and
+`retrieval.service.ts:62-78`; the 15/15 gold-set line matches
+`gold-set.ts:50-192`; `RAG_MIN_SIMILARITY`'s 0.25 default matches `env.ts:48`;
+and `npm run eval:field` exists at `apps/api/package.json:16`.
+
+Two things in it are for a reviewer rather than an auditor, and both are good.
+The threshold sweep at `:71-83` shows refusal collapsing to **0/5 at 0.15**
+while correct answers hold at 10/10 — so the shipped 0.25 sits at the bottom
+edge of the window where refusal works at all, with no margin below it, and the
+document says to confirm the deployed value before reviewing anything. And
+`:98-106` names a real collision in its own instructions — review as a
+NURSE_USER, but a nurse cannot open the cited PDF — and resolves it by
+splitting asking from citation-checking rather than writing around it.
+
 ## What remains of the audit itself
 
-The remaining 7 files, read in the batches named in the plan, each appended to
+The remaining 5 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.
