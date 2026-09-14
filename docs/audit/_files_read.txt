@@ -111,8 +111,16 @@ apps/api/src/storage/storage.service.ts
 apps/api/src/users/users.controller.ts
 apps/api/src/users/users.module.ts
 apps/api/src/users/users.service.ts
+apps/api/test/auth.e2e-spec.ts
+apps/api/test/create-admin.e2e-spec.ts
+apps/api/test/field-set.e2e-spec.ts
+apps/api/test/health.e2e-spec.ts
 apps/api/test/notifications.e2e-spec.ts
 apps/api/test/pagination.e2e-spec.ts
+apps/api/test/support/demo-corpus.ts
+apps/api/test/support/e2e-app.ts
+apps/api/test/support/env.ts
+apps/api/test/support/gold-set.ts
 docker-compose.yml
 eslint.config.js
 infra/docker/Dockerfile.api

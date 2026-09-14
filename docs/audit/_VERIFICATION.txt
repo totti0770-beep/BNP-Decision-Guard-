@@ -1,6 +1,6 @@
 ON DISK : 231
-READ    : 133
-MISSING : 98
+READ    : 141
+MISSING : 90
 --- NOT READ ---
 CLAUDE.md
 README.md
@@ -13,19 +13,11 @@ apps/api/field-eval-report.md
 apps/api/jest-e2e.config.js
 apps/api/package.json
 apps/api/test/answer-quality.e2e-spec.ts
-apps/api/test/auth.e2e-spec.ts
-apps/api/test/create-admin.e2e-spec.ts
 apps/api/test/document-lifecycle.e2e-spec.ts
-apps/api/test/field-set.e2e-spec.ts
-apps/api/test/health.e2e-spec.ts
 apps/api/test/inventory.e2e-spec.ts
 apps/api/test/phi-screening.e2e-spec.ts
 apps/api/test/rag-integrity.e2e-spec.ts
 apps/api/test/rbac-and-dose.e2e-spec.ts
-apps/api/test/support/demo-corpus.ts
-apps/api/test/support/e2e-app.ts
-apps/api/test/support/env.ts
-apps/api/test/support/gold-set.ts
 apps/api/tsconfig.build.json
 apps/api/tsconfig.e2e.json
 apps/api/tsconfig.json
