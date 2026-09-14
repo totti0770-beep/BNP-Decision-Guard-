@@ -31,12 +31,6 @@ apps/api/src/documents/inventory.service.ts
 apps/api/src/dose/dose.controller.ts
 apps/api/src/dose/dose.module.ts
 apps/api/src/dose/dose.service.spec.ts
-apps/api/src/entities/ai.entity.ts
-apps/api/src/entities/document.entity.ts
-apps/api/src/entities/dose.entity.ts
-apps/api/src/entities/index.ts
-apps/api/src/entities/misc.entity.ts
-apps/api/src/entities/user.entity.ts
 apps/api/src/eval/field-eval.spec.ts
 apps/api/src/eval/field-eval.ts
 apps/api/src/eval/field-set.spec.ts
@@ -45,11 +39,6 @@ apps/api/src/health.controller.spec.ts
 apps/api/src/health.controller.ts
 apps/api/src/mail/mail.service.spec.ts
 apps/api/src/main.ts
-apps/api/src/migrations/1720000000000-initial-schema.ts
-apps/api/src/migrations/1720000001000-token-version.ts
-apps/api/src/migrations/1720000002000-account-security.ts
-apps/api/src/migrations/1720000003000-embedding-provider.ts
-apps/api/src/migrations/1720000004000-chunk-uniqueness.ts
 apps/api/src/notifications/notifications.module.ts
 apps/api/src/notifications/notifications.service.spec.ts
 apps/api/src/rag/chunking.service.spec.ts
