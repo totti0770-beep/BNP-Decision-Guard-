@@ -144,12 +144,15 @@ apps/web/src/app/(app)/answer-review/page.tsx
 apps/web/src/app/(app)/assistant/page.tsx
 apps/web/src/app/(app)/audit/page.tsx
 apps/web/src/app/(app)/cbahi/page.tsx
+apps/web/src/app/(app)/dashboard/page.tsx
 apps/web/src/app/(app)/drug-prep/page.tsx
 apps/web/src/app/(app)/layout.tsx
 apps/web/src/app/(app)/notifications/page.tsx
+apps/web/src/app/(app)/security/page.tsx
 apps/web/src/app/(app)/upload/page.tsx
 apps/web/src/app/globals.css
 apps/web/src/app/layout.tsx
+apps/web/src/app/login/page.tsx
 apps/web/src/app/page.tsx
 apps/web/src/components/assistant-chat.tsx
 apps/web/src/components/chat-history.tsx
