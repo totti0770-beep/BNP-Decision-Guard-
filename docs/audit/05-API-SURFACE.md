@@ -99,9 +99,9 @@ redact the dependency detail an operator needs (`health.controller.ts:16-21`).
 
 | Method | Path | Handler | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| POST | `/auth/login` | `:57` | public, throttled `:56` | `LoginDto` `:20-23` — `email` (IsEmail), `password` (non-empty) | `{ mfaRequired: true, mfaToken }` (`auth.service.ts:143`) or `{ mfaRequired: false, accessToken, refreshToken }` (`auth.service.ts:155`, `:102-112`) | 400 validation; auth failures from `auth.service.ts` |
-| POST | `/auth/refresh` | `:71` | public, throttled `:70` | `RefreshDto` `:25-27` — `refreshToken` | `{ accessToken, refreshToken }` (`auth.service.ts:192`→`:102`) | 400 validation; 401 on a token whose `tv` no longer matches |
-| POST | `/auth/mfa/verify` | `:78` | public, throttled `:77` | `MfaVerifyDto` `:29-32` — `mfaToken`, `code` | `{ accessToken, refreshToken }` (`auth.service.ts:189`) | 400 validation |
+| POST | `/auth/login` | `:57` | public, throttled `:56` | `LoginDto` `:20-23` — `email` (IsEmail), `password` (non-empty) | `{ mfaRequired: true, mfaToken }` (`auth.service.ts:143`) or `{ mfaRequired: false, accessToken, refreshToken, user{ id, email, fullName, roles[], permissions[] } }` (`auth.service.ts:155`, `:102-121`) | 400 validation; auth failures from `auth.service.ts` |
+| POST | `/auth/refresh` | `:71` | public, throttled `:70` | `RefreshDto` `:25-27` — `refreshToken` | `{ accessToken, refreshToken, user{…} }` (`auth.service.ts:192`→`:102-121`) | 400 validation; 401 on a token whose `tv` no longer matches |
+| POST | `/auth/mfa/verify` | `:78` | public, throttled `:77` | `MfaVerifyDto` `:29-32` — `mfaToken`, `code` | `{ accessToken, refreshToken, user{…} }` (`auth.service.ts:189`→`:102-121`) | 400 validation |
 | POST | `/auth/forgot-password` | `:85` | public, throttled `:84` | `ForgotPasswordDto` `:42-44` — `email` | `{ requested: true }`, plus `resetToken` only under the dev escape hatch (`auth.service.ts:281`, `:283`) | 400 validation |
 | POST | `/auth/reset-password` | `:92` | public, throttled `:91` | `ResetPasswordDto` `:46-49` — `token`, `newPassword` (min 8) | `{ reset: true }` (`auth.service.ts:323`) | 400 validation |
 | POST | `/auth/logout` | `:97` | token only | — (acts on `user.userId` from the JWT) | `{ revoked: true }` (`auth.service.ts:229`) | 401 without a token |
@@ -344,7 +344,9 @@ Findings from this pass, stated as what was observed:
 ## ⚠️ Unverified assumptions
 
 - Response shapes are stated from the `return` expression of the handler or of the service method
-  it delegates to. Where a handler returns an entity directly (`GET /documents/:id/versions`,
+  it delegates to. The three token-issuing `auth` rows were corrected after a later batch read
+  `issueTokens()` in full: it also returns a `user` object carrying roles and permissions
+  (`auth.service.ts:114-120`), which `scripts/field-eval.ts:151` depends on. Where a handler returns an entity directly (`GET /documents/:id/versions`,
   `GET /settings`, `POST /dose/formulas`), the serialised shape is the TypeORM entity's columns; I
   have read those entities, but I have not asserted the shape against a live response for every
   such route.

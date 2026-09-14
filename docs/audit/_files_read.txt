@@ -38,6 +38,8 @@ apps/api/src/entities/dose.entity.ts
 apps/api/src/entities/index.ts
 apps/api/src/entities/misc.entity.ts
 apps/api/src/entities/user.entity.ts
+apps/api/src/eval/field-eval.ts
+apps/api/src/eval/field-set.ts
 apps/api/src/health.controller.ts
 apps/api/src/mail/mail.module.ts
 apps/api/src/mail/mail.service.ts
@@ -64,6 +66,16 @@ apps/api/src/rag/retrieval.service.ts
 apps/api/src/roles/roles.controller.ts
 apps/api/src/roles/roles.module.ts
 apps/api/src/roles/roles.service.ts
+apps/api/src/scripts/create-admin.ts
+apps/api/src/scripts/field-eval.ts
+apps/api/src/scripts/inventory.ts
+apps/api/src/scripts/migrate.ts
+apps/api/src/seed/demo-accounts.ts
+apps/api/src/seed/pdf.ts
+apps/api/src/seed/refuse-in-production.ts
+apps/api/src/seed/sample-docs.ts
+apps/api/src/seed/seed-policy.ts
+apps/api/src/seed/seed.ts
 apps/api/src/settings/settings.module.ts
 apps/api/src/storage/storage.module.ts
 apps/api/src/storage/storage.service.ts
