@@ -1,4 +1,5 @@
 .env.example
+.github/scripts/audit-critical.mjs
 .github/workflows/ci.yml
 .gitignore
 CLAUDE.md

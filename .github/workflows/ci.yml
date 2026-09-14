@@ -18,8 +18,15 @@ jobs:
           cache: npm
       - run: npm ci
       # Hard gate: a new critical vulnerability fails the build immediately.
+      # Runs through a script rather than `npm audit --audit-level=critical`,
+      # which reaches the registry's legacy "quick" audit endpoint. That
+      # endpoint is being retired and answered 400 "Invalid package tree" on an
+      # unchanged lockfile that `npm ci` had just installed cleanly — a red
+      # light with no finding behind it. See the script for the full reasoning;
+      # it still fails on a real critical, and also fails when the audit could
+      # not run at all.
       - name: Fail on critical vulnerabilities
-        run: npm audit --audit-level=critical
+        run: node .github/scripts/audit-critical.mjs
       # Soft gate: high/moderate findings are surfaced but do not block merges.
       # This comment used to justify that by pointing at "a NestJS 11 /
       # Next.js 15 major-version migration" still to come. Both majors shipped
@@ -219,7 +226,7 @@ jobs:
       # fixed release exists.
       - name: Fail on critical mobile vulnerabilities
         working-directory: apps/mobile
-        run: npm audit --audit-level=critical
+        run: node ../../.github/scripts/audit-critical.mjs
       - name: Report high/moderate mobile vulnerabilities (non-blocking)
         if: always()
         working-directory: apps/mobile

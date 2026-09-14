@@ -1,4 +1,5 @@
 .env.example
+.github/scripts/audit-critical.mjs
 .github/workflows/ci.yml
 .gitignore
 CLAUDE.md
@@ -207,7 +208,12 @@ docker-compose.yml
 docs/api.md
 docs/architecture.md
 docs/audit/00-FILE-INDEX.md
+docs/audit/04-DATA-MODEL.md
+docs/audit/05-API-SURFACE.md
+docs/audit/09-GAPS.md
 docs/audit/10-EXECUTIVE-SUMMARY.md
+docs/audit/_NOT_READ.txt
+docs/audit/_VERIFICATION.txt
 docs/audit/_files_read.txt
 docs/audit/_inventory_all.txt
 docs/audit/_inventory_tracked.txt
