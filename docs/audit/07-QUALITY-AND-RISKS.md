@@ -189,7 +189,46 @@ exist.
   k8s README names this; the Railway deployment is single-replica, so it is not
   currently biting.
 
-### 🟢 9. Technical debt that is real but not urgent
+### 🟡 9. The browser-smoke gate can go red with no finding behind it
+
+Observed during this audit, across the seven heads pushed to this branch. The
+`Browser smoke` job failed on three of them and passed on the other four, with
+the same failure each time and at the same point — image resolution, before any
+container existed:
+
+```
+minio Error received unexpected HTTP status: 504 Gateway Time-out
+Error response from daemon: received unexpected HTTP status: 504 Gateway Time-out
+##[error]Process completed with exit code 1.
+```
+
+(`actions/runs/34882434274/job/104104741252`, head `cee8103`.) The commits that
+failed changed markdown only, and the same job passed on later markdown-only
+commits — so this is `quay.io` being briefly unavailable, not a defect.
+
+The reason it belongs in a risk register is that **this repository already
+solved exactly this problem once, for a different gate, and wrote down why.**
+`.github/scripts/audit-critical.mjs` exists because `npm audit --audit-level=critical`
+could fail on registry mechanics, and its header states the argument plainly:
+
+> a security gate that fails on registry mechanics is not a stricter gate — it
+> is a gate whose red light stops meaning anything, which is how a real critical
+> finding ends up being waved through as "that job is flaky again".
+
+The smoke job has the same shape and no equivalent guard: it pulls three images
+from two registries at run time, and a 504 from either is indistinguishable, in
+the check list, from a broken quickstart or a failed Playwright assertion. It is
+also the **only** automated check that exercises the web app beyond compilation,
+and the only thing that executes `StorageService` at all (risk 5) — so a red
+light nobody reads costs more here than on most jobs.
+
+Not fixed in this branch, and the reason is the same one given for the advisory
+count: this is a CI change rather than a documentation correction, and nothing
+in this audit establishes it was asked for. A retry with backoff around
+`docker compose up -d --build`, or a pre-pull step that distinguishes a pull
+failure from a test failure in the job's own output, would be the minimal shape.
+
+### 🟢 10. Technical debt that is real but not urgent
 
 - **Genuine duplication between web and mobile**: two i18n dictionaries, two API
   clients. It follows from `apps/mobile` deliberately not being a workspace, and
