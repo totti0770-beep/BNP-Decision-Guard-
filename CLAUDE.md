@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (334), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (117), real HTTP + real Postgres
+npm test                      # API unit tests (396), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (209), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
@@ -73,6 +73,52 @@ Two boundaries are deliberate and worth keeping straight:
 scored breakdown and a `RAG_MIN_SIMILARITY` sweep showing the
 answer-vs-refuse trade-off. The report is gitignored on purpose: a committed
 copy goes stale silently, which is the failure mode it exists to catch.
+
+### The field set — the evaluation set that is *not* derived from the corpus
+
+The gold set above is circular by construction: its questions were written by
+reading the four demo documents they retrieve from, and its assertions name
+those documents. That makes it a good regression detector and a poor
+measurement.
+
+`apps/api/eval/field-set.starter.jsonl` is the other half. Cases live in JSONL
+so a nurse educator can replace the whole set without touching code, and the
+loader **rejects** `expectSource` / `expectAnswerContains` / `expectRefusal`:
+a field set records no expected document and no expected answer, because
+whoever collects what staff actually look up does not know which page holds the
+answer — and if they did, they wrote the question from the page.
+
+So nothing clinical is gated. What is gated are five invariants that hold on
+*any* corpus (`src/eval/field-eval.ts`): a refusal returns `REFUSAL_MESSAGE_AR`
+verbatim with no citations and `NONE` confidence; an answer carries a citation
+with a title and an approval date; `refusedAt` names one of the four gates;
+`MODEL_ERROR` never counts as governance; nothing 400s or 5xx's. Everything
+else — coverage, which document was cited, paraphrase agreement, the simulated
+threshold sweep — is measured into a report and asserted nowhere.
+
+Two runners, one scoring core:
+
+```bash
+npm run test:eval:field -w @bnp/api   # CI/demo corpus; EVAL_REPORT=1 writes the sheet
+EVAL_PASSWORD=… npm run eval:field -w @bnp/api -- \
+  --base-url https://… --email nurse@… --cases eval/field-set.starter.jsonl
+```
+
+The script is plain `fetch` — no Nest context, no database — so it runs against
+a container with no shell, as a `NURSE_USER` and nothing else (a manager sees
+what a nurse cannot, so a review run as a manager measures a different
+product). It writes nothing to the target: `/rag/query` persists no answer, and
+the threshold sweep is simulated from the scores the run already returned
+rather than by changing a live setting.
+
+The output is the `docs/clinical-validation.md` §5.2 scoring sheet with the
+machine columns filled and the four clinical judgement columns left blank.
+**The runner produces the paperwork, not the verdict** — and the shipped starter
+cases are `engineering-authored`, which the report says at the top, because
+questions an engineer imagines are not evidence about what nurses ask.
+
+`apps/api/eval/README.md` is the staff-facing guide; rule one there is *never
+write a question by reading a policy*.
 
 Only three things are faked, and each is a genuinely external boundary: S3
 storage (in-memory), SMTP (captured so specs can read the reset link), and PDF

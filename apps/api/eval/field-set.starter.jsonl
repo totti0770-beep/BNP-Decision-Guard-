@@ -1,0 +1,69 @@
+# Field evaluation set — STARTER.
+#
+# Provenance of every case below is `engineering-authored`: these questions were
+# written by whoever built the platform, not by ward staff. They exist so the
+# runner has something to run on day one and so the governed invariants are
+# exercised; they are NOT evidence about what nurses ask, and no coverage figure
+# taken from them means anything clinically.
+#
+# Replace this file. `eval/README.md` says how. The set that matters is one a
+# nurse educator writes from questions staff actually asked, marked
+# `ward-submitted`, against the hospital's own corpus.
+#
+# No case names an expected document or an expected answer — see
+# src/eval/field-set.ts for why that is enforced rather than merely advised.
+#
+# --- High-consequence dosing -------------------------------------------------
+{"id":"dose-paracetamol-weight-band","question":"What weight-based dose of intravenous paracetamol applies to an adult under 50 kg?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"weight-banded dosing"}
+{"id":"dose-paracetamol-weight-band-ar","question":"ما جرعة الباراسيتامول الوريدي حسب الوزن للبالغ الذي يقل وزنه عن خمسين كيلوغراماً؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"weight-banded dosing","paraphraseOf":"dose-paracetamol-weight-band","note":"Arabic paraphrase of the same question; a lexical retriever tends to fail this pair while a semantic one does not."}
+{"id":"dose-paracetamol-ceiling","question":"What is the maximum amount of paracetamol an adult may receive in twenty-four hours?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"weight-banded dosing","note":"Deliberately avoids the phrase 'maximum daily dose' so it does not simply echo a heading."}
+{"id":"dose-double-check","question":"Which medications require an independent double check before administration?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"high-alert medications"}
+{"id":"dose-double-check-ar","question":"ما الأدوية التي تستوجب تحققاً مزدوجاً مستقلاً قبل إعطائها؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"high-alert medications","paraphraseOf":"dose-double-check"}
+{"id":"dose-infusion-rate","question":"How slowly should an intravenous analgesic infusion be given?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"administration technique","note":"Vague on purpose — a real question from a ward often is. Tests whether vagueness produces a wrong citation or a refusal."}
+{"id":"dose-missed-dose","question":"What should I do if a scheduled medication dose was missed?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"administration technique"}
+{"id":"dose-crushing-tablets","question":"May a tablet be crushed before giving it through a feeding tube?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"administration technique"}
+{"id":"dose-verbal-order","question":"Is a verbal medication order allowed, and what must be done to confirm it?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"medication governance"}
+{"id":"dose-verbal-order-ar","question":"هل يُقبل الأمر الدوائي الشفهي، وما الإجراء المطلوب لتوثيقه؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"medication governance","paraphraseOf":"dose-verbal-order"}
+# --- Identification, infection control, procedure ----------------------------
+{"id":"ident-two-identifiers","question":"Before giving a medication, which two pieces of information identify the person receiving it?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"patient identification","note":"Phrased without the words the policy is likely to use, to avoid handing retrieval the vocabulary."}
+{"id":"ident-two-identifiers-ar","question":"قبل إعطاء الدواء، ما المعلومتان اللتان تُستخدمان للتأكد من الشخص المتلقي؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"patient identification","paraphraseOf":"ident-two-identifiers"}
+{"id":"ipc-hand-rub-duration","question":"How long should hands be rubbed with alcohol gel for it to work?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"infection control"}
+{"id":"ipc-hand-rub-duration-ar","question":"كم من الوقت يجب فرك اليدين بالمطهر الكحولي حتى يكون فعالاً؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"infection control","paraphraseOf":"ipc-hand-rub-duration"}
+{"id":"ipc-when-to-wash","question":"When is soap and water required instead of alcohol hand rub?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"infection control"}
+{"id":"ipc-glove-reuse","question":"Can the same pair of gloves be used for two different people if they are not visibly soiled?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"infection control","note":"A near-miss: adjacent to hand hygiene, and the answer a nurse needs is a prohibition, which is exactly the kind of content a policy may or may not state."}
+{"id":"proc-cannula-site-choice","question":"Which vein should be chosen first when placing a peripheral line in an adult?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"vascular access"}
+{"id":"proc-skin-prep","question":"How should the skin be cleaned before inserting a peripheral line, and how long should it dry?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"vascular access","note":"Two facts in one question — the drying time is the half most often omitted."}
+{"id":"proc-skin-prep-ar","question":"كيف يُنظَّف الجلد قبل تركيب القسطرة الوريدية الطرفية، وكم يلزم أن يجف؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"vascular access","paraphraseOf":"proc-skin-prep"}
+{"id":"proc-cannula-dwell","question":"After how long should a peripheral cannula be removed or replaced?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"vascular access"}
+{"id":"proc-phlebitis","question":"What should be done if the skin around a cannula becomes red and painful?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"vascular access"}
+{"id":"proc-tourniquet","question":"Where is the tourniquet placed relative to the insertion site?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"vascular access"}
+# --- Governance, documentation, storage --------------------------------------
+{"id":"gov-high-alert-list-review","question":"How often is the list of medications considered high risk reviewed?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"medication governance"}
+{"id":"gov-concentrated-electrolyte-storage","question":"Which concentrated electrolyte solutions may not be kept on a ward?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"medication storage"}
+{"id":"gov-concentrated-electrolyte-storage-ar","question":"ما محاليل الشوارد المركزة التي لا يجوز الاحتفاظ بها في أقسام التمريض؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"medication storage","paraphraseOf":"gov-concentrated-electrolyte-storage"}
+{"id":"gov-look-alike","question":"How are medicines that look alike or sound alike kept from being confused?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"medication governance"}
+{"id":"gov-error-reporting","question":"What do I do after a medication error reaches a patient?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"incident reporting","note":"Near-miss: incident reporting is usually a separate policy from medication administration, so this probes corpus completeness rather than retrieval."}
+{"id":"gov-error-reporting-ar","question":"ماذا أفعل بعد وقوع خطأ دوائي وصل إلى المريض؟","language":"ar","provenance":"engineering-authored","intent":"unknown","topic":"incident reporting","paraphraseOf":"gov-error-reporting"}
+{"id":"gov-documentation-timing","question":"When must an administered medication be recorded — before or after giving it?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"documentation"}
+{"id":"gov-fridge-temperature","question":"What temperature range must a medication refrigerator stay within?","language":"en","provenance":"engineering-authored","intent":"unknown","topic":"medication storage"}
+# --- Questions the author does not expect this corpus to answer --------------
+#
+# `intent: expect-refusal` records the AUTHOR'S expectation only. It is never
+# asserted, because a hospital that has approved an oncology protocol should
+# answer the oncology question — and a run that shows this is a collection
+# finding, not a defect.
+{"id":"out-chemotherapy-protocol","question":"What is the standard first-line chemotherapy regimen for advanced lung carcinoma?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"oncology","note":"Out of nursing-policy scope and high consequence — the canonical case for refusing rather than assembling something plausible."}
+{"id":"out-ventilator-settings","question":"What tidal volume and PEEP should be set for a ventilated patient with ARDS?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"critical care","note":"Shares vocabulary with any corpus containing monitoring or settings, without being covered by it."}
+{"id":"out-ventilator-settings-ar","question":"ما حجم التهوية وضغط نهاية الزفير الإيجابي المناسبان لمريض متلازمة الضائقة التنفسية؟","language":"ar","provenance":"engineering-authored","intent":"expect-refusal","topic":"critical care","paraphraseOf":"out-ventilator-settings"}
+{"id":"out-massive-transfusion","question":"At what point is a massive transfusion protocol activated?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"transfusion"}
+{"id":"out-paediatric-arrest","question":"What adrenaline dose is used during paediatric cardiac arrest?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"resuscitation","note":"The nastiest possible false positive: weight-based paediatric dosing against a corpus that contains weight-based dosing for something else entirely."}
+{"id":"out-paediatric-arrest-ar","question":"ما جرعة الأدرينالين المستخدمة في توقف القلب لدى الأطفال؟","language":"ar","provenance":"engineering-authored","intent":"expect-refusal","topic":"resuscitation","paraphraseOf":"out-paediatric-arrest"}
+{"id":"out-insulin-sliding-scale","question":"What sliding scale insulin regimen is used after surgery?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"endocrine","note":"Insulin is named in many medication-safety policies as an example of a high-risk drug, never with a regimen. Retrieval finds the word; the threshold has to reject it anyway."}
+{"id":"out-dialysis-prescription","question":"How is the dialysate flow rate prescribed for intermittent haemodialysis?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"renal"}
+{"id":"out-obstetric-magnesium","question":"What magnesium sulphate loading dose is given in severe pre-eclampsia?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"obstetrics"}
+{"id":"out-antipsychotic-titration","question":"How is a long-acting antipsychotic injection titrated?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"psychiatry"}
+{"id":"out-tpn-compounding","question":"What are the compounding limits for parenteral nutrition additives?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"nutrition support"}
+{"id":"out-chest-drain","question":"How much suction should be applied to a chest drain?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"thoracic procedures"}
+{"id":"out-antivenom","question":"What is the initial antivenom dose after a snake bite?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"toxicology"}
+{"id":"out-antivenom-ar","question":"ما الجرعة الابتدائية من مضاد السم بعد لدغة الأفعى؟","language":"ar","provenance":"engineering-authored","intent":"expect-refusal","topic":"toxicology","paraphraseOf":"out-antivenom"}
+{"id":"out-neonatal-phototherapy","question":"At what bilirubin level is phototherapy started in a newborn?","language":"en","provenance":"engineering-authored","intent":"expect-refusal","topic":"neonatology"}

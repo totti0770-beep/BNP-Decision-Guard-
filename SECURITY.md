@@ -134,18 +134,26 @@ hand-written negative cases missed it; the gold set caught it on the first full
 run. Binding the two is what makes the screen safe to extend later.
 
 **Its limits, stated so no one reads it as more than it is.** The gold set is
-**16 cases**, and it is **circular by design** — the questions were authored
-from the four seeded demo documents they retrieve from (see the header of
-`gold-set.ts`). So it is a far broader false-positive corpus than any list
-maintained by hand, and it is **not** a representative sample of the questions
-real nurses ask. It cannot tell you the screen's false-positive rate in the
-ward; only the production counter can do that, and only once there is real
-traffic.
+**15 cases** (10 answerable, 5 refusal), and it is **circular by design** — the
+questions were authored from the four seeded demo documents they retrieve from
+(see the header of `gold-set.ts`). So it is a far broader false-positive corpus
+than any list maintained by hand, and it is **not** a representative sample of
+the questions real nurses ask. It cannot tell you the screen's false-positive
+rate in the ward; only the production counter can do that, and only once there
+is real traffic.
 
-The useful consequence: **every case added to the independent evaluation set in
-WI-2 strengthens this control automatically**, at no extra cost, because the
-same assertion runs over whatever the set contains. A wider clinical corpus is
-therefore a PHI-screening improvement as well as an evaluation one.
+*(This paragraph said "16 cases" until the field set landed. The file has 15.
+Nothing computed the number, so nothing caught it — the same defect class the
+documentation corrections were about, committed in the act of documenting.)*
+
+**The independent set is now joined to this control, not merely promised to be.**
+`test/phi-screening.e2e-spec.ts` asserts the field set
+(`apps/api/eval/field-set.starter.jsonl`) against the live screen alongside the
+gold set, so every case a hospital adds widens the false-positive corpus at no
+extra cost. A site that replaces the starter file with three hundred ward
+questions gets a three-hundred-case negative corpus without doing anything
+else — and the loader refuses a case file containing an identifier, so the
+questions cannot themselves become the leak.
 
 ### Known false positive
 
