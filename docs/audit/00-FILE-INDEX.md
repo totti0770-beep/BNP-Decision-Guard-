@@ -21,13 +21,13 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 11 | `apps/api/field-eval-report.md` | md | 138 | GENERATED-SKIPPED | Untracked build output produced by running the field-set eval locally in this session; gitignored via apps/api/.gitignore. Not part of the source tree. |
 | 12 | `apps/api/jest-e2e.config.js` | js | 26 | PENDING | — |
 | 13 | `apps/api/package.json` | json | 77 | PENDING | — |
-| 14 | `apps/api/src/analytics/analytics.module.ts` | ts | 76 | PENDING | — |
+| 14 | `apps/api/src/analytics/analytics.module.ts` | ts | 76 | READ | Service, controller and module in one file. `overview()` runs three raw SQL queries (:74-103): a twelve-counter scalar row, a 14-day question histogram, and documents by category. Computes `refusalRate` to one decimal (:111). `GET /analytics/overview` behind `ANALYTICS_READ` (:125-129). |
 | 15 | `apps/api/src/app.module.ts` | ts | 67 | PENDING | — |
 | 16 | `apps/api/src/approval/approval.service.spec.ts` | ts | 220 | PENDING | — |
 | 17 | `apps/api/src/approval/approval.service.ts` | ts | 175 | READ | The lifecycle state machine. `TRANSITIONS` (:17-30) lists the statuses each action may leave from; `transition()` (:51-86) is the only path a status may change by, writing the document, a `document_approvals` row and an audit event together. `actor` is nullable because the expiry cron is not a person (:43-50). `expire()` (:101-106) routes through the same machine — the comment records that it previously set `status = EXPIRED` directly and wrote only an audit row, invisible to NURSING_KNOWLEDGE_MANAGER, who owns the lifecycle but holds `documents:read` and not `audit:read` (:88-100). `index()` (:132-149) re-checks `TRANSITIONS[INDEX]` *before* the embedding pipeline so an unapproved document never burns provider quota (:134-144), then performs INDEX and ACTIVATE as two recorded transitions. `deactivate()` removes the vector index after the status change (:152-157). |
-| 18 | `apps/api/src/audit/audit.controller.ts` | ts | 22 | PENDING | — |
+| 18 | `apps/api/src/audit/audit.controller.ts` | ts | 22 | READ | One route, `GET /audit-logs` behind `AUDIT_READ` (:10-11), taking action/actorEmail/resourceType plus the shared `PAGE_INT` pipe for limit and offset. |
 | 19 | `apps/api/src/audit/audit.module.ts` | ts | 14 | PENDING | — |
-| 20 | `apps/api/src/audit/audit.service.ts` | ts | 61 | PENDING | — |
+| 20 | `apps/api/src/audit/audit.service.ts` | ts | 61 | READ | `record()` is fire-and-forget by design — `void this.repo.save(...)` with a `.catch` that logs (:26-41), so an audit failure can never break a clinical flow. This is also why e2e specs must settle before reading `audit_logs`. `find()` filters by action, actor email (ILIKE) and resource type, capping `limit` at 200 (:44-60). |
 | 21 | `apps/api/src/auth/account-security.spec.ts` | ts | 318 | PENDING | — |
 | 22 | `apps/api/src/auth/auth.controller.ts` | ts | 133 | PENDING | — |
 | 23 | `apps/api/src/auth/auth.module.ts` | ts | 26 | READ | Wires `TypeOrmModule.forFeature([User])`, Passport, and `JwtModule.registerAsync` with a factory so the signing secret resolves through the same `loadEnv()` path the strategy verifies with (:53-57). Providers: AuthService, JwtStrategy, DemoAccountGuardService (:60). |
@@ -38,7 +38,7 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 28 | `apps/api/src/chat/chat-diagnostics.spec.ts` | ts | 67 | PENDING | — |
 | 29 | `apps/api/src/chat/chat.controller.ts` | ts | 73 | PENDING | — |
 | 30 | `apps/api/src/chat/chat.module.ts` | ts | 14 | PENDING | — |
-| 31 | `apps/api/src/chat/chat.service.ts` | ts | 214 | PENDING | — |
+| 31 | `apps/api/src/chat/chat.service.ts` | ts | 214 | READ | Persists the question before asking (:39-47), then the answer with its citations and `latencyMs` (:51-74), and audits `AI:ANSWER` or `AI:ANSWER_REFUSED` (:76-89). Diagnostics are returned **only** to an actor holding `analytics:read` (:103-105) — a nurse gets the refusal, a knowledge manager gets the retrieval internals needed to tell a corpus gap from an over-tight threshold. `history()` is scoped to the caller (:110-113). `listAnswersForReview()` is deliberately across all nurses and excludes refusals, since a refusal carries nothing to review (:149-164). Assistant flavours constrain retrieval to a governed category (:11-14). |
 | 32 | `apps/api/src/common/decorators.ts` | ts | 48 | READ | Five exports: `Public()`/`IS_PUBLIC_KEY` (:8-9), `Permissions(...)`/`PERMISSIONS_KEY` (:11-13), `ScreenForPhi(spec)`/`PHI_SCREEN_KEY` with the `PhiScreenSpec` shape (:15-35), the `AuthenticatedUser` interface (:37-43) and the `CurrentUser` param decorator reading `req.user` (:45-48). |
 | 33 | `apps/api/src/common/filters/all-exceptions.filter.ts` | ts | 78 | PENDING | — |
 | 34 | `apps/api/src/common/guards/jwt-auth.guard.ts` | ts | 20 | READ | Extends passport's `AuthGuard('jwt')`; short-circuits to true when `IS_PUBLIC_KEY` is set on the handler or class (:13-17), otherwise delegates (:18). 20 lines, no other behaviour. |
@@ -63,7 +63,7 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 53 | `apps/api/src/dose/dose.controller.ts` | ts | 95 | PENDING | — |
 | 54 | `apps/api/src/dose/dose.module.ts` | ts | 13 | PENDING | — |
 | 55 | `apps/api/src/dose/dose.service.spec.ts` | ts | 108 | PENDING | — |
-| 56 | `apps/api/src/dose/dose.service.ts` | ts | 224 | PENDING | — |
+| 56 | `apps/api/src/dose/dose.service.ts` | ts | 224 | READ | Deterministic arithmetic, no model involved. `calculate()` bounds weight to 0-400 kg (:88-90) and **refuses an unapproved formula outright** (:94-99) — the safety gate. Three formula types (:112-153); a daily dose over `maxDailyDose` is capped with a warning rather than returned (:133-141), and the same again for `maxSingleDose` (:155-161). Two clinical warnings are generated: a prescribed dose differing by more than 10% (:171-178) and a patient under one year (:179-183). Every step is recorded as human-readable text and persisted with the calculation (:185-195). `DOSE_SAFETY_WARNING_AR` is attached verbatim to every result (:220-221). Note for the data-model report: `dose_calculations.inputs` stores weight and age — patient attributes, not identifiers. |
 | 57 | `apps/api/src/entities/ai.entity.ts` | ts | 119 | PENDING | — |
 | 58 | `apps/api/src/entities/document.entity.ts` | ts | 158 | PENDING | — |
 | 59 | `apps/api/src/entities/dose.entity.ts` | ts | 110 | PENDING | — |
@@ -88,7 +88,7 @@ is left as `—` until the file has actually been read — a role inferred from 
 | 78 | `apps/api/src/notifications/notifications.controller.ts` | ts | 28 | READ | Two routes, both `@Permissions(NOTIFICATIONS_READ)`: `GET /notifications` delegating to `listForUser(user.userId)` (:14-18) and `POST /notifications/:id/read` with `ParseUUIDPipe`, scoped by the caller's id (:20-27). |
 | 79 | `apps/api/src/notifications/notifications.module.ts` | ts | 17 | PENDING | — |
 | 80 | `apps/api/src/notifications/notifications.service.spec.ts` | ts | 308 | PENDING | — |
-| 81 | `apps/api/src/notifications/notifications.service.ts` | ts | 154 | PENDING | — |
+| 81 | `apps/api/src/notifications/notifications.service.ts` | ts | 154 | READ | `listForUser` returns the caller's rows plus unaddressed ones via `IsNull()` (fixed in 93d82b1); `markRead` scopes by `{ id, userId }`. The daily cron at `EVERY_DAY_AT_6AM` (:39) hard-expires overdue ACTIVE documents through the approval state machine, then warns on documents within 30 days of expiry with a per-document de-duplication query, notifying and emailing every knowledge manager, hospital admin and super admin. |
 | 82 | `apps/api/src/rag/chunking.service.spec.ts` | ts | 55 | PENDING | — |
 | 83 | `apps/api/src/rag/chunking.service.ts` | ts | 69 | READ | Page-aware chunking: chunks never cross a page boundary, so every chunk cites exactly one page (:20-30). Splits on sentence boundaries around 800 chars with 150 chars of overlap (:10-11, :32-46). `overlapTail` (:59-68) resumes at a sentence or word boundary and carries nothing rather than a fragment — the docblock records why in a drug manual: a mid-word cut turns 'Cefonicid sodium' into 'fonicid sodium', which embeds as a different, non-existent drug. |
 | 84 | `apps/api/src/rag/embedding.service.spec.ts` | ts | 126 | PENDING | — |

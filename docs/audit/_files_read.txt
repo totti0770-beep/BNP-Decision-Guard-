@@ -57,3 +57,9 @@ apps/api/src/storage/storage.service.ts
 apps/api/src/storage/storage.module.ts
 apps/api/src/mail/mail.service.ts
 apps/api/src/mail/mail.module.ts
+apps/api/src/dose/dose.service.ts
+apps/api/src/chat/chat.service.ts
+apps/api/src/audit/audit.service.ts
+apps/api/src/audit/audit.controller.ts
+apps/api/src/analytics/analytics.module.ts
+apps/api/src/notifications/notifications.service.ts
