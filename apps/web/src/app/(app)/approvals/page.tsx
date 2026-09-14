@@ -202,7 +202,7 @@ export default function ApprovalsPage() {
                       <StatusBadge status={d.status} />
                     </div>
                     <p className="mt-1 text-xs text-subtle">
-                      {d.category.replaceAll('_', ' ')} · v{d.versionNumber} · uploaded by{' '}
+                      {d.category.replaceAll('_', ' ')} · v{d.versionNumber} · {t('uploadedByLabel')}{' '}
                       {d.uploadedBy?.fullName ?? '—'} · {d.createdAt.slice(0, 10)}
                     </p>
                     <div className="mt-2">
