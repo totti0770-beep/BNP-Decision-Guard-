@@ -33,8 +33,20 @@ spec:
             # Public web origin — the reset link is built from it. Defaults to
             # the first CORS_ORIGINS entry if unset.
             - { name: APP_BASE_URL, value: "https://your-web-origin.example" }
-            - { name: LLM_PROVIDER, value: "mock" }
-            - { name: EMBEDDING_PROVIDER, value: "mock" }
+            # These manifests shipped "mock" for both. That is the offline
+            # stand-in — an extractive sentence-picker over hashed bag-of-words
+            # vectors — and a cluster applying this file unchanged served it to
+            # nurses as if it were the product, with nothing in the UI or the
+            # logs to say so. "openai" is the deployable choice; OPENAI_API_KEY
+            # comes from the bnp-secrets Secret (secrets.example.yaml).
+            #
+            # Boot now refuses if either of these is "openai" and the key is
+            # missing or blank (config/env.ts, the OPENAI_API_KEY block), so a
+            # key that never reached the container fails loudly here instead of
+            # silently downgrading the assistant. Set both to "mock" only for a
+            # deliberately offline demo.
+            - { name: LLM_PROVIDER, value: "openai" }
+            - { name: EMBEDDING_PROVIDER, value: "openai" }
             - { name: S3_FORCE_PATH_STYLE, value: "true" }
             - { name: SEED_ON_BOOT, value: "false" }
           # /health/ready checks Postgres and object storage — a pod that

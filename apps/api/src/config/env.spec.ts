@@ -274,3 +274,69 @@ describe('ragMinSimilarity', () => {
     expect(() => require('./env').loadEnv()).toThrow(/RAG_MIN_SIMILARITY/);
   });
 });
+
+/**
+ * An `openai` provider with no key used to fall through to the mock, silently.
+ *
+ * That is not a degraded version of the product — the mock LLM is an extractive
+ * sentence-picker and the mock embedder is a hashed bag-of-words, so a
+ * deployment that lost its key kept answering, from a different system than the
+ * one the operator selected. Boot now refuses, which is loud and happens before
+ * any nurse can ask a question.
+ */
+describe('openai provider requires a key', () => {
+  const ORIGINAL = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL };
+    jest.resetModules();
+  });
+
+  function freshLoad() {
+    jest.resetModules();
+    return require('./env').loadEnv;
+  }
+
+  it.each(['LLM_PROVIDER', 'EMBEDDING_PROVIDER'])(
+    'refuses to boot when %s=openai and OPENAI_API_KEY is missing',
+    (variable) => {
+      process.env[variable] = 'openai';
+      delete process.env.OPENAI_API_KEY;
+      expect(() => freshLoad()()).toThrow(new RegExp(`${variable}=openai requires OPENAI_API_KEY`));
+    },
+  );
+
+  it.each(['LLM_PROVIDER', 'EMBEDDING_PROVIDER'])(
+    'treats a whitespace-only %s key as missing',
+    (variable) => {
+      // A key set to "" or " " in a dashboard is the common way this happens —
+      // the variable exists, so nothing looks unset.
+      process.env[variable] = 'openai';
+      process.env.OPENAI_API_KEY = '   ';
+      expect(() => freshLoad()()).toThrow(/OPENAI_API_KEY/);
+    },
+  );
+
+  it('boots with openai selected and a key present', () => {
+    process.env.LLM_PROVIDER = 'openai';
+    process.env.EMBEDDING_PROVIDER = 'openai';
+    process.env.OPENAI_API_KEY = 'sk-a-real-looking-key';
+    expect(() => freshLoad()()).not.toThrow();
+  });
+
+  it('leaves the mock provider alone — no key is required for it', () => {
+    // The offline path is the whole reason this platform runs with no API key,
+    // and a fail-fast that caught it would break every local run and CI job.
+    process.env.LLM_PROVIDER = 'mock';
+    process.env.EMBEDDING_PROVIDER = 'mock';
+    delete process.env.OPENAI_API_KEY;
+    expect(() => freshLoad()()).not.toThrow();
+  });
+
+  it('does not fire when the provider is unset', () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.EMBEDDING_PROVIDER;
+    delete process.env.OPENAI_API_KEY;
+    expect(() => freshLoad()()).not.toThrow();
+  });
+});

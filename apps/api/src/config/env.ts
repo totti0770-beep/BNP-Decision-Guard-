@@ -248,6 +248,30 @@ export function loadEnv(): AppEnv {
     );
   }
 
+  // An explicitly chosen `openai` provider with no key is a hard config error,
+  // for the same reason MAIL_PROVIDER=smtp with no MAIL_HOST is: the operator
+  // has stated an intention the process cannot honour.
+  //
+  // Silence here was the dangerous option. Provider selection
+  // (llm.service.ts:152-155, embedding.service.ts:167-171) reads
+  // `PROVIDER === 'openai' && OPENAI_API_KEY`, so a missing key fell through to
+  // the mock — and the mock is not a degraded version of the product, it is a
+  // different one: an extractive sentence-picker over hashed bag-of-words
+  // vectors. A hospital that set LLM_PROVIDER=openai, watched answers come
+  // back, and never noticed the key had not reached the container would have
+  // been running a demo stand-in on live clinical questions. Refusing to boot
+  // is loud, immediate, and happens before a nurse can ask anything.
+  for (const variable of ['LLM_PROVIDER', 'EMBEDDING_PROVIDER'] as const) {
+    if (process.env[variable] === 'openai' && !process.env.OPENAI_API_KEY?.trim()) {
+      throw new Error(
+        `[env] ${variable}=openai requires OPENAI_API_KEY. Without it the ` +
+          'process would silently fall back to the mock provider, which is a ' +
+          'stand-in for offline development and not the product. Supply the ' +
+          `key, or set ${variable}=mock to choose the stand-in deliberately.`,
+      );
+    }
+  }
+
   // Validate here so a malformed pattern stops the boot rather than being
   // discovered by the first request it fails to screen.
   phiMrnPattern();
