@@ -3,6 +3,13 @@
 A CTO-level assessment of what exists today and what remains for pilot and
 production. Use this as the launch checklist.
 
+> **How to read this file.** Below the scorecard it is an append-only log of
+> dated audit notes, newest last. An older note describes what was true *on its
+> date*, not what is true now — that is the point of keeping them, and it is why
+> a stale claim is struck through with a pointer to the note that superseded it
+> rather than quietly rewritten. Rewriting an old note would destroy the record
+> this file exists to be. **Where two notes disagree, the later one wins.**
+
 > **Audit update (Aug 2026).** A full re-audit (API, web, mobile, live
 > Railway deployment) confirmed this scorecard and closed several rows:
 > server-side logout on web **and** mobile, upload refresh-on-401,
@@ -13,9 +20,12 @@ production. Use this as the launch checklist.
 > actually deliver). Still open, in impact order:
 > **OCR for scanned PDFs** (pdf-parse reads the text layer only — a
 > scanned Arabic PDF indexes zero chunks), **observability**, **backup +
-> tested restore**, the **Next 15 / NestJS 11 majors**, and **compliance
-> sign-off**. The web UI is English-only while mobile is Arabic-first —
-> a deliberate inversion to revisit before a nurse-facing pilot.
+> tested restore**, ~~the **Next 15 / NestJS 11 majors**~~, and **compliance
+> sign-off**. ~~The web UI is English-only while mobile is Arabic-first —
+> a deliberate inversion to revisit before a nurse-facing pilot.~~
+>
+> *Superseded: both majors shipped (see the NestJS 11 and Next.js 16 notes
+> below), and the web UI became bilingual EN/AR (see the Phase 10 note).*
 
 > **Audit update (Aug 2026, second pass).** A read-only engineering baseline
 > scored the platform **63/100** overall: MVP ready, pilot blocked, production
@@ -47,9 +57,12 @@ production. Use this as the launch checklist.
 > `mfa_secret`), **observability**,
 > **integration/E2E tests** (none exist at the time of that pass; both landed
 > later, along with a linter), **backup + tested
-> restore**, **OCR for scanned PDFs**, the **Next 15 / NestJS 11 majors**, and
-> **compliance sign-off**. The web UI is English-only while mobile is
-> Arabic-first — revisit before a nurse-facing pilot.
+> restore**, **OCR for scanned PDFs**, ~~the **Next 15 / NestJS 11 majors**~~, and
+> **compliance sign-off**. ~~The web UI is English-only while mobile is
+> Arabic-first — revisit before a nurse-facing pilot.~~
+>
+> *Superseded: both majors shipped, and the web UI is bilingual — see the
+> Phase 10, NestJS 11 and Next.js 16 notes below.*
 
 > **Audit update (Aug 2026, third pass).** Continuing the same branch: a real
 > `jest-e2e.config.js` now exists (it previously didn't, so `npm run
@@ -72,8 +85,11 @@ production. Use this as the launch checklist.
 > dependency — every existing `new Logger(...)` call site needed no changes.
 > Nothing ships those lines anywhere yet; that's still open below. Still
 > open, in impact order: **metrics/tracing/alerting** (no Prometheus/OTel/
-> Sentry), **MFA enrollment**, **backup + tested restore**, **OCR for scanned
-> PDFs**, the **Next 15 / NestJS 11 majors**, and **compliance sign-off**.
+> Sentry), ~~**MFA enrollment**~~, **backup + tested restore**, **OCR for scanned
+> PDFs**, ~~the **Next 15 / NestJS 11 majors**~~, and **compliance sign-off**.
+>
+> *Superseded: MFA enrolment shipped (`/auth/mfa/{enroll,enable,disable}` plus
+> the `/security` screen), and both majors shipped — see the notes below.*
 
 > **Cycle 3 (Aug 2026).** This branch's earlier merge (PR #14) turned out to
 > already be live: a Railway project (`bnp-decisionguard`, documented in
@@ -93,7 +109,9 @@ production. Use this as the launch checklist.
 > not the HA/multi-replica target that row originally meant.
 
 > **Cycle 3, Phase 10 (Aug 2026).** The web UI is no longer English-only. All
-> 13 protected screens, the shell and both auth screens are now bilingual
+> ~~13~~ protected screens (15 as of Sep 2026 — `/security` and
+> `/notifications` were added later and are bilingual too), the shell and both
+> auth screens are now bilingual
 > EN/AR with a per-user toggle, and RTL genuinely mirrors the layout rather
 > than only flipping text direction. Deliberately *not* next-intl: its
 > `[locale]` routing would have restructured every route, changed every URL,
@@ -195,8 +213,14 @@ production. Use this as the launch checklist.
 >   forms, instead of throwing inside the first login of the day.
 
 > **Cycle 3, Next.js 16 (Aug 2026).** The web app is on Next.js 16.3.1, which
-> closes the last 2 advisories. **The dependency audit is now zero findings at
-> every severity.**
+> closes the last 2 advisories. ~~**The dependency audit is now zero findings at
+> every severity.**~~
+>
+> *Superseded: true on that date, and advisories are published against code
+> that has not changed. By Sep 2026 the same tree carried 9 high and 1
+> moderate, and `next@16.3.1` itself had become a **critical** (CVSS 9.0,
+> GHSA-p293-qw3h-jr36) that failed the CI gate until the bump to `^16.3.3`. A
+> zero-findings audit is a reading, never a property.*
 >
 > This was much smaller than the row below used to claim, and the estimate was
 > wrong rather than merely conservative. The feared breaking changes do not

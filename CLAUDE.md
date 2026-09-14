@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (213), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (69), real HTTP + real Postgres
+npm test                      # API unit tests (334), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (117), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
@@ -176,7 +176,7 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 
 - **`npm run build:shared` before anything else.** API and web import `@bnp/shared` from its compiled `dist/`, so on a fresh clone `npm test` fails with `Cannot find module '@bnp/shared'` until shared is built. The `build:api` / `dev:api` scripts chain it for you; bare `npm test` does not.
 - **Migrations are registered explicitly** in `apps/api/src/config/data-source.ts` (no glob). A new migration file is silently ignored until you import it and add it to the `migrations` array.
-- **`npm run lint` needs `build:shared` first**, same as `npm test` — typescript-eslint resolves `@bnp/shared` from its compiled `dist/`. CI's lint job runs `build:shared` for this reason. The config is ESLint 9 flat (`eslint.config.js`) and deliberately does **not** use `eslint-config-next`, which still peer-depends on ESLint ≤8; React coverage comes from `eslint-plugin-react-hooks` instead. Errors block CI; the ~11 `no-explicit-any` warnings are known and non-blocking.
+- **`npm run lint` needs `build:shared` first**, same as `npm test` — typescript-eslint resolves `@bnp/shared` from its compiled `dist/`. CI's lint job runs `build:shared` for this reason. The config is ESLint 9 flat (`eslint.config.js`) and deliberately does **not** use `eslint-config-next`, which still peer-depends on ESLint ≤8; React coverage comes from `eslint-plugin-react-hooks` instead. Errors block CI; the ~10 `no-explicit-any` warnings are known and non-blocking.
 - **The `embedding` column is raw SQL, not TypeORM-managed.** pgvector inserts/queries in `indexing.service.ts` and `retrieval.service.ts` use parameterized raw SQL with a `[...]::vector` literal.
 - **TypeORM QueryBuilder takes entity property names, not DB column names** — `a.createdAt`, not `a.created_at`. Using the column name throws a confusing `Cannot read properties of undefined (reading 'databaseName')` at runtime, not compile time.
 - **Production fail-fast**: with `NODE_ENV=production`, `config/env.ts` refuses to boot if `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, `S3_ACCESS_KEY` or `S3_SECRET_KEY` is missing or left at its shipped default. This is intended — supply real secrets.
