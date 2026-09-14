@@ -140,9 +140,14 @@ apps/web/next.config.mjs
 apps/web/package.json
 apps/web/postcss.config.mjs
 apps/web/public/.gitkeep
+apps/web/src/app/(app)/answer-review/page.tsx
 apps/web/src/app/(app)/assistant/page.tsx
+apps/web/src/app/(app)/audit/page.tsx
+apps/web/src/app/(app)/cbahi/page.tsx
 apps/web/src/app/(app)/drug-prep/page.tsx
 apps/web/src/app/(app)/layout.tsx
+apps/web/src/app/(app)/notifications/page.tsx
+apps/web/src/app/(app)/upload/page.tsx
 apps/web/src/app/layout.tsx
 apps/web/src/app/page.tsx
 apps/web/src/components/assistant-chat.tsx

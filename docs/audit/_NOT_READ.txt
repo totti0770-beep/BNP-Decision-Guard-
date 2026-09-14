@@ -29,17 +29,12 @@ apps/mobile/tsconfig.json
 apps/mobile/tsconfig.spec.json
 apps/web/e2e-smoke.mjs
 apps/web/src/app/(app)/analytics/page.tsx
-apps/web/src/app/(app)/answer-review/page.tsx
 apps/web/src/app/(app)/approvals/page.tsx
-apps/web/src/app/(app)/audit/page.tsx
-apps/web/src/app/(app)/cbahi/page.tsx
 apps/web/src/app/(app)/dashboard/page.tsx
 apps/web/src/app/(app)/dose-calculator/page.tsx
-apps/web/src/app/(app)/notifications/page.tsx
 apps/web/src/app/(app)/policies/page.tsx
 apps/web/src/app/(app)/security/page.tsx
 apps/web/src/app/(app)/settings/page.tsx
-apps/web/src/app/(app)/upload/page.tsx
 apps/web/src/app/(app)/users/page.tsx
 apps/web/src/app/globals.css
 apps/web/src/app/login/forgot/page.tsx

@@ -9,11 +9,11 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 177
-MISSING : 54
+READ    : 182
+MISSING : 49
 ```
 
-**The file-by-file audit is 177 of 231 — it is not finished.** One area is:
+**The file-by-file audit is 182 of 231 — it is not finished.** One area is:
 **the whole of `apps/api` is now read** — src, test, config and eval data —
 verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
 '^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
@@ -26,9 +26,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 177 files read as at 231. A described fact — what a
+whole tree and is as true at 182 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 177 have.
+opened, and only 182 have.
 
 ## Skipped deliberately, with reasons
 
@@ -82,6 +82,53 @@ that this audit did **not** prove.
 
 ## Found by reading, and not guarded by any test
 
+### The i18n claim is broader than the implementation
+
+`CLAUDE.md` describes the web app as bilingual EN/AR with a dictionary and a
+`t()` helper, and the screens' *headings, labels and buttons* genuinely are.
+What is not translated is the error and empty-state layer, plus several
+control labels. Measured by scanning every `.ts`/`.tsx` under `apps/web/src`
+except `lib/i18n.ts` for quoted runs of two or more English words outside
+comments: **39 candidate literals in 13 files**, of which roughly thirty are
+user-visible copy that should translate and the rest are deliberate.
+
+Deliberate, and correctly English:
+
+- `assistant-chat.tsx:86-92` — the four refusal-gate explanations, shown only
+  to `analytics:read` holders and naming English configuration keys, with the
+  reasoning written into the file at `:78-83`.
+- `language-toggle.tsx:21` — "Switch to English" is shown *when switching to
+  English*, in that language, by design.
+- `app/layout.tsx:7-9` — Next `Metadata`, rendered server-side where the
+  stored language preference is not readable at all. Not fixable without the
+  locale routing the codebase deliberately rejected.
+
+Genuinely untranslated, by file:
+
+- `(app)/answer-review/page.tsx` — the three tab labels (`Pending`,
+  `Approved`, `Flagged`, `:114-116`), all six strings in `EMPTY_COPY`
+  (`:50-65`), `Review failed` (`:93`), and the inline `unknown user`,
+  `{confidence} confidence`, `approved {date}` and `{n} total in this view`.
+- `(app)/approvals/page.tsx` — the two segmented-control labels
+  (`Needs your action`, `All documents`), both empty-state titles and both
+  descriptions, `Hide history`, `Action failed`, `Lifecycle stage: {status}`.
+- `(app)/upload/page.tsx` — the two file-validation messages (`:41`, `:45`),
+  the `PDF only, up to 25 MB` hint, `Expiry must be in the future` (`:132`),
+  `Upload failed` (`:68`) and the submit button `Upload as draft` (`:153`).
+- `(app)/users/page.tsx` — `Could not create the user`,
+  `Could not update the user`, `Too short — use 8 characters or more`.
+- `(app)/settings/page.tsx` — `Reindex failed`, `Save failed`.
+- `(app)/policies/page.tsx` — `Could not generate a download link`.
+- `login/forgot/page.tsx` — `Request failed` ×2, `Reset failed`.
+- `theme-toggle.tsx:40-41` — the title and aria-label.
+
+The pattern is consistent and tells you how it happened: whatever a developer
+saw on screen while building got a dictionary key, and whatever only appears
+when something fails or when a list is empty did not. That is exactly the
+copy a user meets on a bad day.
+
+### A component-level instance, fixed
+
 `ErrorState` and `Pagination` in `apps/web/src/components/ui/index.tsx`
 rendered English literals — "Something went wrong", "Try again", "Previous",
 "Next", "No {noun}", "of" — while every screen around them translated.
@@ -107,7 +154,7 @@ kind of thing an audit exists to surface:
 
 ## What remains of the audit itself
 
-The remaining 54 files, read in the batches named in the plan, each appended to
+The remaining 49 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.
