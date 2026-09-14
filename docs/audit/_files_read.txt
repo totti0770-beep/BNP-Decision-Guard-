@@ -4,6 +4,7 @@
 .gitignore
 apps/api/src/analytics/analytics.module.ts
 apps/api/src/app.module.ts
+apps/api/src/approval/approval.service.spec.ts
 apps/api/src/approval/approval.service.ts
 apps/api/src/audit/audit.controller.ts
 apps/api/src/audit/audit.module.ts
@@ -11,6 +12,7 @@ apps/api/src/audit/audit.service.ts
 apps/api/src/auth/auth.controller.ts
 apps/api/src/auth/auth.module.ts
 apps/api/src/auth/auth.service.ts
+apps/api/src/auth/demo-account-guard.service.spec.ts
 apps/api/src/auth/demo-account-guard.service.ts
 apps/api/src/auth/jwt.strategy.ts
 apps/api/src/chat/chat-diagnostics.spec.ts
@@ -22,6 +24,8 @@ apps/api/src/common/filters/all-exceptions.filter.ts
 apps/api/src/common/guards/jwt-auth.guard.ts
 apps/api/src/common/guards/permissions.guard.spec.ts
 apps/api/src/common/guards/permissions.guard.ts
+apps/api/src/common/guards/phi-scanner.spec.ts
+apps/api/src/common/guards/phi-screen.guard.spec.ts
 apps/api/src/common/guards/phi-screen.guard.ts
 apps/api/src/common/interceptors/audit.interceptor.ts
 apps/api/src/common/logging/json-logger.service.spec.ts
@@ -33,6 +37,7 @@ apps/api/src/documents/documents.controller.ts
 apps/api/src/documents/documents.module.ts
 apps/api/src/documents/documents.service.spec.ts
 apps/api/src/documents/documents.service.ts
+apps/api/src/documents/inventory.service.spec.ts
 apps/api/src/documents/inventory.service.ts
 apps/api/src/dose/dose.controller.ts
 apps/api/src/dose/dose.module.ts
@@ -45,6 +50,7 @@ apps/api/src/entities/index.ts
 apps/api/src/entities/misc.entity.ts
 apps/api/src/entities/user.entity.ts
 apps/api/src/eval/field-eval.ts
+apps/api/src/eval/field-set.spec.ts
 apps/api/src/eval/field-set.ts
 apps/api/src/health.controller.spec.ts
 apps/api/src/health.controller.ts
@@ -70,6 +76,8 @@ apps/api/src/rag/openai-http.spec.ts
 apps/api/src/rag/openai-http.ts
 apps/api/src/rag/pdf-extraction.service.spec.ts
 apps/api/src/rag/pdf-extraction.service.ts
+apps/api/src/rag/provider-consistency.spec.ts
+apps/api/src/rag/rag-query.service.spec.ts
 apps/api/src/rag/rag-query.service.ts
 apps/api/src/rag/rag.controller.ts
 apps/api/src/rag/rag.module.ts
