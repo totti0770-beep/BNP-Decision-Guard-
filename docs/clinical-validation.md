@@ -97,6 +97,13 @@ that maximises total correctness.
 2. **Confirm `RAG_MIN_SIMILARITY`** is at least 0.25 (see above).
 3. **Use a NURSE_USER account**, not an administrator. Nurses cannot download
    source PDFs; you need to see what they see, including that constraint.
+   *This collides with §5.2(b), which asks you to open the cited document at
+   the cited page — a nurse account cannot.* Resolve it by splitting the two
+   steps: **ask** as a NURSE_USER (which is what the runner does, and it refuses
+   to run as anything else), and **verify citations** from a manager account or
+   from paper copies. The generated sheet carries the document, the page and the
+   snippet the assistant actually used, so the passage can be located before
+   anyone opens anything.
 4. **Record the corpus version/date.** Sign-off applies to the corpus as it
    stood, not to the platform in perpetuity.
 
@@ -124,7 +131,30 @@ Include, deliberately:
 Suggested minimum: **40 questions**, of which at least **12 are unanswerable**
 from the approved corpus.
 
+**Where to put them.** `apps/api/eval/field-set.starter.jsonl` — one JSON object
+per line, no code, no build. `apps/api/eval/README.md` has the format. Mark each
+case `"provenance": "ward-submitted"` when it is a question staff actually
+asked; the cases that ship today are `engineering-authored` placeholders and are
+labelled as such in every report, so they cannot be mistaken for this step being
+done.
+
+Two things the file enforces rather than advises, both of them this section's
+own rules made mechanical:
+
+- **No expected document and no expected answer.** The loader rejects those
+  fields outright. Recording one would mean the question was written from the
+  document, which is what the first paragraph above forbids.
+- **No identifiers.** Every question is screened before it is loaded, so a
+  question collected on the ward with a real medical-record number in it is
+  stopped before it reaches the network. Rewrite it without the identifier.
+
 ### 5.2 Scoring each question
+
+`npm run eval:field` produces this sheet with every mechanical column already
+filled — the question, whether it refused, at which gate, which document and
+page were cited, the similarity and the confidence — and the four judgement
+columns below left blank. **A generated sheet is not a completed review**: §6
+turns on those four columns and on nothing the tool prints.
 
 For every question record:
 

@@ -1,8 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { DocumentStatus, REFUSAL_MESSAGE_AR, RoleName } from '@bnp/shared';
-import { SAMPLE_DOCS } from '../src/seed/sample-docs';
-import { buildPdf } from '../src/seed/pdf';
+import { REFUSAL_MESSAGE_AR, RoleName } from '@bnp/shared';
+import { buildDemoCorpus } from './support/demo-corpus';
 import { GOLD_SET, type GoldCase } from './support/gold-set';
 import {
   auth,
@@ -70,35 +69,9 @@ describe('Answer quality against the gold set', () => {
     const managerToken = (await login(ctx, MANAGER.email, MANAGER.password)).accessToken;
     nurseToken = (await login(ctx, NURSE.email, NURSE.password)).accessToken;
 
-    // The real seeded corpus, through the real governance workflow. Anything
-    // short of ACTIVE is not a source, so the whole lifecycle has to run.
-    for (const sample of SAMPLE_DOCS) {
-      const pdf = await buildPdf(sample.title, sample.pages);
-      ctx.pdf.pages = sample.pages.map((paragraphs, i) => ({
-        pageNumber: i + 1,
-        text: paragraphs.join(' '),
-      }));
-
-      const uploaded = await ctx
-        .http()
-        .post('/documents/upload')
-        .set(auth(managerToken))
-        .field('title', sample.title)
-        .field('category', sample.category)
-        .attach('file', pdf, 'doc.pdf')
-        .expect(201);
-
-      const id = uploaded.body.id;
-      await ctx.http().post(`/documents/${id}/submit-review`).set(auth(managerToken)).send({}).expect(201);
-      await ctx.http().post(`/documents/${id}/approve`).set(auth(managerToken)).send({}).expect(201);
-      const indexed = await ctx
-        .http()
-        .post(`/documents/${id}/index`)
-        .set(auth(managerToken))
-        .send({})
-        .expect(201);
-      expect(indexed.body.status).toBe(DocumentStatus.ACTIVE);
-    }
+    // The real seeded corpus, through the real governance workflow — shared
+    // with the field-set harness, which runs different questions over it.
+    await buildDemoCorpus(ctx, managerToken);
   }, 180_000);
 
   afterAll(async () => {

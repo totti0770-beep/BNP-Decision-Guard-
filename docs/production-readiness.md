@@ -248,6 +248,39 @@ production. Use this as the launch checklist.
 > while both Dockerfiles used `node:22-alpine`, so CI had never actually
 > exercised the Node major that production runs.
 
+> **Audit update (Sep 2026) — an independent evaluation set exists; clinical
+> validation is still a blocker.** The evaluation harness was circular: the gold
+> set's questions were authored from the four seeded demo documents they
+> retrieve from (`answer-quality.e2e-spec.ts` imported `SAMPLE_DOCS`), so it
+> could detect a retrieval regression and could not measure anything. A second
+> set now sits beside it — cases in `apps/api/eval/*.jsonl`, editable without
+> touching code, with a loader that **rejects** any field naming an expected
+> document or an expected answer, and a unit test that fails the build if the
+> module reaches for the seeded corpus again.
+>
+> Two runners share one scoring core: the e2e spec gates five invariants that
+> hold on any corpus, and `npm run eval:field` runs the same cases against a
+> live deployment over HTTP as a `NURSE_USER`, writing nothing to it. The output
+> is the `docs/clinical-validation.md` §5.2 sheet with the machine columns
+> filled and the four clinical judgement columns blank.
+>
+> **This does not move the clinical-validation row, and must not be read as
+> moving it.** The row below stays 🔴. What existed before was a protocol on
+> paper and no instrument; what exists now is the instrument, the paperwork it
+> generates, and a set of placeholder questions an engineer wrote, labelled as
+> such in every report. The blocker clears when a qualified reviewer fills the
+> four columns on questions ward staff actually asked — and nothing engineering
+> can build substitutes for that.
+>
+> One finding worth recording from the first run: under the mock embedding
+> provider on the demo corpus, Arabic paraphrases of English questions
+> frequently reach a different verdict than the English original. That is the
+> expected behaviour of a bag-of-words stand-in rather than a defect in the
+> platform, and it is exactly the gap §5.1 names — it is recorded here because
+> the instrument now *shows* it instead of the documentation merely warning
+> about it. It says nothing about a real embedding provider, which is the
+> configuration a pilot would run.
+
 ## Readiness scorecard
 
 | Dimension | MVP | Pilot | Production |

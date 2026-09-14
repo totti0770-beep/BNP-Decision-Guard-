@@ -1,5 +1,7 @@
+import { resolve } from 'node:path';
 import request from 'supertest';
 import { PHI_REJECTION_MESSAGE_AR, RoleName } from '@bnp/shared';
+import { loadFieldSet } from '../src/eval/field-set';
 import { GOLD_SET } from './support/gold-set';
 import {
   auth,
@@ -216,7 +218,7 @@ describe('PHI screening keeps rejected text out of every store', () => {
     });
   });
 
-  describe('the gold set must pass the screen — every question, unchanged', () => {
+  describe('the evaluation corpus must pass the screen — every question, unchanged', () => {
     /**
      * This is the regression that actually happened, and the reason this block
      * exists rather than a longer hand-written negative list.
@@ -228,12 +230,26 @@ describe('PHI screening keeps rejected text out of every store', () => {
      * nurse can ask — was rejected as PHI. Fourteen hand-picked negative cases
      * did not catch it; the gold set did, on the first full run.
      *
-     * So the gold set is the negative corpus from here on. It is the
+     * So the evaluation corpus is the negative corpus from here on. It is the
      * repository's own definition of a legitimate clinical question, it is
      * maintained for other reasons, and any future pattern that rejects one of
      * them fails the build.
+     *
+     * The field set (`eval/field-set.starter.jsonl`) is included for the same
+     * reason, and keeping the two joined is what makes SECURITY.md's promise
+     * true rather than aspirational: every case added to the independent set
+     * strengthens this control at no extra cost. A hospital that replaces the
+     * starter file with three hundred ward questions gets a three-hundred-case
+     * false-positive corpus without doing anything else.
      */
-    it.each(GOLD_SET.map((g) => [g.id, g.question]))(
+    const negatives = [
+      ...GOLD_SET.map((g) => [`gold:${g.id}`, g.question] as const),
+      ...loadFieldSet(
+        resolve(__dirname, '..', 'eval', 'field-set.starter.jsonl'),
+      ).cases.map((c) => [`field:${c.id}`, c.question] as const),
+    ];
+
+    it.each(negatives)(
       'passes the screen: %s',
       async (_id, question) => {
         const res = await request(ctx.app.getHttpServer())

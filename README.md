@@ -268,8 +268,8 @@ every question until a document is indexed.
 ## Tests
 
 ```bash
-npm test                        # 334 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 117 integration tests — real HTTP + real Postgres
+npm test                        # 396 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 209 integration tests — real HTTP + real Postgres
 cd apps/mobile && npm test      # 32 mobile unit tests — separate install
 ```
 
@@ -307,10 +307,42 @@ logout, account lockout blocking a correct password, a reset link that arrives
 by mail and is single-use while the token never appears in a response), RBAC
 403s on real routes, and the dose-calculator safety gates.
 
-Still not covered: **PDF text extraction** — `pdf-parse`'s bundled pdf.js cannot
-run inside a jest process, so that one step is stubbed in the integration suite
-and has no automated coverage anywhere. There are also no web or mobile unit
-tests.
+Extraction is stubbed in the integration suite so a spec can choose the text a
+document yields — a convenience, not a gap: `apps/api/src/rag/pdf-extraction.service.spec.ts`
+covers real extraction directly against pdfkit-generated PDFs. (This paragraph
+previously claimed extraction could not be tested at all because pdf.js throws
+inside jest. That was wrong, and it hid a real bug — see the same correction in
+`CLAUDE.md`.) Still uncovered: there are no web unit tests, and the mobile
+screens have no runtime coverage.
+
+### Evaluating answers
+
+Two sets, and the difference matters:
+
+| | gold set | field set |
+| --- | --- | --- |
+| where the questions came from | written from the four demo documents | written from practice, not from the corpus |
+| what CI gates | that each question reaches the document holding its answer | five invariants that hold on *any* corpus |
+| what it can measure | retrieval regression | coverage, paraphrase agreement, refusal behaviour on a real library |
+
+```bash
+npm run test:eval -w @bnp/api         # gold set + scored report
+npm run test:eval:field -w @bnp/api   # field set + the §5.2 review sheet
+
+EVAL_PASSWORD='…' npm run eval:field -w @bnp/api -- \
+  --base-url https://api.example.health \
+  --email nurse.eval@example.health \
+  --cases eval/field-set.starter.jsonl --out sheet.md
+```
+
+The second command runs against a live deployment over HTTP, as a `NURSE_USER`,
+and writes nothing to it. Its output is the `docs/clinical-validation.md` §5.2
+scoring sheet with the machine columns filled in and the four clinical
+judgement columns blank, because those are a reviewer's to fill.
+
+The cases that ship are `engineering-authored` placeholders and say so in every
+report. `apps/api/eval/README.md` explains how to replace them; rule one there
+is *never write a question by reading a policy*.
 
 Continuous integration (`.github/workflows/ci.yml`) runs, on every push and PR:
 the dependency scan; lint; the API build + unit tests + migrations +

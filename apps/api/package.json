@@ -11,7 +11,9 @@
     "inventory": "ts-node src/scripts/inventory.ts",
     "test": "jest",
     "test:e2e": "jest --config jest-e2e.config.js",
-    "test:eval": "EVAL_REPORT=1 jest --config jest-e2e.config.js --testPathPattern=answer-quality"
+    "test:eval": "EVAL_REPORT=1 jest --config jest-e2e.config.js --testPathPattern=answer-quality",
+    "test:eval:field": "EVAL_REPORT=1 jest --config jest-e2e.config.js --testPathPattern=field-set",
+    "eval:field": "ts-node src/scripts/field-eval.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",

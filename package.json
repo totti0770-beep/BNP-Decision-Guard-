@@ -19,7 +19,9 @@
     "test": "npm run test -w @bnp/api",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test:eval": "npm run test:eval -w @bnp/api"
+    "test:eval": "npm run test:eval -w @bnp/api",
+    "test:eval:field": "npm run test:eval:field -w @bnp/api",
+    "eval:field": "npm run build:shared && npm run eval:field -w @bnp/api --"
   },
   "engines": {
     "node": ">=20"
