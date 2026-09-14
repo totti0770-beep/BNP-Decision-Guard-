@@ -9,29 +9,32 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 227
-MISSING : 4
+READ    : 228
+MISSING : 3
+--- NOT READ ---
+apps/api/field-eval-report.md
+apps/mobile/package-lock.json
+package-lock.json
 ```
 
-**The file-by-file audit is 227 of 231 — it is not finished.** One area is
-complete: **every source file in the repository is now read** — `apps/api`,
-`apps/web`, `apps/mobile` and `packages/shared` in full, plus all infra and CI
-config, across src, test, config and eval data — verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
-'^apps/api/'` returning only `apps/api/field-eval-report.md`, which is the
-gitignored generated report already listed in the skipped table below. What
-remains is one markdown document and three generated files (two npm
-lockfiles and the gitignored eval report), all listed in the skipped table
-below or pending in the next batch. Any statement in
-these reports about a file in `_NOT_READ.txt` would be unsupported, and there
-are none: the reports cite only files that have been opened, and the executive
-summary's counts come from commands (`grep`, `find`, a route-classifying script)
-rather than from reading.
+**Every file in this repository that is not machine-generated has now been
+read.** The three remaining lines are the three already justified in the
+skipped table below: two npm lockfiles and one gitignored generated report.
+There is no source file, no configuration file, no test file and no document
+left unopened — verified by the command above rather than asserted.
+
+That took 228 files. Where a file exceeded 400 lines it was read in consecutive
+chunks to the end, which is what produced several of the findings in this
+report: the advisory lock in `indexing.service.ts`, the `token_version` binding
+on reset tokens in `auth.service.ts`, and both count errors in
+`REPO-DISCOVERY.md`, each of which sits a long way from the section heading
+that summarises it wrongly.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 227 files read as at 231. A described fact — what a
+whole tree and is as true at 228 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 227 have.
+opened, and every non-generated file has been.
 
 ## Skipped deliberately, with reasons
 
@@ -509,9 +512,78 @@ understood as *a thing that happens when you change providers* rather than as a
 standing clause of the query, so it gets left out whenever the query is
 summarised. Corrected in this branch, stated as four in both places.
 
+### `REPO-DISCOVERY.md` — two counts wrong, and four findings since acted on
+
+The last file read was the longest: a 2,117-line forensic discovery report
+pinned to commit `114e655`. It is the most rigorous document in the repository —
+§22 grades 30 documentation claims, §23 traces each dead-code candidate
+definition → search → result, §27 lists the eight commands it actually ran with
+their output, §30 enumerates sixteen things it could not determine and the
+search performed for each — and it is the reason several of this audit's own
+conventions exist.
+
+**Two of its claims were wrong at the commit it is pinned to**, checked against
+`114e655` itself rather than against today's tree:
+
+| Claim | Where | At `114e655` |
+| --- | --- | --- |
+| "14 database tables" | §6 diagram, §11 heading, §12, §31 | **17** (`git show 114e655:…initial-schema.ts \| grep -c 'CREATE TABLE'`) |
+| "7 roles × **21** permissions" | §10 heading, §28 | **22** (the `Permission` enum at that commit) |
+
+Both have the same shape, and it is a shape worth recognising: **a count written
+above a list, where the list is correct.** §11 enumerates all 17 tables by name
+and line directly beneath the heading that says 14. §10 enumerates all 22
+permissions directly beneath the heading that says 21. Nothing recomputed the
+number from the list it had just finished producing, and a reader checking the
+document would have to notice the heading disagreed with the paragraph under it.
+
+Recorded in a new **§0.2** addendum rather than by editing the body, because
+that document's closing note commits it to describing `114e655` exactly and
+§0.1 already established the addendum as its mechanism for change.
+
+**Four of its dead-code findings have since been acted on**, which is worth
+stating because a discovery report only earns its cost if someone uses it:
+`packages/shared/src/types.ts` is deleted, `PLATFORM_TAGLINE` and
+`RETRIEVABLE_STATUSES` are gone, and `@nestjs/config` is no longer declared.
+The `redis` compose service it flagged is gone too. §0.2 records those and the
+rest of the drift — 49 routes → 50, 213/68 tests → 412/229, 202 tracked files →
+240, 108 commits → 173, and both `CONTRADICTED` documentation rows this audit
+could check are now fixed.
+
+### The one habit worth carrying out of this audit
+
+Three separate mistakes in this work — one in a project document, one in
+`REPO-DISCOVERY.md`, one in this audit's own file index — have the same cause:
+**a comment that mentions a thing is not the thing.**
+
+- The audit's index row for `docker-compose.yml` reported a `minio-init`
+  service. Lines `:48-53` are a comment explaining why `minio-init` was
+  deleted.
+- A route count taken by grepping `@Get|@Post|@Patch|@Put|@Delete` across
+  `apps/api/src` returns **51**. The 51st is `documents.controller.ts:90`, a
+  comment containing the text `@Get(':id')`. The real figure is 50, which is
+  what `05-API-SURFACE.md` says — arrived at by a parser that stops at the
+  method signature, and confirmed only because the two disagreed.
+- The i18n literal scan reported "9 remaining, all deliberate" because it was
+  line-wise and could not see a JSX text node spanning several lines. A second,
+  comment-stripping, multi-line scan found eight more.
+
+The common lesson is not "be careful". It is that **"measured by command" is not
+by itself evidence the command measured the right thing**, and the cheapest
+guard is to have two methods disagree. Every count in these reports that
+mattered was taken twice.
+
 ## What remains of the audit itself
 
-The remaining 4 files, read in the batches named in the plan, each appended to
-`_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
-`_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
-in this file with a reason.
+The file-by-file read is **done**: `_VERIFICATION.txt` reports `MISSING : 3`,
+and all three lines appear in the skipped table above with a reason, which is
+the completion condition the audit was given.
+
+What is not done is the report set. `01-OVERVIEW`, `02-ARCHITECTURE`,
+`03-MODULES-*`, `06-DEPENDENCIES`, `07-QUALITY-AND-RISKS` and `08-BUILD-AND-RUN`
+are still to be written from the material now gathered in `00-FILE-INDEX.md`.
+`04-DATA-MODEL`, `05-API-SURFACE`, `09-GAPS` and `10-EXECUTIVE-SUMMARY` exist.
+
+And the five open questions above are still open. None of them is an
+engineering task, and none of them can be closed by reading this repository —
+which is the honest place for a repository audit to stop.

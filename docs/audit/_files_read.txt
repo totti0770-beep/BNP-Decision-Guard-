@@ -4,6 +4,7 @@
 .gitignore
 CLAUDE.md
 README.md
+REPO-DISCOVERY.md
 SECURITY.md
 apps/api/.gitignore
 apps/api/eval/README.md

@@ -1,4 +1,3 @@
-REPO-DISCOVERY.md
 apps/api/field-eval-report.md
 apps/mobile/package-lock.json
 package-lock.json

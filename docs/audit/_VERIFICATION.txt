@@ -1,8 +1,7 @@
 ON DISK : 231
-READ    : 227
-MISSING : 4
+READ    : 228
+MISSING : 3
 --- NOT READ ---
-REPO-DISCOVERY.md
 apps/api/field-eval-report.md
 apps/mobile/package-lock.json
 package-lock.json
