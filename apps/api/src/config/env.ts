@@ -265,10 +265,6 @@ export function loadEnv(): AppEnv {
   // the bucket at all, so leaving it out of the fail-fast only moved the
   // failure from boot to the first document upload.
   required('S3_ACCESS_KEY', DEMO_S3_ACCESS_KEY);
-  // Paired with the secret. A demo access key plus a real secret cannot reach
-  // the bucket at all, so leaving it out of the fail-fast only moved the
-  // failure from boot to the first document upload.
-
 
   // Mail is deliberately NOT part of the secret fail-fast. A missing secret is
   // a security hole that must stop the boot; log-only mail is a degraded
