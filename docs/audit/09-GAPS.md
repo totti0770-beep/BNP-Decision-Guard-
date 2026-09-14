@@ -9,11 +9,11 @@ block, run on this commit. At the time of writing:
 
 ```
 ON DISK : 231
-READ    : 219
-MISSING : 12
+READ    : 221
+MISSING : 10
 ```
 
-**The file-by-file audit is 219 of 231 — it is not finished.** One area is:
+**The file-by-file audit is 221 of 231 — it is not finished.** One area is:
 **every source file in the repository is now read** — `apps/api`, `apps/web`,
 `apps/mobile` and `packages/shared` in full, plus all infra and CI config** — src, test, config and eval data —
 verified by `comm -23 <(sort _inventory_all.txt) <(sort _files_read.txt) | grep
@@ -29,9 +29,9 @@ rather than from reading.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 219 files read as at 231. A described fact — what a
+whole tree and is as true at 221 files read as at 231. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
-opened, and only 219 have.
+opened, and only 221 have.
 
 ## Skipped deliberately, with reasons
 
@@ -161,6 +161,25 @@ What remains, and why each one stays:
   fallback in two module-level helpers, outside any component, where no hook
   can reach them.
 
+### The documented retrieval invariant was missing a filter
+
+`docs/database-schema.md` stated the query that reaches the LLM with three
+predicates — ACTIVE, not expired, current version — and concluded that
+"draft, in-review, rejected, expired, deactivated documents and stale
+versions are structurally unreachable". True, and incomplete: the real query
+at `retrieval.service.ts:62-78` carries a fourth, `AND c.embedding_provider
+= $3`, and `docs/architecture.md`'s RAG sequence note repeated the same
+three. The `document_chunks` row in the schema doc also omitted both the
+`embedding_provider` column and the `UNIQUE (document_id, version_number,
+chunk_index)` constraint that later migrations added.
+
+The omitted predicate is the one whose absence is hardest to notice: vectors
+from different embedding providers occupy incompatible spaces, so comparing
+across them produces a similarity score that is arithmetically valid and
+clinically meaningless. A reader working from the documented invariant would
+have had no reason to keep it. Both documents are corrected in this branch,
+with the reasoning stated rather than just the line added.
+
 ### Physical direction classes — three real, three false alarms
 
 `CLAUDE.md` requires logical Tailwind classes (`start-*`/`end-*`, `ps-`/`pe-`,
@@ -216,7 +235,7 @@ kind of thing an audit exists to surface:
 
 ## What remains of the audit itself
 
-The remaining 12 files, read in the batches named in the plan, each appended to
+The remaining 10 files, read in the batches named in the plan, each appended to
 `_files_read.txt` and given an evidence-backed role in `00-FILE-INDEX.md`, with
 `_VERIFICATION.txt` re-run until `MISSING` is 0 or every remaining line appears
 in this file with a reason.

@@ -58,7 +58,7 @@ sequenceDiagram
     N->>C: POST /chat/ask {question}
     C->>C: persist ai_question (audited)
     C->>R: vector search (pgvector cosine)
-    Note over R: WHERE status='ACTIVE'<br/>AND not expired<br/>AND current version only
+    Note over R: WHERE status='ACTIVE'<br/>AND not expired<br/>AND current version only<br/>AND current embedding provider
     R-->>C: top-K chunks
     C->>K: rerank (vector + lexical coverage)
     alt best score < RAG_MIN_SIMILARITY or no chunks
@@ -101,5 +101,6 @@ stateDiagram-v2
 | Mock LLM is extractive | Zero-hallucination baseline; system runs without any API key |
 | Chunks never cross page boundaries | Page-accurate citations |
 | Chunks tied to `documents.version_number` | New versions must be re-approved and re-indexed before retrieval |
+| Chunks stamped with `embedding_provider`, and retrieval filters on the active one | Vectors from different providers occupy incompatible spaces, so switching `EMBEDDING_PROVIDER` makes the assistant refuse everything (safe and visible) rather than answer from junk similarity |
 | Permission matrix in `packages/shared` | One source of truth for API guard, web nav and seeds |
 | Global audit interceptor + domain events | Coarse HTTP trail plus semantic events (refusals, approvals, downloads) |

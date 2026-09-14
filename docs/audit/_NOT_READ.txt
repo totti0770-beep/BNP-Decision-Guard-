@@ -5,8 +5,6 @@ SECURITY.md
 apps/api/field-eval-report.md
 apps/mobile/package-lock.json
 docs/api.md
-docs/architecture.md
 docs/clinical-validation.md
-docs/database-schema.md
 docs/production-readiness.md
 package-lock.json

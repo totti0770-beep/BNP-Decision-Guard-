@@ -200,6 +200,8 @@ apps/web/src/lib/language.tsx
 apps/web/tailwind.config.ts
 apps/web/tsconfig.json
 docker-compose.yml
+docs/architecture.md
+docs/database-schema.md
 eslint.config.js
 infra/docker/Dockerfile.api
 infra/docker/Dockerfile.web
