@@ -8,8 +8,8 @@ What this audit has **not** established, stated as plainly as what it has.
 block, run on this commit. At the time of writing:
 
 ```
-ON DISK : 233
-READ    : 230
+ON DISK : 234
+READ    : 231
 MISSING : 3
 --- NOT READ ---
 apps/api/field-eval-report.md
@@ -23,7 +23,7 @@ skipped table below: two npm lockfiles and one gitignored generated report.
 There is no source file, no configuration file, no test file and no document
 left unopened — verified by the command above rather than asserted.
 
-That took 229 files. Where a file exceeded 400 lines it was read in consecutive
+That took 231 files. Where a file exceeded 400 lines it was read in consecutive
 chunks to the end, which is what produced several of the findings in this
 report: the advisory lock in `indexing.service.ts`, the `token_version` binding
 on reset tokens in `auth.service.ts`, and both count errors in
@@ -32,7 +32,7 @@ that summarises it wrongly.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 229 files read as at 232. A described fact — what a
+whole tree and is as true at 231 files read as at 234. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
 opened, and every non-generated file has been.
 
@@ -114,6 +114,68 @@ that this audit did **not** prove.
 5. Who is the qualified reviewer, and when can they sit down with the sheet?
 
 ## Found by reading, and not guarded by any test
+
+### The PHI screen on document upload never ran — found by writing the test, not by reading
+
+This is the most serious defect this branch produced, and the audit's
+file-by-file read did not find it. Reading found the opposite: the route
+carried `@ScreenForPhi({ body: ['title', 'description', 'changeNote'],
+profile: PhiProfile.METADATA })`, the guard behind it was read line by line,
+and both were recorded as correct. They were correct. The wiring between them
+was not.
+
+Nest runs **middleware → guards → interceptors → pipes → handler**.
+`PhiScreenGuard` reads `req.body`, so it screens only what something earlier
+already parsed. Every other screened route sends JSON, and `express.json()` is
+middleware, so those work. `POST /documents/upload` is the only multipart
+route, and its body was parsed by `FileInterceptor` — an *interceptor*, one
+stage after the guard. At guard time `req.body` was `undefined`, the guard
+found no string to scan and returned true.
+
+The failure mode is the bad one. No error, no log line, no degraded response:
+the decorator was present, the route read as screened in review, and uploads
+returned 201. A national ID typed into a document title was written to
+`documents` and `document_versions`. Proven, not inferred — reverting the fix
+and re-running the suite fails six tests, including
+*"wrote no document row — the 400 is a rejection, not a rollback"*, which
+queries the table directly.
+
+**How it was actually found.** Not by suspicion. A new e2e case put an
+identifier in the new `issuingAuthority` field and expected a 400; CI returned
+201. The first hypothesis was that the new test was wrong. Checking whether any
+*existing* test proved a multipart field was screened is what turned a
+suspected test bug into a five-month-old security gap — nothing did. Every test
+of the control used a JSON route.
+
+**The fix** is `apps/api/src/documents/document-upload.middleware.ts`: multer
+runs as middleware, registered in `DocumentsModule.configure()`, so the body is
+parsed before the guards. Screening later instead — a second interceptor, the
+`ValidationPipe`, or `DocumentsService` — would have put the rejection back
+inside `AuditInterceptor`'s scope and given up the structural guarantee that
+rejected text reaches no store at all. Parsing in middleware also means nothing
+maps multer's errors any more, so the middleware maps them itself; without that
+an over-size upload answers 500 instead of 413.
+
+**What generalises.** Three things, in descending order of how much they cost:
+
+1. **A control's configuration is not its behaviour.** The audit verified that
+   the decorator named the right fields, that the guard scanned the right
+   patterns, and that the scanner matched the right identifiers. All three were
+   true simultaneously while the control did nothing. Only an end-to-end
+   assertion — send the bad input, expect the rejection — can distinguish a
+   control from a decoration, and no amount of reading substitutes for it.
+2. **Framework execution order is a security boundary.** It is already treated
+   as one in this repository, in the right direction: `SECURITY.md` explains at
+   length why the screen is a guard and not a DTO rule. The same ordering that
+   buys the no-store guarantee constrains what the guard can read, and only the
+   first half was written down.
+3. **The gap needed a database to find, and the audit had one.**
+   `08-BUILD-AND-RUN.md` recorded the integration suite as impossible to run
+   here, because nothing was listening on port 5432. PostgreSQL 16 and pgvector
+   0.6.0 were installed in this container the whole time. Deferring every
+   database-dependent check to CI is what let this reach a pull request. The
+   correction is in that file, with the commands.
+
 
 ### The i18n claim was broader than the implementation — now closed
 
@@ -682,7 +744,7 @@ the completion condition the audit was given.
 The report set is complete too — eleven documents:
 
 ```
-00-FILE-INDEX          231 rows, one per file, each with an evidence-backed role
+00-FILE-INDEX          234 rows, one per file, each with an evidence-backed role
 01-OVERVIEW            what this is, sized by command
 02-ARCHITECTURE        four Mermaid diagrams, every edge cited
 03-MODULES-backend     21 directories

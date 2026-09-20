@@ -41,7 +41,7 @@ a clinical deployment it represents.
 | Web | routes reaching the API | 18/18 | 100% | 15% |
 | Mobile | screens reaching the API | 6/6 | 100% | 5% |
 | Mobile hardening | advertised capabilities implemented (offline store, biometrics, at-rest encryption) | 0/3 | 0% | 5% |
-| Automated testing | suites green | 403 unit + 229 e2e + 32 mobile | 90% — web UI has **no unit tests at all**; the browser smoke is the only web coverage | 15% |
+| Automated testing | suites green | 423 unit + 240 e2e + 32 mobile | 90% — web UI has **no unit tests at all**; the browser smoke is the only web coverage | 15% |
 | Operability | health ✅, readiness ✅, structured logs ✅, metrics ❌, tracing ❌, error tracking ❌, backups ❌ | 3/7 | 43% | 10% |
 | Clinical validation | reviewer-scored questions on a real corpus | 0 | 0% | 10% |
 

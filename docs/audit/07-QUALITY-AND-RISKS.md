@@ -33,9 +33,16 @@ and the UNIQUE constraint (revert each separately against a real database), the
 audit gate (stub a critical, stub an error, remove the lockfile), and every
 mobile assertion (checked against a deliberately broken copy of the module).
 
-**Measured on this commit:** 416 unit tests across 29 suites, 0 failures; lint 0
-errors / 10 warnings, all `no-explicit-any`; `next build` producing 20/20 static
-pages; `npm audit` 0 critical.
+**Measured on this commit:** 423 unit tests across 29 suites, 0 failures; **240
+integration tests across 12 suites, 0 failures**, against a local PostgreSQL 16
+with pgvector 0.6.0; lint 0 errors / 10 warnings, all `no-explicit-any`;
+`next build` producing 20/20 static pages; `npm audit` 0 critical.
+
+The integration line is new, and its absence was itself a finding: earlier
+revisions of this report took that suite's result from CI because
+`08-BUILD-AND-RUN.md` had recorded it as unrunnable here. It was runnable the
+whole time. See the correction there, and risk 11 below for what the deferral
+cost.
 
 ---
 
@@ -272,6 +279,45 @@ failure from a test failure in the job's own output, would be the minimal shape.
 
 ---
 
+### ✅ 11. A security control that was configured correctly and ran on nothing — fixed
+
+**The defect.** `POST /documents/upload` carried `@ScreenForPhi`, listing
+`title`, `description` and `changeNote` under the METADATA profile. The
+decorator was right, the guard behind it was right, and the scanner behind
+*that* was right. The control still did nothing, because Nest runs
+**middleware → guards → interceptors** and the multipart body was parsed by a
+`FileInterceptor` — after the guard had already read `req.body` and found
+`undefined`. Every other screened route sends JSON, which `express.json()`
+parses as middleware; upload was the only multipart route and the only one
+affected.
+
+A national ID typed into a document title was written to `documents` and
+`document_versions` and returned 201. There was no error, no log line and no
+degraded response to notice.
+
+**Fixed** in `apps/api/src/documents/document-upload.middleware.ts`: multer
+runs as middleware, registered in `DocumentsModule.configure()`. Screening
+later instead — a second interceptor, the `ValidationPipe`, or the service —
+would have moved the rejection back inside `AuditInterceptor`'s scope and given
+up the structural guarantee that rejected text reaches no store at all.
+
+**Guarded by** six integration assertions in `test/phi-screening.e2e-spec.ts`
+(an identifier in `title`, a mobile number in `description`, an identifier in
+`issuingAuthority`, an empty `documents` table afterwards, an empty audit trail,
+and a `SECURITY:PHI_BLOCKED` row carrying categories and no content) plus one
+database-free ordering assertion in `src/documents/upload-wiring.spec.ts`.
+Verified by mutation: reverting the middleware fails all seven and nothing else.
+
+**Why this is listed as a risk and not just a fixed bug.** It is the clearest
+counterexample in this repository to the way the rest of the audit was
+conducted. Reading verified the control's *configuration* three layers deep and
+concluded it worked. Only sending a bad input and demanding a rejection could
+have distinguished a control from a decoration, and nothing did that for this
+route until a test written for an unrelated feature happened to. **Assume the
+same is true of any control here whose end-to-end behaviour is not asserted by
+a test** — configuration review cannot substitute, and this report's 🟠 risks 4
+and 5 are exactly that shape.
+
 ## The cross-cutting risk this audit is most confident about
 
 **Documentation drift is this repository's most frequent defect, and it is
@@ -290,7 +336,7 @@ Every instance found:
 | `PATCH /settings/:key`, `settings:write` | `SECURITY.md` | `PUT`, `settings:manage` |
 | Two undocumented routes | `docs/api.md` | inventory, chat answers |
 | Database tables / permissions | `REPO-DISCOVERY.md` | 17 tables, 22 permissions |
-| Test counts | `production-readiness.md` | 416 unit |
+| Test counts | `production-readiness.md` | 423 unit |
 
 Two of those had **operational consequences** rather than cosmetic ones: the
 missing retrieval filter would have led a reader to remove a load-bearing

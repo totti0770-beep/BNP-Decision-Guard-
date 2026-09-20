@@ -44,6 +44,7 @@ apps/api/src/common/pagination.ts
 apps/api/src/config/data-source.ts
 apps/api/src/config/env.spec.ts
 apps/api/src/config/env.ts
+apps/api/src/documents/document-upload.middleware.ts
 apps/api/src/documents/documents.controller.ts
 apps/api/src/documents/documents.module.ts
 apps/api/src/documents/documents.service.spec.ts

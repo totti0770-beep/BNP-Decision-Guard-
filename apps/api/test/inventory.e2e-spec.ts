@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { DocumentCategory, DocumentStatus, RoleName } from '@bnp/shared';
 import {
+  INVENTORY_SCHEMA_VERSION,
   InventoryDocument,
   InventoryReport,
 } from '../src/documents/inventory.service';
@@ -312,7 +313,11 @@ describe('Clinical reference inventory', () => {
       // Declaration order matters: below `@Get(':id')` the literal path would
       // be parsed as a document id and rejected by ParseUUIDPipe.
       const res = await get().expect(200);
-      expect(res.body.schema).toBe('bnp.clinical-reference-inventory.v1');
+      // Asserted against the constant, not a copy of its value: this line
+      // held a stale `v1` through a schema bump, and a literal here fails the
+      // build for a version change that was the point of the change.
+      expect(res.body.schema).toBe(INVENTORY_SCHEMA_VERSION);
+      expect(res.body.schema).toMatch(/^bnp\.clinical-reference-inventory\.v\d+$/);
     });
   });
 });

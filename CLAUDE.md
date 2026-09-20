@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (416), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (229), real HTTP + real Postgres
+npm test                      # API unit tests (423), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (240), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
@@ -181,6 +181,26 @@ file. The third is under exactly the same contract, not a lesser one: five
 tests assert it with `toBe` — `phi-screen.guard.spec.ts:100` and
 `phi-screening.e2e-spec.ts:137,273,299,331` — so rewording it fails the build
 the same way rewording a refusal does.
+
+### PHI screening runs as a guard, so it only sees a body middleware parsed
+
+`@ScreenForPhi({ body: [...] })` is enforced by `PhiScreenGuard`, and Nest runs
+**middleware → guards → interceptors → pipes → handler**. Running before the
+interceptor chain is the point: a rejected request never reaches
+`AuditInterceptor`, so "rejected text is written to no store" is a property of
+the ordering rather than a promise about what each call site avoids logging.
+
+The corollary is the trap. The guard reads `req.body`, so it screens only what
+something earlier already parsed. JSON routes are fine — `express.json()` is
+middleware. **Multipart is not**, and `POST /documents/upload` is the only
+multipart route. Parsing it with `FileInterceptor` put the parse one stage too
+late: `req.body` was `undefined` at guard time, the guard scanned nothing, and a
+national ID in a document title was stored while the route still read as
+screened. That is why the upload's multer lives in `DocumentUploadMiddleware`
+and is registered in `DocumentsModule.configure()`, **not** in a
+`@UseInterceptors(FileInterceptor(...))` on the controller. Do not move it back;
+`upload-wiring.spec.ts` fails if you do, and it also asserts the 413 mapping,
+which `FileInterceptor` used to provide for free.
 
 ### Refusal-first RAG chain (`apps/api/src/rag/`)
 

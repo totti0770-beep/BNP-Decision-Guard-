@@ -276,8 +276,8 @@ every question until a document is indexed.
 ## Tests
 
 ```bash
-npm test                        # 416 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 229 integration tests — real HTTP + real Postgres
+npm test                        # 423 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 240 integration tests — real HTTP + real Postgres
 cd apps/mobile && npm test      # 32 mobile unit tests — separate install
 ```
 

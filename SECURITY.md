@@ -72,6 +72,39 @@ against a real database by searching whole rows and whole `jsonb` documents
 (`::text LIKE`) rather than named columns — the requirement is "nowhere", not
 "not in the column we thought of".
 
+### The corollary that was missed: the guard can only screen a parsed body
+
+Running before the interceptor chain is what makes the guarantee above
+structural. It also fixes what the guard is able to see: a body someone
+*else* has already parsed. For every JSON route that is automatic —
+`express.json()` is middleware, and middleware runs before guards — so
+`@ScreenForPhi({ body: [...] })` reads populated fields.
+
+`POST /documents/upload` is the one route that is not JSON, and it was the one
+route where this failed. Its multipart body was parsed by a `FileInterceptor`,
+which is an **interceptor**: one stage *after* the guard. At guard time
+`req.body` was `undefined`, `PhiScreenGuard` found no string to scan, and the
+route returned 201. The decorator was present and listed the right fields, the
+route read as screened in review, and nothing logged an error — a national ID
+typed into a document title was stored in `documents`.
+
+The fix is `DocumentUploadMiddleware` (`apps/api/src/documents/`), which parses
+the upload with multer as **middleware**, registered in `DocumentsModule.configure()`.
+Screening later instead — in a second interceptor, in the `ValidationPipe`, or
+in `DocumentsService` — would have put the rejection back inside
+`AuditInterceptor`'s scope and given up the property this section is about.
+
+Two things follow for anyone adding a screened route:
+
+- **A screened route must have its body parsed by middleware.** If you reach
+  for `FileInterceptor`, `@ScreenForPhi` on that route screens nothing.
+- **Assert a rejection, not a decoration.** The gap survived review because
+  every test of the control used a JSON route. `test/phi-screening.e2e-spec.ts`
+  now sends identifiers through the multipart fields and asserts both the 400
+  and the empty `documents` table; `src/documents/upload-wiring.spec.ts` asserts
+  the ordering itself, with no database, by recording what a guard on that route
+  can see.
+
 ### The interception counter
 
 `SECURITY:PHI_BLOCKED` records a **per-category** breakdown from day one, not a
