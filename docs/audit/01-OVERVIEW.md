@@ -29,7 +29,7 @@ a mobile app.
 | Unit | Stack | Size | In the npm workspace? |
 | --- | --- | --- | --- |
 | `packages/shared` | TypeScript, **zero runtime dependencies** | 4 source files | ✅ |
-| `apps/api` | NestJS 11, TypeORM, PostgreSQL 16 + pgvector | 50 routes, 12 controllers, 15 entities, 5 migrations | ✅ |
+| `apps/api` | NestJS 11, TypeORM, PostgreSQL 16 + pgvector | 50 routes, 12 controllers, 15 entities, 6 migrations | ✅ |
 | `apps/web` | Next.js 16 App Router, Tailwind, React 18 | 15 protected screens + 4 public routes, all statically prerendered | ✅ |
 | `apps/mobile` | Expo 57 / React Native 0.86 / React 19 | 6 screens, hand-rolled tab switch, no router | ❌ separate install |
 

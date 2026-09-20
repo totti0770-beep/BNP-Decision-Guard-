@@ -194,6 +194,7 @@ export const dict = {
       'Nothing in the approved library covers \u201C{term}\u201D. Try different wording, or ask the accreditation team to publish the relevant standard.',
     pageAbbrev: 'p.',
     approvedOn: 'approved {date}',
+    issuedBy: 'issued by {body}',
     percentRelevance: '{percent}% relevance',
 
     // Assistant chat
@@ -271,6 +272,9 @@ export const dict = {
     descriptionHint: 'Optional — helps reviewers understand scope',
     expiryDate: 'Expiry date',
     expiryHint: 'Expired documents stop being answerable',
+    issuingAuthority: 'Issuing authority',
+    issuingAuthorityHint:
+      'The body that published this document — e.g. Pharmacy & Therapeutics Committee, Nursing Department, CBAHI',
 
     // Settings
     settingsTitle: 'Settings',
@@ -684,6 +688,7 @@ export const dict = {
       'لا شيء في المكتبة المعتمدة يغطي \u201C{term}\u201D. جرّب صياغة مختلفة، أو اطلب من فريق الاعتماد نشر المعيار المعني.',
     pageAbbrev: 'ص',
     approvedOn: 'اعتُمدت {date}',
+    issuedBy: 'صادرة عن {body}',
     percentRelevance: 'الصلة {percent}%',
 
     noApprovedSource: 'لا يوجد مصدر معتمد',
@@ -757,6 +762,9 @@ export const dict = {
     descriptionHint: 'اختياري — يساعد المراجعين على فهم النطاق',
     expiryDate: 'تاريخ انتهاء الصلاحية',
     expiryHint: 'الوثائق المنتهية تتوقف عن كونها مصدراً للإجابات',
+    issuingAuthority: 'الجهة المُصدِرة',
+    issuingAuthorityHint:
+      'الجهة التي أصدرت هذه الوثيقة — مثل لجنة الصيدلة والعلاجات، إدارة التمريض، سباهي',
 
     settingsTitle: 'الإعدادات',
     settingsSubtitle:

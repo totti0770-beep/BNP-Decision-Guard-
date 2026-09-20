@@ -64,6 +64,7 @@ export class ChatService {
               documentId: c.documentId,
               chunkId: c.chunkId,
               documentTitle: c.documentTitle,
+              issuingAuthority: c.issuingAuthority,
               pageNumber: c.pageNumber,
               approvalDate: c.approvalDate,
               similarity: c.similarity,
@@ -134,6 +135,7 @@ export class ChatService {
                 citations: answer.citations?.map((c) => ({
                   documentId: c.documentId,
                   documentTitle: c.documentTitle,
+                  issuingAuthority: c.issuingAuthority,
                   pageNumber: c.pageNumber,
                   approvalDate: c.approvalDate,
                   similarity: c.similarity,
@@ -182,6 +184,7 @@ export class ChatService {
         citations: a.citations?.map((c) => ({
           documentId: c.documentId,
           documentTitle: c.documentTitle,
+          issuingAuthority: c.issuingAuthority,
           pageNumber: c.pageNumber,
           approvalDate: c.approvalDate,
           similarity: c.similarity,

@@ -17,7 +17,7 @@ migration `apps/api/src/migrations/1720000000000-initial-schema.ts`.
 
 | Table | Purpose | Notable columns |
 | --- | --- | --- |
-| `documents` | Governed document registry | `category`, `status` (lifecycle), `version_number`, `storage_key` (S3), `approval_date`, `expiry_date`, `uploaded_by_id`, `approved_by_id` |
+| `documents` | Governed document registry | `category`, `status` (lifecycle), `version_number`, `storage_key` (S3), `issuing_authority` (the publishing body; nullable, never inferred), `approval_date`, `expiry_date`, `uploaded_by_id`, `approved_by_id` |
 | `document_versions` | Immutable version history | `(document_id, version_number)` unique, `change_note`, `storage_key` |
 | `document_chunks` | RAG index | `content`, `page_number`, `embedding vector(384)` + **HNSW cosine index**, `version_number` (must match parent doc for retrieval), `embedding_provider` (must match the configured provider — see the retrieval invariant), `UNIQUE (document_id, version_number, chunk_index)` |
 | `document_approvals` | Workflow trail | `action`, `from_status`, `to_status`, `actor_id`, `comment` |
@@ -28,7 +28,7 @@ migration `apps/api/src/migrations/1720000000000-initial-schema.ts`.
 | --- | --- | --- |
 | `ai_questions` | Every question asked | `user_id`, `assistant_type`, `category`, `channel` (WEB/MOBILE) |
 | `ai_answers` | Every answer incl. refusals | `short_answer`, `steps` (jsonb), `warnings` (jsonb), `confidence`, `refused`, `model`, `latency_ms`, `review_status`, `reviewed_by_id` |
-| `citations` | Sources per answer | `document_id`, `chunk_id`, `document_title`, `page_number`, `approval_date`, `similarity`, `snippet` |
+| `citations` | Sources per answer | `document_id`, `chunk_id`, `document_title`, `issuing_authority` (snapshot at answer time, like `document_title`), `page_number`, `approval_date`, `similarity`, `snippet` |
 
 ## Dose calculator
 

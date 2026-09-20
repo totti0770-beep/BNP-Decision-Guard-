@@ -11,7 +11,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { DocumentCategory, Permission, PhiProfile } from '@bnp/shared';
 import {
   AuthenticatedUser,
@@ -27,6 +27,7 @@ import { PAGE_INT } from '../common/pagination';
 class UploadDto {
   @IsString() @IsNotEmpty() title: string;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() @MaxLength(255) issuingAuthority?: string;
   @IsEnum(DocumentCategory) category: DocumentCategory;
   @IsOptional() @IsString() expiryDate?: string;
   @IsOptional() @IsString() changeNote?: string;
@@ -36,6 +37,7 @@ class UploadDto {
 class UpdateDocumentDto {
   @IsOptional() @IsString() title?: string;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @MaxLength(255) issuingAuthority?: string | null;
   @IsOptional() expiryDate?: string | null;
 }
 
@@ -52,7 +54,7 @@ export class DocumentsController {
   ) {}
 
   @ScreenForPhi({
-    body: ['title', 'description', 'changeNote'],
+    body: ['title', 'description', 'changeNote', 'issuingAuthority'],
     profile: PhiProfile.METADATA,
   })
   @Post('upload')
@@ -108,7 +110,7 @@ export class DocumentsController {
   }
 
   @ScreenForPhi({
-    body: ['title', 'description'],
+    body: ['title', 'description', 'issuingAuthority'],
     profile: PhiProfile.METADATA,
   })
   @Patch(':id')

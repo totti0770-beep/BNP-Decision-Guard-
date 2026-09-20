@@ -8,8 +8,8 @@ What this audit has **not** established, stated as plainly as what it has.
 block, run on this commit. At the time of writing:
 
 ```
-ON DISK : 232
-READ    : 229
+ON DISK : 233
+READ    : 230
 MISSING : 3
 --- NOT READ ---
 apps/api/field-eval-report.md
@@ -65,16 +65,22 @@ that this audit did **not** prove.
    that and has not been run against production. Nothing in any report here
    describes the real corpus.
 
-   **Correction.** Earlier versions of this file and of
-   `10-EXECUTIVE-SUMMARY.md` stated "roughly 2,706 chunks", five times across
-   the two reports. That number has no source. It appears nowhere in the
-   repository outside these audit files — `git log -S'2,706'` traces it to
-   `b798be9`, the commit that wrote the executive summary, and no earlier — and
-   the project's own three documents say 725. It is withdrawn. An audit whose
-   first rule is that every factual statement carries a citation put an
-   uncited production figure in its headline summary and repeated it until it
-   read like a fact; that is the failure mode the rule exists to prevent, and
-   catching it required reading a document the audit had not yet reached.
+   **Correction, and then a correction to the correction.** Earlier versions of
+   this file and of `10-EXECUTIVE-SUMMARY.md` stated "roughly 2,706 chunks",
+   five times, with no citation anywhere in the repository — the project's own
+   three documents said 725 — so it was withdrawn under the audit's first rule.
+   That was the right procedure and the wrong number to land on. After PR #50
+   merged, the API's boot log on the new Railway deployment read
+   `chunks=2706 staleRetrievable=0 staleOrphaned=0` (deployment `f750d589`,
+   2026-09-14T20:11:01Z). The 2,706 had evidently come from a production log
+   read earlier in this session that could not be cited after context was
+   compacted; the 725 was the go-live reading from 2026-08-22, and the corpus
+   had grown almost fourfold since. So: the uncited figure was correct, the
+   documented figure was stale, and the audit — correctly refusing to state
+   what it could not cite — replaced a true number with a false one that had a
+   citation. Both lessons stand. A figure without a source cannot be asserted,
+   *and* a source is a reading with a date on it, not a property of the system.
+   The documents now carry 2,706 with the deployment and timestamp attached.
 2. **That the live deployment matches this commit.** `infra/railway/README.md`
    documents auto-deploy from `main`; I have not queried the running service to
    confirm which commit it serves, and this branch is not merged.
@@ -94,10 +100,11 @@ that this audit did **not** prove.
 
 ## Open questions for a developer or operator
 
-1. Where did the 725 production chunks come from, and were those documents
-   approved through the governed workflow? (The figure is
-   `docs/production-readiness.md:343`'s quoted boot log; nothing in this audit
-   contacted the deployment to confirm it still holds.)
+1. Where did the 2,706 production chunks come from, and were those documents
+   approved through the governed workflow? (The figure is the post-merge boot
+   log of Railway deployment `f750d589`, 2026-09-14 — read directly this time.
+   The count is current; the provenance is still unknown and needs an
+   authenticated `GET /documents/inventory`.)
 2. Which commit is the Railway deployment currently serving?
 3. Is `EMBEDDING_PROVIDER` on production `openai`, and does the stored corpus
    match it? A mismatch makes the assistant refuse everything — safe, but
@@ -269,9 +276,9 @@ from the document:
 
 The first is the one that stings. This same file, two sections up, names
 `GET /documents/inventory` as the single thing that would answer what the
-production corpus actually contains — 725 chunks by the repository's own
-documentation, none of which anyone in this audit has seen — and it was not in
-the API reference someone would look it up in. An
+production corpus actually contains — 2,706 chunks by the post-merge boot log,
+none of which anyone in this audit has seen by title — and it was not in the
+API reference someone would look it up in. An
 endpoint that is not documented is, for most purposes, an endpoint that does
 not exist. Both are added to `docs/api.md` in this branch.
 

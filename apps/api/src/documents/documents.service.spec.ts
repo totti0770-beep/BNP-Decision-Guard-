@@ -92,3 +92,79 @@ describe('DocumentsService.upload content gate', () => {
     expect(result.status).toBe('DRAFT');
   });
 });
+
+describe('DocumentsService — issuing authority', () => {
+  it('stores the publishing body on upload and returns it in the DTO', async () => {
+    const { service } = makeService();
+    const result = await service.upload(
+      upload(Buffer.from('%PDF-1.7\n1 0 obj')),
+      {
+        title: 'IV Paracetamol Guide',
+        category: DocumentCategory.MEDICATIONS,
+        issuingAuthority: 'Pharmacy & Therapeutics Committee',
+      },
+      actor,
+    );
+    expect(result.issuingAuthority).toBe('Pharmacy & Therapeutics Committee');
+  });
+
+  it('leaves it null when not supplied — never inferred from the title', async () => {
+    const { service } = makeService();
+    const result = await service.upload(
+      upload(Buffer.from('%PDF-1.7\n1 0 obj')),
+      { title: 'Pharmacy Committee Guide to IV Paracetamol', category: DocumentCategory.MEDICATIONS },
+      actor,
+    );
+    expect(result.issuingAuthority).toBeNull();
+  });
+
+  it('audits a change of authority by value, from and to', async () => {
+    const audit = { record: jest.fn() };
+    const existing = {
+      id: 'd1',
+      title: 'Hand Hygiene Policy',
+      description: null,
+      issuingAuthority: 'Nursing Department',
+      expiryDate: null,
+    };
+    const service = new DocumentsService(
+      {
+        findOne: jest.fn().mockResolvedValue(existing),
+        save: jest.fn(async (d: unknown) => d),
+        create: jest.fn((d) => d),
+      } as never,
+      { save: jest.fn(), create: jest.fn() } as never,
+      { ensureBucket: jest.fn(), upload: jest.fn() } as never,
+      audit as never,
+    );
+    const result = await service.update(
+      'd1',
+      { issuingAuthority: 'Infection Prevention & Control Committee' },
+      actor,
+    );
+    expect(result.issuingAuthority).toBe('Infection Prevention & Control Committee');
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'DOCUMENTS:UPDATE',
+        metadata: {
+          issuingAuthority: {
+            from: 'Nursing Department',
+            to: 'Infection Prevention & Control Committee',
+          },
+        },
+      }),
+    );
+  });
+
+  it('clears it when an empty string is sent, rather than storing a blank', async () => {
+    const existing = { id: 'd1', title: 'X', description: null, issuingAuthority: 'Nursing Department', expiryDate: null };
+    const service = new DocumentsService(
+      { findOne: jest.fn().mockResolvedValue(existing), save: jest.fn(async (d: unknown) => d), create: jest.fn() } as never,
+      { save: jest.fn(), create: jest.fn() } as never,
+      { ensureBucket: jest.fn(), upload: jest.fn() } as never,
+      { record: jest.fn() } as never,
+    );
+    const result = await service.update('d1', { issuingAuthority: '' }, actor);
+    expect(result.issuingAuthority).toBeNull();
+  });
+});

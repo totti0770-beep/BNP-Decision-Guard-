@@ -54,11 +54,12 @@ describe('Clinical reference inventory', () => {
     version?: number;
     approvalDate?: string | null;
     expiryDate?: string | null;
+    issuingAuthority?: string | null;
   }) {
     await ctx.dataSource.query(
       `INSERT INTO documents (id, title, category, status, version_number, file_name,
-                              storage_key, approval_date, expiry_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                              storage_key, approval_date, expiry_date, issuing_authority)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         over.id,
         over.title,
@@ -69,6 +70,7 @@ describe('Clinical reference inventory', () => {
         `docs/${over.id}.pdf`,
         over.approvalDate ?? '2026-03-01T00:00:00Z',
         over.expiryDate === undefined ? '2027-03-01T00:00:00Z' : over.expiryDate,
+        over.issuingAuthority ?? null,
       ],
     );
   }
@@ -159,7 +161,11 @@ describe('Clinical reference inventory', () => {
       await ctx.dataSource.query('DELETE FROM document_chunks');
       await ctx.dataSource.query('DELETE FROM documents');
 
-      await insertDocument({ id: HEALTHY, title: 'B Healthy Policy' });
+      await insertDocument({
+        id: HEALTHY,
+        title: 'B Healthy Policy',
+        issuingAuthority: 'Nursing Department',
+      });
       await insertChunks(HEALTHY, 3, { at: '2026-03-01T09:00:00Z' });
 
       // ACTIVE but never indexed — the finding this report exists to surface.
@@ -236,17 +242,24 @@ describe('Clinical reference inventory', () => {
       expect(doc.lastIndexedAt).toBe('2026-04-01T10:00:00.000Z');
     });
 
-    it('reports approvalDate under its own name and leaves the absent fields null', () => {
-      // The two fields the schema does not have. They must be visibly absent,
-      // never inferred from the title, and approvalDate must not be dressed up
-      // as an issuing authority's effective date.
+    it('reports the issuing authority from the column, and null where none was recorded', () => {
+      // Read from documents.issuing_authority — never inferred. The title
+      // "A Never Indexed Policy" says nothing about who issued it, and the
+      // report must not pretend otherwise.
+      expect(byTitle('B Healthy Policy')!.issuingAuthority).toBe('Nursing Department');
+      expect(byTitle('A Never Indexed Policy')!.issuingAuthority).toBeNull();
+    });
+
+    it('reports approvalDate under its own name and leaves the absent field null', () => {
+      // The one field the schema still does not have. It must be visibly
+      // absent, and approvalDate must not be dressed up as an issuing
+      // authority's effective date.
       const doc = byTitle('B Healthy Policy')!;
-      expect(doc.issuingBody).toBeNull();
       expect(doc.effectiveDate).toBeNull();
       expect(doc.approvalDate).toBe('2026-03-01T00:00:00.000Z');
 
       const fields = body.fieldsNotInSchema.map((f) => f.field);
-      expect(fields).toEqual(['issuingBody', 'effectiveDate']);
+      expect(fields).toEqual(['effectiveDate']);
       for (const f of body.fieldsNotInSchema) {
         expect(typeof f.reason).toBe('string');
         expect(f.reason.length).toBeGreaterThan(0);

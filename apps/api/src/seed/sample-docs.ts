@@ -3,6 +3,8 @@ import { DocumentCategory } from '@bnp/shared';
 export interface SampleDoc {
   title: string;
   description: string;
+  /** The body that published it. Demo values; a real corpus records the real one. */
+  issuingAuthority: string;
   category: DocumentCategory;
   expiryMonths: number;
   pages: string[][];
@@ -17,6 +19,7 @@ export const SAMPLE_DOCS: SampleDoc[] = [
     title: 'IV Paracetamol (Acetaminophen) Preparation and Administration Guide',
     description: 'Approved pharmacy guide for preparing and administering IV paracetamol.',
     category: DocumentCategory.MEDICATIONS,
+    issuingAuthority: 'Pharmacy & Therapeutics Committee',
     expiryMonths: 24,
     pages: [
       [
@@ -49,6 +52,7 @@ export const SAMPLE_DOCS: SampleDoc[] = [
     title: 'Hand Hygiene and Medication Administration Safety Policy',
     description: 'Hospital nursing policy for hand hygiene and safe medication administration.',
     category: DocumentCategory.NURSING_POLICIES,
+    issuingAuthority: 'Nursing Department',
     expiryMonths: 36,
     pages: [
       [
@@ -75,6 +79,7 @@ export const SAMPLE_DOCS: SampleDoc[] = [
     title: 'CBAHI Medication Management Standard MM-7 Summary',
     description: 'Summary of CBAHI accreditation requirements for medication management.',
     category: DocumentCategory.CBAHI,
+    issuingAuthority: 'Saudi Central Board for Accreditation of Healthcare Institutions (CBAHI)',
     expiryMonths: 24,
     pages: [
       [
@@ -93,6 +98,7 @@ export const SAMPLE_DOCS: SampleDoc[] = [
     title: 'Peripheral IV Cannulation Procedure',
     description: 'Step-by-step nursing procedure for peripheral intravenous cannula insertion.',
     category: DocumentCategory.PROCEDURES,
+    issuingAuthority: 'Nursing Practice Committee',
     expiryMonths: 24,
     pages: [
       [

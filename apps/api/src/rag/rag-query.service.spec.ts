@@ -8,6 +8,7 @@ const chunk = (over: Partial<RetrievedChunk> = {}): RetrievedChunk => ({
   chunkId: 'c1',
   documentId: 'd1',
   documentTitle: 'IV Paracetamol Guide',
+  issuingAuthority: 'Pharmacy & Therapeutics Committee',
   category: 'MEDICATIONS',
   pageNumber: 2,
   approvalDate: new Date('2026-01-15'),
@@ -65,6 +66,9 @@ describe('RagQueryService refusal logic (clinical safety contract)', () => {
     expect(result.citations[0].documentTitle).toBe('IV Paracetamol Guide');
     expect(result.citations[0].pageNumber).toBe(2);
     expect(result.citations[0].approvalDate).toEqual(new Date('2026-01-15'));
+    // The publishing body travels with the citation; a nurse sees not just
+    // which document and page, but under whose authority.
+    expect(result.citations[0].issuingAuthority).toBe('Pharmacy & Therapeutics Committee');
     expect(result.confidence).not.toBe(ConfidenceLevel.NONE);
     expect(result.warnings.join(' ')).toContain('Warning');
   });

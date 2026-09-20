@@ -20,6 +20,7 @@ import {
 interface Citation {
   documentId: string | null;
   documentTitle: string;
+  issuingAuthority?: string | null;
   pageNumber: number | null;
   approvalDate: string | null;
   similarity: number;
@@ -186,11 +187,16 @@ export default function AnswerReviewPage() {
                   <ul className="space-y-1">
                     {item.citations.map((c, i) => (
                       <li key={i} className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                        <span className="font-medium text-text">{c.documentTitle}</span>
+                        <span dir="auto" className="font-medium text-text">{c.documentTitle}</span>
                         {c.pageNumber != null && (
                           <span className="tnum text-xs text-muted">
                             {t('pageAbbrev')}
                             {c.pageNumber}
+                          </span>
+                        )}
+                        {c.issuingAuthority && (
+                          <span dir="auto" className="text-xs text-muted">
+                            {t('issuedBy', { body: c.issuingAuthority })}
                           </span>
                         )}
                         {c.approvalDate && (

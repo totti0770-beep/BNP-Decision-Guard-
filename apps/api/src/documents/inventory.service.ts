@@ -13,17 +13,18 @@ import { EmbeddingService } from '../rag/embedding.service';
  * turned out to hold 2,706 chunks while the repository ships four demo
  * documents, and nothing in the platform showed the difference.
  *
- * ## Two of the fields a reader will look for are not in the database
+ * ## One of the fields a reader will look for is not in the database
  *
- * `documents` has 16 columns (`1720000000000-initial-schema.ts`) and none of
- * them records **who issued a document** or **when it takes effect**. Both are
- * reported as `null` and named in `fieldsNotInSchema`, so the gap is
- * machine-readable rather than a footnote someone skips.
+ * `documents` records **who issued a document** (`issuing_authority`, added
+ * by migration `1720000005000`) but not **when it takes effect**. The latter
+ * is reported as `null` and named in `fieldsNotInSchema`, so the gap is
+ * machine-readable rather than a footnote someone skips. `issuingAuthority`
+ * is likewise `null` for any document nobody has filled it in for.
  *
- * They are deliberately not derived. A title or a filename often looks like it
- * carries the issuing body, and inferring one would produce a provenance
- * column that is right often enough to be trusted and wrong often enough to
- * mislead — the worst of both. `approval_date` is likewise reported under its
+ * Neither is ever derived. A title or a filename often looks like it carries
+ * the issuing body, and inferring one would produce a provenance column that
+ * is right often enough to be trusted and wrong often enough to mislead — the
+ * worst of both. `approval_date` is likewise reported under its
  * own name: it is the date this platform approved the document internally, not
  * the date the issuing authority made it effective, and relabelling it would
  * be the same fabrication with extra steps.
@@ -37,13 +38,16 @@ import { EmbeddingService } from '../rag/embedding.service';
  */
 
 /** Bumped if the shape changes, so a stored report says which shape it is. */
-export const INVENTORY_SCHEMA_VERSION = 'bnp.clinical-reference-inventory.v1';
+export const INVENTORY_SCHEMA_VERSION = 'bnp.clinical-reference-inventory.v2';
 
 export interface InventoryDocument {
   id: string;
   title: string;
-  /** Always null: `documents` has no issuing-body column. Never inferred. */
-  issuingBody: null;
+  /**
+   * `documents.issuing_authority`. Null means nobody has recorded it — never
+   * inferred from the title or filename.
+   */
+  issuingAuthority: string | null;
   category: string;
   version: number;
   /** Always null: `documents` has no effective-date column. Never inferred. */
@@ -86,11 +90,6 @@ export interface InventoryReport {
 
 const FIELDS_NOT_IN_SCHEMA = [
   {
-    field: 'issuingBody',
-    reason:
-      'The documents table has no issuing-body, publisher or provenance column. Reported as null rather than inferred from the title or filename.',
-  },
-  {
     field: 'effectiveDate',
     reason:
       'The documents table has no effective-date column. approvalDate is reported separately and is this platform’s internal approval date, not an issuing authority’s effective date.',
@@ -100,6 +99,7 @@ const FIELDS_NOT_IN_SCHEMA = [
 interface Row {
   id: string;
   title: string;
+  issuing_authority: string | null;
   category: string;
   version_number: number;
   approval_date: Date | null;
@@ -125,6 +125,7 @@ export class InventoryService {
       `
       SELECT d.id,
              d.title,
+             d.issuing_authority,
              d.category,
              d.version_number,
              d.approval_date,
@@ -213,7 +214,7 @@ export class InventoryService {
       return {
         id: r.id,
         title: r.title,
-        issuingBody: null,
+        issuingAuthority: r.issuing_authority ?? null,
         category: r.category,
         version: Number(r.version_number),
         effectiveDate: null,
@@ -314,14 +315,14 @@ export function renderInventoryTable(
     out.push('');
   } else {
     const header =
-      `${pad('TITLE', 44)}  ${pad('CATEGORY', 18)}  ${pad('VER', 4)}  ` +
+      `${pad('TITLE', 44)}  ${pad('ISSUED BY', 28)}  ${pad('CATEGORY', 18)}  ${pad('VER', 4)}  ` +
       `${pad('APPROVED', 11)}  ${pad('EXPIRES', 11)}  ${pad('CHUNKS', 7)}  ` +
       `${pad('PROVIDER', 22)}  ${pad('INDEXED', 11)}  OK`;
     out.push(header, '─'.repeat(header.length));
 
     for (const d of report.documents) {
       out.push(
-        `${pad(d.title, 44)}  ${pad(d.category, 18)}  ${pad(String(d.version), 4)}  ` +
+        `${pad(d.title, 44)}  ${pad(d.issuingAuthority ?? '—', 28)}  ${pad(d.category, 18)}  ${pad(String(d.version), 4)}  ` +
           `${pad(date(d.approvalDate), 11)}  ${pad(date(d.expiryDate), 11)}  ` +
           `${pad(String(d.chunkCount), 7)}  ` +
           `${pad(d.embeddingProviders.join(',') || '—', 22)}  ` +

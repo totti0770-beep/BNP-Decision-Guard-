@@ -82,11 +82,11 @@ roles travel in the JWT: use `POST /users` and `PATCH /users/:id`.
 
 | Endpoint | Permission |
 | --- | --- |
-| `POST /documents/upload` (multipart: `file` PDF + `title`, `category`, `description?`, `expiryDate?`, `documentId?` for a new version) | `documents:upload` |
+| `POST /documents/upload` (multipart: `file` PDF + `title`, `category`, `description?`, `issuingAuthority?`, `expiryDate?`, `documentId?` for a new version) | `documents:upload` |
 | `GET /documents?category=&status=&search=&limit=&offset=` | `documents:read` |
 | `GET /documents/:id` · `GET /documents/:id/versions` · `GET /documents/:id/approval-history` | `documents:read` |
 | `GET /documents/inventory` — every document with its indexing state (see below) | `documents:read` |
-| `PATCH /documents/:id` `{title?, description?, expiryDate?}` | `documents:manage` |
+| `PATCH /documents/:id` `{title?, description?, issuingAuthority?, expiryDate?}` — `issuingAuthority` is audited by value (from → to); an empty string clears it | `documents:manage` |
 | `GET /documents/:id/download-url` (5-min presigned URL, audited) | `documents:download` |
 | `POST /documents/:id/submit-review` `{comment?}` | `documents:submit-review` |
 | `POST /documents/:id/approve` / `.../reject` `{comment?}` | `documents:approve` |
@@ -131,8 +131,8 @@ Answer shape:
   "warnings": ["..."],
   "confidence": "HIGH|MEDIUM|LOW|NONE",
   "citations": [{
-    "documentTitle": "...", "pageNumber": 1,
-    "approvalDate": "2026-07-05T...", "similarity": 0.68, "snippet": "..."
+    "documentTitle": "...", "issuingAuthority": "Pharmacy & Therapeutics Committee",
+    "pageNumber": 1, "approvalDate": "2026-07-05T...", "similarity": 0.68, "snippet": "..."
   }]
 }
 ```

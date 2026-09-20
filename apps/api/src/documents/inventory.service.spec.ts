@@ -18,7 +18,7 @@ function doc(over: Partial<InventoryDocument> = {}): InventoryDocument {
   return {
     id: '11111111-1111-1111-1111-111111111111',
     title: 'Hand Hygiene and Medication Administration Safety Policy',
-    issuingBody: null,
+    issuingAuthority: 'Nursing Department',
     category: 'NURSING_POLICIES',
     version: 2,
     effectiveDate: null,
@@ -39,7 +39,6 @@ function report(documents: InventoryDocument[]): InventoryReport {
   return {
     schema: INVENTORY_SCHEMA_VERSION,
     fieldsNotInSchema: [
-      { field: 'issuingBody', reason: 'The documents table has no issuing-body column.' },
       { field: 'effectiveDate', reason: 'The documents table has no effective-date column.' },
     ],
     totals: {
@@ -149,11 +148,22 @@ describe('renderInventoryTable — the finding it exists to surface', () => {
 
 describe('renderInventoryTable — the fields the database does not record', () => {
   it('names them in the output rather than silently omitting the columns', () => {
-    // A reader looking for "issuing body" must find out it is absent, not
+    // A reader looking for "effective date" must find out it is absent, not
     // conclude the report forgot it — or worse, that the documents have none.
     const out = renderInventoryTable(report([doc()]), AT);
     expect(out).toContain('NOT RECORDED BY THE DATABASE');
-    expect(out).toContain('issuingBody');
     expect(out).toContain('effectiveDate');
+  });
+
+  it('no longer lists the issuing authority as absent — it is a real column now', () => {
+    const out = renderInventoryTable(report([doc()]), AT);
+    expect(out).not.toContain('issuingBody');
+    expect(out).toContain('ISSUED BY');
+    expect(out).toContain('Nursing Department');
+  });
+
+  it('prints a dash, not a guess, for a document whose authority was never recorded', () => {
+    const out = renderInventoryTable(report([doc({ issuingAuthority: null })]), AT);
+    expect(out).not.toContain('Nursing Department');
   });
 });

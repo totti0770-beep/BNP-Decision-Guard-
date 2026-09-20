@@ -178,6 +178,7 @@ async function main() {
       {
         title: sample.title,
         description: sample.description,
+        issuingAuthority: sample.issuingAuthority,
         category: sample.category,
         expiryDate: expiry.toISOString(),
       },

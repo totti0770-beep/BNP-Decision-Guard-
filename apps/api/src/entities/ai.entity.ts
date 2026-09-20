@@ -102,6 +102,10 @@ export class Citation {
   @Column({ name: 'document_title' })
   documentTitle: string;
 
+  /** Snapshot at answer time, like `documentTitle` — the record of what the nurse was told. */
+  @Column({ name: 'issuing_authority', type: 'varchar', length: 255, nullable: true })
+  issuingAuthority: string | null;
+
   @Column({ name: 'page_number', type: 'int', nullable: true })
   pageNumber: number | null;
 

@@ -15,6 +15,7 @@ import { colors, radius, s, space } from '../theme';
 
 interface Citation {
   documentTitle: string;
+  issuingAuthority?: string | null;
   pageNumber: number | null;
   approvalDate: string | null;
   similarity: number;
@@ -288,6 +289,9 @@ export function ChatScreen({
                             {c.documentTitle}
                             {c.pageNumber != null
                               ? ` [${t(lang, 'page')} ${c.pageNumber}]`
+                              : ''}
+                            {c.issuingAuthority
+                              ? ` · ${t(lang, 'issuedBy')} ${c.issuingAuthority}`
                               : ''}
                             {c.approvalDate
                               ? ` · ${t(lang, 'approved')} ${c.approvalDate.slice(0, 10)}`

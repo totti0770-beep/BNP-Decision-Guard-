@@ -17,7 +17,7 @@ xargs cat | wc -l` on this commit; "specs" counts co-located `*.spec.ts`.
 | `notifications/` | 4 | 507 | 1 | the daily expiry cron and the notification routes |
 | `dose/` | 4 | 440 | 1 | dose maths, formula approval gating, the safety warning |
 | `approval/` | 2 | 395 | 1 | the `TRANSITIONS` map and the lifecycle service |
-| `migrations/` | 5 | 392 | 0 | five migrations, registered explicitly |
+| `migrations/` | 6 | 434 | 0 | six migrations, registered explicitly |
 | `chat/` | 4 | 368 | 1 | persisted Q&A, the review queue, diagnostics stripping |
 | `users/` | 3 | 249 | 0 | provisioning and role assignment |
 | `mail/` | 3 | 231 | 1 | `log` / `smtp` providers |

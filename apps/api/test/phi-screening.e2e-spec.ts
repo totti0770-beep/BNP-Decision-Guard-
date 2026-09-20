@@ -370,4 +370,55 @@ describe('PHI screening keeps rejected text out of every store', () => {
       expect(row.comment).toContain('2019-03-01');
     });
   });
+
+  describe('issuing authority — document metadata, screened under the METADATA profile', () => {
+    it('rejects an identifier smuggled into the issuing-authority field on upload', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy')
+        .field('category', 'NURSING_POLICIES')
+        .field('issuingAuthority', `Nursing Dept ref ${ID_NUMBER}`)
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(400);
+
+      expect(res.body.message).toBe(PHI_REJECTION_MESSAGE_AR);
+    });
+
+    it('accepts a real publishing body, names and all', async () => {
+      // A committee name is exactly what this field is for. The FREE_TEXT
+      // profile's identifying-phrase pattern would be wrong here; METADATA
+      // screens identifiers only.
+      const res = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy')
+        .field('category', 'NURSING_POLICIES')
+        .field('issuingAuthority', 'Infection Prevention & Control Committee, chaired by Dr. Ali')
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(201);
+
+      expect(res.body.issuingAuthority).toBe(
+        'Infection Prevention & Control Committee, chaired by Dr. Ali',
+      );
+    });
+
+    it('rejects an identifier in the field on PATCH as well', async () => {
+      const upload = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy')
+        .field('category', 'NURSING_POLICIES')
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(201);
+
+      const res = await request(ctx.app.getHttpServer())
+        .patch(`/documents/${upload.body.id}`)
+        .set(auth(managerToken))
+        .send({ issuingAuthority: `Committee ${ID_NUMBER}` })
+        .expect(400);
+
+      expect(res.body.message).toBe(PHI_REJECTION_MESSAGE_AR);
+    });
+  });
 });
