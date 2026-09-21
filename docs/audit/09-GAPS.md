@@ -8,8 +8,8 @@ What this audit has **not** established, stated as plainly as what it has.
 block, run on this commit. At the time of writing:
 
 ```
-ON DISK : 234
-READ    : 231
+ON DISK : 239
+READ    : 236
 MISSING : 3
 --- NOT READ ---
 apps/api/field-eval-report.md
@@ -23,7 +23,7 @@ skipped table below: two npm lockfiles and one gitignored generated report.
 There is no source file, no configuration file, no test file and no document
 left unopened — verified by the command above rather than asserted.
 
-That took 231 files. Where a file exceeded 400 lines it was read in consecutive
+That took 236 files. Where a file exceeded 400 lines it was read in consecutive
 chunks to the end, which is what produced several of the findings in this
 report: the advisory lock in `indexing.service.ts`, the `token_version` binding
 on reset tokens in `auth.service.ts`, and both count errors in
@@ -32,7 +32,7 @@ that summarises it wrongly.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 231 files read as at 234. A described fact — what a
+whole tree and is as true at 236 files read as at 239. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
 opened, and every non-generated file has been.
 
@@ -132,6 +132,11 @@ route, and its body was parsed by `FileInterceptor` — an *interceptor*, one
 stage after the guard. At guard time `req.body` was `undefined`, the guard
 found no string to scan and returned true.
 
+The decorator reached the upload route in `49bfcba` on 2026-09-10 and was found
+inert on 2026-09-20. It never screened that route for a single day — which is
+the point: the gap is not something that crept in later, it was there the
+moment the control was written, and the test that would have shown it was not.
+
 The failure mode is the bad one. No error, no log line, no degraded response:
 the decorator was present, the route read as screened in review, and uploads
 returned 201. A national ID typed into a document title was written to
@@ -144,7 +149,7 @@ queries the table directly.
 identifier in the new `issuingAuthority` field and expected a 400; CI returned
 201. The first hypothesis was that the new test was wrong. Checking whether any
 *existing* test proved a multipart field was screened is what turned a
-suspected test bug into a five-month-old security gap — nothing did. Every test
+suspected test bug into a security gap — nothing did. Every test
 of the control used a JSON route.
 
 **The fix** is `apps/api/src/documents/document-upload.middleware.ts`: multer
@@ -176,6 +181,43 @@ an over-size upload answers 500 instead of 413.
    database-dependent check to CI is what let this reach a pull request. The
    correction is in that file, with the commands.
 
+
+### Five more controls with a configuration and no test — the sweep the upload finding demanded
+
+The upload finding's third lesson was that the audit had verified a control's
+configuration three layers deep and concluded it worked. So every row of the
+`SECURITY.md` control table was re-checked against one question: *is there a
+test that sends the bad request and demands the rejection?* For twenty rows
+there is. For six there was not, and two of the six hid defects.
+
+| Control | What the audit had accepted | What was true |
+| --- | --- | --- |
+| Rate limiting | `SECURITY.md`: "Verified: 6th rapid login returns HTTP 429" | No test anywhere asserted a 429. `test/support/env.ts` raised the limit to 10,000 for every suite, citing "its own dedicated spec". There was no such spec. |
+| CORS allowlist | `main.ts` reads `CORS_ORIGINS` and calls `enableCors()` | The integration harness kept its own copy of the bootstrap, and the copy had never contained `enableCors()`. The control could not have been tested there whatever anyone wrote. |
+| Security headers | `app.use(helmet())` | No test read a header off a response. |
+| JSON body cap | `express.json({ limit })` | No test sent an oversized body. When one did, the answer was **500**: `express.json` throws an `http-errors` object, not an `HttpException`, and the filter treated it as unhandled — a client fault reported as a server fault and audited as `ERROR:UNHANDLED` on every oversized request. |
+| 5xx suppression in production | `if (isProduction) message = 'Internal server error'` | The integration suite runs as `NODE_ENV=test`, and the filter had no unit spec. The one line that is the control had never executed under a test. |
+| Answer review, write path | `SECURITY.md`: "verified end-to-end incl. RBAC (nurse: 403 on both endpoints)" | Only the GET was tested. `POST /chat/answers/:id/review` was exercised by nothing — and on an unknown answer it returned `{ok: true}` and wrote an `AI:ANSWER_REVIEWED` audit event for a record that did not exist. A governance action reporting success on nothing. |
+
+**Fixed**, and each fix verified by mutation:
+
+- `apps/api/src/app.setup.ts` — `configureApp()` is now the one HTTP edge, called by
+  `main.ts` and by the harness. The harness proves production's wiring, not a copy of it.
+- `apps/api/test/edge-controls.e2e-spec.ts` — helmet, CORS, body cap and throttling,
+  each provoked. Limits are lowered by `support/edge-env.ts` before `AppModule` loads.
+- `AllExceptionsFilter` honours an `http-errors` 4xx (`expose: true`) instead of
+  reporting it as a server fault; `all-exceptions.filter.spec.ts` loads the filter
+  under each `NODE_ENV` and proves the production branch.
+- `ChatService.reviewAnswer()` answers 404 on zero affected rows;
+  `apps/api/test/answer-review.e2e-spec.ts` proves the write path.
+
+**What the rate-limiting row teaches that the others do not.** The claim in
+`SECURITY.md` was specific — "6th rapid login" — which is the shape of a claim
+that has been checked. It had the form of evidence and none of the substance,
+and it survived the file-by-file read because the read verified that the
+throttler was *registered*, which it was. A specific number is not a citation.
+The citation is the test, by path, and this audit now names one for every
+control it calls verified.
 
 ### The i18n claim was broader than the implementation — now closed
 
@@ -744,7 +786,7 @@ the completion condition the audit was given.
 The report set is complete too — eleven documents:
 
 ```
-00-FILE-INDEX          234 rows, one per file, each with an evidence-backed role
+00-FILE-INDEX          239 rows, one per file, each with an evidence-backed role
 01-OVERVIEW            what this is, sized by command
 02-ARCHITECTURE        four Mermaid diagrams, every edge cited
 03-MODULES-backend     21 directories

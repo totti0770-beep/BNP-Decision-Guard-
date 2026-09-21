@@ -122,7 +122,7 @@ six run in parallel.
 | --- | --- |
 | `security` | `audit-critical.mjs` hard-fails on critical; `--audit-level=high` reports the rest |
 | `lint` | `build:shared` then `eslint .` — errors block |
-| `api` | build → 423 unit tests → migrations against real pgvector → create `bnp_e2e` via the `pg` client → integration tests |
+| `api` | build → 428 unit tests → migrations against real pgvector → create `bnp_e2e` via the `pg` client → integration tests |
 | `web` | `next build` — the only web typecheck |
 | `smoke` | full `docker compose` stack + Playwright, screenshots uploaded, logs dumped on failure, `down -v` |
 | `mobile` | separate `npm ci`, typecheck, 32 tests, **its own** critical audit gate |

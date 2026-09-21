@@ -47,7 +47,7 @@ unit suite passed.
 | Command | Result |
 | --- | --- |
 | `npm run build:shared` | ✅ success |
-| `npm test` | ✅ **423 tests, 29 suites, 0 failures**, 9.1 s |
+| `npm test` | ✅ **428 tests, 30 suites, 0 failures**, 9.5 s |
 | `npm run lint` | ✅ **0 errors, 10 warnings** |
 | `npm run build:web` | ✅ compiled in 598 ms, TypeScript in 1.56 s, **20/20 static pages**, every route `○ (Static)` |
 | `npm audit` | **0 findings at every severity** (see `06-DEPENDENCIES.md`) |
@@ -112,7 +112,7 @@ E2E_POSTGRES_PASSWORD=postgres E2E_POSTGRES_DB=bnp_e2e \
   npm run test:e2e -w @bnp/api
 ```
 
-**240 tests across 12 suites, 0 failures**, in 22 seconds — measured, not
+**257 tests across 14 suites, 0 failures**, in 25 seconds — measured, not
 reported from documentation. `initdb` refuses to run as root, which is why the
 cluster is owned by the `postgres` user and lives under
 `/var/lib/postgresql`: a data directory under the session scratchpad is not
@@ -213,7 +213,7 @@ branch, with no `needs:` between them, so all six run in parallel.
 | --- | --- |
 | `security` | `audit-critical.mjs` hard-fails on any critical; `npm audit --audit-level=high` reports the rest non-blocking |
 | `lint` | `build:shared` then `eslint .` — errors block, the 10 warnings do not |
-| `api` | build shared → build API → **423 unit tests** → migrations against a real `pgvector/pgvector:pg16` → create `bnp_e2e` via the `pg` client → **integration tests** |
+| `api` | build shared → build API → **428 unit tests** → migrations against a real `pgvector/pgvector:pg16` → create `bnp_e2e` via the `pg` client → **integration tests** |
 | `web` | `next build` — the **only** web typecheck, since there is no web test runner |
 | `smoke` | `docker compose up -d --build`, poll `/health` and `/login`, install Chromium, run `apps/web/e2e-smoke.mjs`, upload screenshots, dump logs on failure, tear down with `-v` |
 | `mobile` | separate `npm ci` in `apps/mobile`, `tsc --noEmit`, 32 unit tests, and its **own** critical-severity audit gate |

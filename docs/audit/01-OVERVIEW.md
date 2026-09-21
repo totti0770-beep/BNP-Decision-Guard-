@@ -95,8 +95,8 @@ remembers to follow — and each is pinned by a test.
 
 | Suite | Spec files | Tests | Measured here? |
 | --- | --- | --- | --- |
-| API unit | 29 | **423** | ✅ run on this commit — 29 suites, 0 failures |
-| API integration | 12 | **240** | ✅ run on this commit against a local PostgreSQL 16 + pgvector 0.6.0 — 12 suites, 0 failures. This row said "this container has none" until the cluster was started by hand; see the correction in `08-BUILD-AND-RUN.md` |
+| API unit | 30 | **428** | ✅ run on this commit — 30 suites, 0 failures |
+| API integration | 14 | **257** | ✅ run on this commit against a local PostgreSQL 16 + pgvector 0.6.0 — 14 suites, 0 failures. This row said "this container has none" until the cluster was started by hand; see the correction in `08-BUILD-AND-RUN.md` |
 | Mobile | 2 | 32 | ❌ separate install, absent here. CI runs it |
 | **Web** | **0** | **0** | there is no web test runner at all |
 | `packages/shared` | 0 | 0 | exercised only indirectly, through API tests |

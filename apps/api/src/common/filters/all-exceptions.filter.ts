@@ -15,6 +15,25 @@ import { AuditService } from '../../audit/audit.service';
  * logged server-side and recorded in the audit trail. Validation and other
  * HttpExceptions keep their client-safe messages.
  */
+/**
+ * Express's own middleware does not throw `HttpException`. `express.json()`
+ * rejects a body over `REQUEST_BODY_LIMIT` with an `http-errors` object —
+ * `status: 413`, `expose: true`, `type: 'entity.too.large'` — and the same
+ * shape covers a malformed JSON body (400) and an unsupported charset (415).
+ * Treating those as unhandled turned every oversized request into a 500 that
+ * told the client the server had broken and wrote `ERROR:UNHANDLED` to the
+ * audit trail. `expose` is that library's own marker for "safe to show the
+ * client", and it is set only on 4xx, so that is the whole test.
+ */
+function clientFaultOf(exception: unknown): { status: number; message: string } | null {
+  if (!(exception instanceof Error)) return null;
+  const e = exception as Error & { status?: unknown; statusCode?: unknown; expose?: unknown };
+  const status = typeof e.status === 'number' ? e.status : e.statusCode;
+  if (e.expose !== true || typeof status !== 'number') return null;
+  if (!Number.isInteger(status) || status < 400 || status > 499) return null;
+  return { status, message: e.message };
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger('ExceptionFilter');
@@ -27,14 +46,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const req = ctx.getRequest();
 
     const isHttp = exception instanceof HttpException;
+    const clientFault = isHttp ? null : clientFaultOf(exception);
     const status = isHttp
       ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+      : (clientFault?.status ?? HttpStatus.INTERNAL_SERVER_ERROR);
 
     let message: string | object = 'Internal server error';
     if (isHttp) {
       const body = exception.getResponse();
       message = typeof body === 'string' ? body : (body as any).message ?? body;
+    } else if (clientFault) {
+      message = clientFault.message;
     }
 
     if (status >= 500) {

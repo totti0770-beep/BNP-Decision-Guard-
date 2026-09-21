@@ -32,6 +32,9 @@ rejection and an array of strings for a validation failure. `error` carries
 the same value and exists only because this API has always returned that key.
 5xx responses are logged in full server-side and recorded in the audit trail;
 under `NODE_ENV=production` the client sees only `Internal server error`.
+Two edge rejections come back in the same envelope: a JSON body over
+`REQUEST_BODY_LIMIT` is **413**, and a client past the per-IP rate limit is
+**429** (stricter on `/auth/*`).
 
 Also documented in the audit filter table below: `action` matches **exactly**,
 `actorEmail` matches as a case-insensitive substring.
@@ -115,7 +118,7 @@ below it the literal path would be parsed as a document id
 | `POST /chat/ask` `{question, assistantType?: NURSING\|DRUG_PREPARATION\|CBAHI, category?, channel?}` — persisted + audited | `ai:ask` |
 | `GET /chat/history?limit=` — own Q&A history | `ai:ask` |
 | `GET /chat/answers?reviewStatus=&limit=&offset=` — the review queue; non-refused answers only, `reviewStatus` defaults to `UNREVIEWED`, `limit` capped at 100 | `ai:review-answers` |
-| `POST /chat/answers/:id/review` `{status: APPROVED\|FLAGGED}` — committee review | `ai:review-answers` |
+| `POST /chat/answers/:id/review` `{status: APPROVED\|FLAGGED}` — committee review; **404** if no such answer | `ai:review-answers` |
 | `POST /rag/reindex` — re-embed every ACTIVE document with the current provider | `documents:index` |
 | `POST /rag/reindex/stale` — re-embed only documents whose chunks retrieval cannot currently see | `documents:index` |
 | `POST /rag/reindex/:documentId` — re-embed one document in place, no approval transition | `documents:index` |

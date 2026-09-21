@@ -1,12 +1,9 @@
 import 'reflect-metadata';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import helmet from 'helmet';
-import * as express from 'express';
 import { AppModule } from './app.module';
+import { configureApp } from './app.setup';
 import { loadEnv } from './config/env';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { AuditService } from './audit/audit.service';
 import { JsonLogger } from './common/logging/json-logger.service';
 
 async function bootstrap() {
@@ -23,19 +20,9 @@ async function bootstrap() {
     logger: new JsonLogger(),
   });
 
-  app.use(helmet());
-  app.use(express.json({ limit: env.bodyLimit }));
-  app.use(express.urlencoded({ extended: true, limit: env.bodyLimit }));
-
-  // Explicit CORS allowlist. In production an empty CORS_ORIGINS list blocks
-  // all cross-origin browser calls rather than silently allowing everything.
-  app.enableCors({
-    origin: env.cors.origins.length ? env.cors.origins : false,
-    credentials: true,
-  });
-
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.useGlobalFilters(new AllExceptionsFilter(app.get(AuditService)));
+  // Helmet, body cap, CORS allowlist, validation pipe, error envelope — shared
+  // with the integration harness so the suite exercises this exact edge.
+  configureApp(app, env);
 
   app.enableShutdownHooks();
   await app.listen(env.port);

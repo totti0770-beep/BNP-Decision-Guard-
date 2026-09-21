@@ -33,8 +33,8 @@ and the UNIQUE constraint (revert each separately against a real database), the
 audit gate (stub a critical, stub an error, remove the lockfile), and every
 mobile assertion (checked against a deliberately broken copy of the module).
 
-**Measured on this commit:** 423 unit tests across 29 suites, 0 failures; **240
-integration tests across 12 suites, 0 failures**, against a local PostgreSQL 16
+**Measured on this commit:** 428 unit tests across 30 suites, 0 failures; **257
+integration tests across 14 suites, 0 failures**, against a local PostgreSQL 16
 with pgvector 0.6.0; lint 0 errors / 10 warnings, all `no-explicit-any`;
 `next build` producing 20/20 static pages; `npm audit` 0 critical.
 
@@ -317,6 +317,34 @@ route until a test written for an unrelated feature happened to. **Assume the
 same is true of any control here whose end-to-end behaviour is not asserted by
 a test** — configuration review cannot substitute, and this report's 🟠 risks 4
 and 5 are exactly that shape.
+
+### ✅ 12. Five more configured-and-unproven controls, found by applying risk 11's lesson to the whole table — fixed
+
+Risk 11 ended by saying to assume the same of any control whose end-to-end
+behaviour no test asserts. That assumption was then checked against every row
+of the `SECURITY.md` control table. Six rows had no test that provokes the
+control; two of those hid defects:
+
+- **Rate limiting** — documented as "Verified: 6th rapid login returns HTTP 429";
+  no test asserted a 429, and the suite raised the limit to 10,000 citing a
+  "dedicated spec" that did not exist.
+- **CORS allowlist** — the harness's copy of the bootstrap had no `enableCors()`.
+- **Security headers** — never read off a response.
+- **JSON body cap** — never provoked; answered **500** when it was.
+- **5xx suppression in production** — the filter's production branch had never
+  run under a test.
+- **Answer review write path** — described as verified "on both endpoints";
+  only the read was; the write returned `{ok: true}` and audited a review of
+  an answer that did not exist.
+
+All six now have a provoking test, and the two defects are fixed. Details and
+the mutation results are in `09-GAPS.md`. The structural fix is
+`apps/api/src/app.setup.ts`: one `configureApp()` that both `main.ts` and the
+integration harness call, so the suite exercises production's edge rather than
+a hand-maintained copy that had already drifted.
+
+**Measured on this commit:** 428 unit tests across 30 suites; 257 integration
+tests across 14 suites; 0 failures in either.
 
 ## The cross-cutting risk this audit is most confident about
 

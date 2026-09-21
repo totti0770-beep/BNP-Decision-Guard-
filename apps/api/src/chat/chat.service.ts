@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AssistantType, DocumentCategory, Permission } from '@bnp/shared';
@@ -200,10 +200,13 @@ export class ChatService {
     status: 'APPROVED' | 'FLAGGED',
     actor: AuthenticatedUser,
   ) {
-    await this.answers.update(
+    const result = await this.answers.update(
       { id: answerId },
       { reviewStatus: status, reviewedById: actor.userId },
     );
+    // Zero rows means no such answer. Reporting `{ok: true}` here — as this
+    // once did — recorded a committee verdict, and an audit event, on nothing.
+    if (!result.affected) throw new NotFoundException('Answer not found');
     this.audit.record({
       actorId: actor.userId,
       actorEmail: actor.email,

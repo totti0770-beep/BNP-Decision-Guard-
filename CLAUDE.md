@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (423), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (240), real HTTP + real Postgres
+npm test                      # API unit tests (428), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (257), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
@@ -270,6 +270,7 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 
 ## Gotchas
 
+- **The HTTP edge lives in `app.setup.ts`, not `main.ts`.** `configureApp()` installs helmet, the JSON body cap, the CORS allowlist, the `ValidationPipe` and the exception filter, and **both** `main.ts` and the integration harness call it. Add middleware there, never to `main.ts` directly: the harness used to carry its own copy of that list, and from the day it was added (2026-08-17) that copy had no `enableCors()`, so the CORS allowlist was a control the suite could not have exercised. `test/edge-controls.e2e-spec.ts` provokes each edge control (foreign origin, oversized body, one request too many) — a control with only a configuration is a decoration until a test does that.
 - **`npm run build:shared` before anything else.** API and web import `@bnp/shared` from its compiled `dist/`, so on a fresh clone `npm test` fails with `Cannot find module '@bnp/shared'` until shared is built. The `build:api` / `dev:api` scripts chain it for you; bare `npm test` does not.
 - **Migrations are registered explicitly** in `apps/api/src/config/data-source.ts` (no glob). A new migration file is silently ignored until you import it and add it to the `migrations` array.
 - **`npm run lint` needs `build:shared` first**, same as `npm test` — typescript-eslint resolves `@bnp/shared` from its compiled `dist/`. CI's lint job runs `build:shared` for this reason. The config is ESLint 9 flat (`eslint.config.js`) and deliberately does **not** use `eslint-config-next`, which still peer-depends on ESLint ≤8; React coverage comes from `eslint-plugin-react-hooks` instead. Errors block CI; the ~10 `no-explicit-any` warnings are known and non-blocking.
