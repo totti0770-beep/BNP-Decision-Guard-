@@ -14,6 +14,7 @@ import { colors, s, space } from '../theme';
 interface Doc {
   id: string;
   title: string;
+  issuingAuthority: string | null;
   category: string;
   versionNumber: number;
   approvalDate: string | null;
@@ -85,6 +86,11 @@ export function PoliciesScreen({ lang }: { lang: Lang }) {
           {docs.map((d) => (
             <View key={d.id} style={s.card}>
               <Text style={[s.h2, { textAlign }]}>{d.title}</Text>
+              {d.issuingAuthority ? (
+                <Text style={[s.muted, { textAlign, marginTop: 2 }]}>
+                  {t(lang, 'issuedBy')} {d.issuingAuthority}
+                </Text>
+              ) : null}
               <Text style={[s.muted, { textAlign, marginTop: 2 }]}>
                 {d.category.replaceAll('_', ' ')} · v{d.versionNumber}
                 {d.approvalDate

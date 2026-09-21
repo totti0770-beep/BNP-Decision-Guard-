@@ -21,6 +21,13 @@ export class Document {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  /**
+   * The body that published the document. Governed metadata, not inferred:
+   * a title that looks like it names a committee is not evidence that it did.
+   */
+  @Column({ name: 'issuing_authority', type: 'varchar', length: 255, nullable: true })
+  issuingAuthority: string | null;
+
   @Column({ type: 'varchar' })
   category: DocumentCategory;
 

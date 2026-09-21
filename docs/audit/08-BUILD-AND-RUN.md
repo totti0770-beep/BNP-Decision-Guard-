@@ -47,7 +47,7 @@ unit suite passed.
 | Command | Result |
 | --- | --- |
 | `npm run build:shared` | ✅ success |
-| `npm test` | ✅ **416 tests, 29 suites, 0 failures**, 8.5 s |
+| `npm test` | ✅ **428 tests, 30 suites, 0 failures**, 9.5 s |
 | `npm run lint` | ✅ **0 errors, 10 warnings** |
 | `npm run build:web` | ✅ compiled in 598 ms, TypeScript in 1.56 s, **20/20 static pages**, every route `○ (Static)` |
 | `npm audit` | **0 findings at every severity** (see `06-DEPENDENCIES.md`) |
@@ -84,11 +84,45 @@ a measurement.
 
 | Command | Why not |
 | --- | --- |
-| `npm run test:e2e -w @bnp/api` | **No PostgreSQL in this container.** `pg` connect to `localhost:5432` → `ECONNREFUSED`, and no Docker daemon (`/var/run/docker.sock` absent). The suite's 229 tests are reported from `CLAUDE.md`/`README.md` and are **not** re-measured here. CI runs them on every push against a real `pgvector/pgvector:pg16` service |
 | `cd apps/mobile && npm test` | `apps/mobile/node_modules` is absent — it is a separate install, not an npm workspace. The 32 tests are likewise taken from documentation, not measured. CI runs them |
 | `docker compose up` | No Docker daemon here |
 | `node apps/web/e2e-smoke.mjs` | Needs the composed stack running |
 | Anything against the live Railway deployment | Not contacted by this audit; see `09-GAPS.md` |
+
+### Correction: the integration suite *was* runnable here
+
+This table listed `npm run test:e2e -w @bnp/api` as impossible, on the grounds
+that `pg` could not reach `localhost:5432` and there is no Docker daemon. Both
+observations were true and the conclusion drawn from them was wrong. Nothing
+was running on 5432; **PostgreSQL 16 and pgvector 0.6.0 are installed in this
+container** — `/usr/lib/postgresql/16/bin/initdb` and
+`/usr/share/postgresql/16/extension/vector.control`. A cluster started by hand
+runs the whole suite:
+
+```bash
+DATA=/var/lib/postgresql/e2e
+mkdir -p "$DATA" && chown -R postgres:postgres /var/lib/postgresql
+su postgres -c "/usr/lib/postgresql/16/bin/initdb -D $DATA -U postgres --auth=trust"
+su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D $DATA -l /var/lib/postgresql/pg.log -o '-p 5432 -k /tmp' start"
+psql -h 127.0.0.1 -U postgres -c 'create database bnp_e2e'
+psql -h 127.0.0.1 -U postgres -d bnp_e2e -c 'create extension vector'
+
+E2E_POSTGRES_HOST=127.0.0.1 E2E_POSTGRES_USER=postgres \
+E2E_POSTGRES_PASSWORD=postgres E2E_POSTGRES_DB=bnp_e2e \
+  npm run test:e2e -w @bnp/api
+```
+
+**257 tests across 14 suites, 0 failures**, in 25 seconds — measured, not
+reported from documentation. `initdb` refuses to run as root, which is why the
+cluster is owned by the `postgres` user and lives under
+`/var/lib/postgresql`: a data directory under the session scratchpad is not
+traversable by that user.
+
+The cost of the wrong conclusion was not a missing number. The audit deferred
+every database-dependent verification to CI for a whole branch, so a real
+defect in the PHI control reached a pull request before a test caught it — and
+that test needed only this. `ECONNREFUSED` means nothing is listening. It does
+not mean nothing can.
 
 ## Running it locally
 
@@ -179,7 +213,7 @@ branch, with no `needs:` between them, so all six run in parallel.
 | --- | --- |
 | `security` | `audit-critical.mjs` hard-fails on any critical; `npm audit --audit-level=high` reports the rest non-blocking |
 | `lint` | `build:shared` then `eslint .` — errors block, the 10 warnings do not |
-| `api` | build shared → build API → **416 unit tests** → migrations against a real `pgvector/pgvector:pg16` → create `bnp_e2e` via the `pg` client → **integration tests** |
+| `api` | build shared → build API → **428 unit tests** → migrations against a real `pgvector/pgvector:pg16` → create `bnp_e2e` via the `pg` client → **integration tests** |
 | `web` | `next build` — the **only** web typecheck, since there is no web test runner |
 | `smoke` | `docker compose up -d --build`, poll `/health` and `/login`, install Chromium, run `apps/web/e2e-smoke.mjs`, upload screenshots, dump logs on failure, tear down with `-v` |
 | `mobile` | separate `npm ci` in `apps/mobile`, `tsc --noEmit`, 32 unit tests, and its **own** critical-severity audit gate |

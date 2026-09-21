@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (416), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (229), real HTTP + real Postgres
+npm test                      # API unit tests (428), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (257), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
@@ -182,6 +182,26 @@ tests assert it with `toBe` — `phi-screen.guard.spec.ts:100` and
 `phi-screening.e2e-spec.ts:137,273,299,331` — so rewording it fails the build
 the same way rewording a refusal does.
 
+### PHI screening runs as a guard, so it only sees a body middleware parsed
+
+`@ScreenForPhi({ body: [...] })` is enforced by `PhiScreenGuard`, and Nest runs
+**middleware → guards → interceptors → pipes → handler**. Running before the
+interceptor chain is the point: a rejected request never reaches
+`AuditInterceptor`, so "rejected text is written to no store" is a property of
+the ordering rather than a promise about what each call site avoids logging.
+
+The corollary is the trap. The guard reads `req.body`, so it screens only what
+something earlier already parsed. JSON routes are fine — `express.json()` is
+middleware. **Multipart is not**, and `POST /documents/upload` is the only
+multipart route. Parsing it with `FileInterceptor` put the parse one stage too
+late: `req.body` was `undefined` at guard time, the guard scanned nothing, and a
+national ID in a document title was stored while the route still read as
+screened. That is why the upload's multer lives in `DocumentUploadMiddleware`
+and is registered in `DocumentsModule.configure()`, **not** in a
+`@UseInterceptors(FileInterceptor(...))` on the controller. Do not move it back;
+`upload-wiring.spec.ts` fails if you do, and it also asserts the 413 mapping,
+which `FileInterceptor` used to provide for free.
+
 ### Refusal-first RAG chain (`apps/api/src/rag/`)
 
 `RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **four** independent points, which `RagDiagnostics.refusedAt` names (`rag-query.service.ts:55-59`):
@@ -250,6 +270,7 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 
 ## Gotchas
 
+- **The HTTP edge lives in `app.setup.ts`, not `main.ts`.** `configureApp()` installs helmet, the JSON body cap, the CORS allowlist, the `ValidationPipe` and the exception filter, and **both** `main.ts` and the integration harness call it. Add middleware there, never to `main.ts` directly: the harness used to carry its own copy of that list, and from the day it was added (2026-08-17) that copy had no `enableCors()`, so the CORS allowlist was a control the suite could not have exercised. `test/edge-controls.e2e-spec.ts` provokes each edge control (foreign origin, oversized body, one request too many) — a control with only a configuration is a decoration until a test does that.
 - **`npm run build:shared` before anything else.** API and web import `@bnp/shared` from its compiled `dist/`, so on a fresh clone `npm test` fails with `Cannot find module '@bnp/shared'` until shared is built. The `build:api` / `dev:api` scripts chain it for you; bare `npm test` does not.
 - **Migrations are registered explicitly** in `apps/api/src/config/data-source.ts` (no glob). A new migration file is silently ignored until you import it and add it to the `migrations` array.
 - **`npm run lint` needs `build:shared` first**, same as `npm test` — typescript-eslint resolves `@bnp/shared` from its compiled `dist/`. CI's lint job runs `build:shared` for this reason. The config is ESLint 9 flat (`eslint.config.js`) and deliberately does **not** use `eslint-config-next`, which still peer-depends on ESLint ≤8; React coverage comes from `eslint-plugin-react-hooks` instead. Errors block CI; the ~10 `no-explicit-any` warnings are known and non-blocking.

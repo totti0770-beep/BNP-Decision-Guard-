@@ -8,10 +8,8 @@ import {
   Post,
   Query,
   UploadedFile,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { DocumentCategory, Permission, PhiProfile } from '@bnp/shared';
 import {
   AuthenticatedUser,
@@ -27,6 +25,7 @@ import { PAGE_INT } from '../common/pagination';
 class UploadDto {
   @IsString() @IsNotEmpty() title: string;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() @MaxLength(255) issuingAuthority?: string;
   @IsEnum(DocumentCategory) category: DocumentCategory;
   @IsOptional() @IsString() expiryDate?: string;
   @IsOptional() @IsString() changeNote?: string;
@@ -36,6 +35,7 @@ class UploadDto {
 class UpdateDocumentDto {
   @IsOptional() @IsString() title?: string;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @MaxLength(255) issuingAuthority?: string | null;
   @IsOptional() expiryDate?: string | null;
 }
 
@@ -52,17 +52,15 @@ export class DocumentsController {
   ) {}
 
   @ScreenForPhi({
-    body: ['title', 'description', 'changeNote'],
+    body: ['title', 'description', 'changeNote', 'issuingAuthority'],
     profile: PhiProfile.METADATA,
   })
   @Post('upload')
   @Permissions(Permission.DOCUMENTS_UPLOAD)
-  // 25 MB matches the cap the web upload screen enforces and advertises; the
-  // two used to disagree (client 25 MB, server 50 MB), so a 40 MB file was
-  // rejected by the browser but would have been accepted by the API.
-  @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }),
-  )
+  // No `FileInterceptor` here on purpose. The multipart body is parsed by
+  // `DocumentUploadMiddleware`, which runs *before* the guard above — an
+  // interceptor runs after it, which left `@ScreenForPhi` scanning an
+  // unparsed body and screening nothing. The 25 MB cap lives with the parser.
   upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadDto,
@@ -108,7 +106,7 @@ export class DocumentsController {
   }
 
   @ScreenForPhi({
-    body: ['title', 'description'],
+    body: ['title', 'description', 'issuingAuthority'],
     profile: PhiProfile.METADATA,
   })
   @Patch(':id')

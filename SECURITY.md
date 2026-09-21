@@ -14,12 +14,12 @@ trail are non-negotiable.
 | **Single secret-resolution path** | `config/env.ts` consumed by `jwt.strategy.ts`, `auth.module.ts`, `auth.service.ts`, `data-source.ts`, `storage.service.ts` | Six call sites previously resolved secrets as `process.env.X ?? '<shipped literal>'`, bypassing the fail-fast. `data-source.ts` was the sharp one: the container runs `dist/scripts/migrate.js` **before** `main.js`, an entrypoint that never called `loadEnv()` — so a deployment missing `POSTGRES_PASSWORD` silently used the demo value. Outside an environment labelled exactly `production` a missing `JWT_SECRET` resolved to a literal published in this repository, making tokens forgeable. |
 | **`NODE_ENV` validation** | `config/env.ts` | `isProduction` gates the secret fail-fast, the CORS fail-closed default, 5xx suppression, the reset-token refusal, the seed refusal and the demo-account sweep. An unrecognised value — `Production`, `staging`, a typo — silently selected all of their permissive forms at once. Unset still means development (the documented local default); anything unrecognised now refuses to boot. |
 | **Refusal-threshold validation** | `config/env.ts` (`ragMinSimilarity()`) | `RAG_MIN_SIMILARITY` had no validation. `abc` produced `NaN`, every `score >= NaN` is false, and the assistant **refused every question** — indistinguishable from an empty corpus, with nothing logged. A negative value disabled the threshold entirely and let unqualified chunks answer clinical questions. Both failures were silent and failed in opposite directions. Now must be a finite number in `[0, 1]`, checked at boot and on every query. |
-| **Security headers** | `helmet` in `apps/api/src/main.ts` | HSTS, `X-Content-Type-Options`, `X-Frame-Options`, COOP/CORP, etc. |
-| **Rate limiting** | `@nestjs/throttler`, `app.module.ts` | Global per-IP limit; a stricter limit on all `/auth/*` endpoints (`AUTH_RATE_LIMIT_MAX`) blunts credential brute-force. Verified: 6th rapid login returns HTTP 429. |
+| **Security headers** | `helmet` via `app.setup.ts` (`configureApp`) | HSTS, `X-Content-Type-Options`, `X-Frame-Options`, CSP, COOP/CORP; `X-Powered-By` removed. Asserted on a real response in `test/edge-controls.e2e-spec.ts`. |
+| **Rate limiting** | `@nestjs/throttler`, `app.module.ts` | Global per-IP limit; a stricter limit on all `/auth/*` endpoints (`AUTH_RATE_LIMIT_MAX`) blunts credential brute-force. `test/edge-controls.e2e-spec.ts` lowers both limits and asserts the request past each one returns 429, that the anonymous flood is cut off before authentication, and that counters are per route. *This row said "Verified: 6th rapid login returns HTTP 429" while no test anywhere asserted a 429 — see §The corollary below.* |
 | **Per-account lockout** | `users.locked_until` + `auth.service.ts` | After `AUTH_MAX_FAILED_ATTEMPTS` consecutive failed logins the account is locked for `AUTH_LOCKOUT_MINUTES` — blocking even a correct password, so an attacker rotating IPs past the rate limiter is still stopped. Cleared on success or password reset. Verified end-to-end. |
 | **Self-service password reset** | `/auth/forgot-password`, `/auth/reset-password`, `mail/mail.service.ts` | Reset token is bound to `token_version` (single-use; voided by logout/prior reset) and expires after `PASSWORD_RESET_TOKEN_MINUTES`. The link is emailed; `forgot-password` never reveals whether an email exists, and delivery failures are swallowed so response timing cannot become an enumeration oracle. Completing a reset rotates the hash, bumps `token_version` (invalidating all sessions) and clears lockout. Verified end-to-end. |
-| **CORS allowlist** | `main.ts` + `CORS_ORIGINS` | Explicit origin allowlist; production with an empty list blocks all cross-origin browser calls instead of allowing `*`. |
-| **Request body cap** | `express.json({ limit })` | `REQUEST_BODY_LIMIT` caps JSON payloads; PDF uploads go through multipart/multer. |
+| **CORS allowlist** | `app.setup.ts` + `CORS_ORIGINS` | Explicit origin allowlist; production with an empty list blocks all cross-origin browser calls instead of allowing `*`. Asserted in `test/edge-controls.e2e-spec.ts`: an allowed origin is echoed with credentials, a foreign origin and a foreign preflight get no `Access-Control-Allow-Origin`, and it is never `*`. The integration harness used to install its own copy of the bootstrap **without** `enableCors()`, so this control could not have been tested there whatever was written. |
+| **Request body cap** | `express.json({ limit })` in `app.setup.ts` | `REQUEST_BODY_LIMIT` caps JSON payloads; PDF uploads go through multipart/multer and carry their own 25 MB cap. An oversized body answers **413**. It used to answer 500: `express.json` throws an `http-errors` object, not an `HttpException`, and the filter treated it as unhandled — a client fault reported as a server fault and audited as `ERROR:UNHANDLED` on every oversized request. |
 | **Refresh-token revocation** | `users.token_version` + `auth.service.ts` | `POST /auth/logout` and any password change bump `token_version`, immediately invalidating every outstanding refresh token. Verified end-to-end. |
 | **RBAC** | `packages/shared/src/rbac.ts` + `PermissionsGuard` | 7 roles, central permission matrix, enforced globally. The matrix is the only input to authorization — `role_permissions` is a display projection, so the roles API is read-only and a database-only role grants nothing. Nurses/auditors cannot approve or download source PDFs. |
 | **No public self-registration** | `auth.controller.ts` | Accounts are provisioned by an administrator via `POST /users`. The former public `POST /auth/register` handed any caller a `NURSE_USER` account with `ai:ask`, `ai:search`, `documents:read` and `dose:calculate` over the approved corpus. |
@@ -28,11 +28,11 @@ trail are non-negotiable.
 | **Enumeration-safe delivery** | `auth.service.ts` | `sendQuietly()` swallows relay failures so the response *status* is identical whether or not the account exists, and the send is **not awaited**, so the response *timing* is identical too — an awaited SMTP round trip only happens for accounts that exist, which is an oracle in itself. |
 | **Upload content validation** | `documents.service.ts` | Uploads must carry a real `%PDF-` signature, not merely a PDF `Content-Type` header, which the client controls. |
 | **Refusal-first AI** | `apps/api/src/rag/*` | Retrieval hard-filtered to `ACTIVE`, non-expired documents; sub-threshold matches refuse with the exact governed message; the mock LLM is extractive and cannot generate beyond context. |
-| **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. The client-safe reason is carried under both `message` and `error` — clients read `message`, and emitting only `error` meant every rejection reached users as "Request failed (400)" with the reason discarded. |
+| **Uniform error envelope** | `AllExceptionsFilter` | 5xx internals are never leaked to clients in production; full errors are logged and audited. The client-safe reason is carried under both `message` and `error` — clients read `message`, and emitting only `error` meant every rejection reached users as "Request failed (400)" with the reason discarded. Express's own `http-errors` rejections (`expose: true`, 4xx) keep their status. The production branch is proven by `all-exceptions.filter.spec.ts`, which loads the filter under each `NODE_ENV`; until it existed, the one line that strips a 5xx message in production had never executed under a test. |
 | **Secret redaction in provider logs** | `rag/openai-http.ts` | The upstream error body is logged to diagnose a rejected AI request, with key-shaped substrings (`sk-…`, `Bearer …`, `api_key=…`) stripped first. `OPENAI_BASE_URL` may point at a self-hosted OpenAI-compatible endpoint whose error handler reflects request headers back. Patterns are pinned by tests on both sides: they redact the credential and leave real provider messages intact. |
 | **Full audit trail** | global `AuditInterceptor` + `AuditService` | Every login, question, answer (incl. refusals), document action, dose calculation, permission change and error is recorded with actor, IP and metadata. |
 | **MFA (TOTP)** | `otplib`, `/auth/mfa/{enroll,enable,disable,verify}` | Self-service two-step enrolment: `enroll` mints a secret without arming it, `enable` arms it only after verifying a live code, `disable` requires the account password. Login then issues a half-authenticated token exchangeable only at `/auth/mfa/verify`. |
-| **Answer governance review** | `GET /chat/answers`, `POST /chat/answers/:id/review`, `/answer-review` web screen | Pharmacist/quality/knowledge-manager roles review AI answers across all nurses (not just their own) and approve or flag them. Verified end-to-end incl. RBAC (nurse: 403 on both endpoints). |
+| **Answer governance review** | `GET /chat/answers`, `POST /chat/answers/:id/review`, `/answer-review` web screen | Pharmacist/quality/knowledge-manager roles review AI answers across all nurses (not just their own) and approve or flag them. `test/answer-review.e2e-spec.ts` proves the write path: the nurse's 403 on POST, the verdict recorded and attributed, the queue moving, the `AI:ANSWER_REVIEWED` event, and **404 for an unknown answer** — which used to return `{ok: true}` and write the audit event for a record that did not exist. *This row claimed "verified end-to-end incl. RBAC (nurse: 403 on both endpoints)" when only the GET was tested.* |
 | **PHI screening on free-text input** | `packages/shared/src/phi.ts`, `common/guards/phi-screen.guard.ts`, `@ScreenForPhi` | Patient identifiers are rejected before any store is written. Four patterns are active — Saudi national ID/Iqama, full numeric date of birth, Saudi mobile, and explicit identifying phrases (`اسم المريض`, `patient name`, `MRN` …) — plus an optional hospital MRN format. Arabic-Indic digits fold to ASCII first, so switching keyboards is not a bypass. Rejection returns `PHI_REJECTION_MESSAGE_AR` from `@bnp/shared`, and the only record written is `SECURITY:PHI_BLOCKED` carrying the pattern categories, never the text. See *PHI screening* below. |
 | **Dependency vulnerability scanning** | `.github/workflows/ci.yml` (`security` job) | `.github/scripts/audit-critical.mjs` fails CI on any critical finding (hard gate); `npm audit --audit-level=high` reports the rest without blocking. The hard gate reads `npm audit --json` rather than relying on `npm audit --audit-level=critical`'s exit code: that path calls the registry's legacy "quick" audit endpoint, which npm is retiring and which returned `400 Invalid package tree` on an unchanged lockfile `npm ci` had installed cleanly seconds earlier — a red light with no finding behind it, and indistinguishable from a real critical. The script also fails when the audit could not run at all, so a missing advisory feed is never a silent pass. The hard gate has bitten for real: `next@16.3.1` carried GHSA-p293-qw3h-jr36 (CVSS 9.0, unauthenticated RCE) and failed the pipeline until the bump to `^16.3.3`. **`npm audit` on this commit reports 0 findings at every severity.** It reported 9 (8 high, 1 moderate) until the fix described below:
 
@@ -71,6 +71,60 @@ fragment of it, or a hash of it. `test/phi-screening.e2e-spec.ts` proves this
 against a real database by searching whole rows and whole `jsonb` documents
 (`::text LIKE`) rather than named columns — the requirement is "nowhere", not
 "not in the column we thought of".
+
+### The corollary that was missed: the guard can only screen a parsed body
+
+Running before the interceptor chain is what makes the guarantee above
+structural. It also fixes what the guard is able to see: a body someone
+*else* has already parsed. For every JSON route that is automatic —
+`express.json()` is middleware, and middleware runs before guards — so
+`@ScreenForPhi({ body: [...] })` reads populated fields.
+
+`POST /documents/upload` is the one route that is not JSON, and it was the one
+route where this failed. Its multipart body was parsed by a `FileInterceptor`,
+which is an **interceptor**: one stage *after* the guard. At guard time
+`req.body` was `undefined`, `PhiScreenGuard` found no string to scan, and the
+route returned 201. The decorator was present and listed the right fields, the
+route read as screened in review, and nothing logged an error — a national ID
+typed into a document title was stored in `documents`.
+
+The fix is `DocumentUploadMiddleware` (`apps/api/src/documents/`), which parses
+the upload with multer as **middleware**, registered in `DocumentsModule.configure()`.
+Screening later instead — in a second interceptor, in the `ValidationPipe`, or
+in `DocumentsService` — would have put the rejection back inside
+`AuditInterceptor`'s scope and given up the property this section is about.
+
+Two things follow for anyone adding a screened route:
+
+- **A screened route must have its body parsed by middleware.** If you reach
+  for `FileInterceptor`, `@ScreenForPhi` on that route screens nothing.
+- **Assert a rejection, not a decoration.** The gap survived review because
+  every test of the control used a JSON route. `test/phi-screening.e2e-spec.ts`
+  now sends identifiers through the multipart fields and asserts both the 400
+  and the empty `documents` table; `src/documents/upload-wiring.spec.ts` asserts
+  the ordering itself, with no database, by recording what a guard on that route
+  can see.
+
+### The same sweep, applied to every control in the table above
+
+After the upload finding, each row in the control table was checked for a
+test that *provokes* it — sends the bad request and demands the rejection —
+rather than one that inspects its configuration. Five had none:
+
+| Control | What existed | What proves it now |
+| --- | --- | --- |
+| Rate limiting | this file's claim of a verified 429; `test/support/env.ts` raising the limit to 10,000 "for the dedicated spec" — which did not exist | `edge-controls.e2e-spec.ts`: 429 past each limit, before auth, per route |
+| CORS allowlist | nothing; the harness had no `enableCors()` | `edge-controls.e2e-spec.ts`: allowed echoed, foreign refused, never `*` |
+| Security headers | nothing | `edge-controls.e2e-spec.ts`: headers present on a real response |
+| Request body cap | nothing — and it answered **500** | `edge-controls.e2e-spec.ts`: 413; the filter fix |
+| 5xx suppression in production | nothing; suite runs as `NODE_ENV=test` | `all-exceptions.filter.spec.ts`, loaded per `NODE_ENV` |
+| Answer review, write path | nurse 403 on the *read* only, described here as "both endpoints" | `answer-review.e2e-spec.ts`; 404 on an unknown answer |
+
+The structural cause was that `main.ts` and the integration harness each kept
+their own copy of the HTTP edge, and the copies had drifted. Both now call
+`configureApp()` in `apps/api/src/app.setup.ts`, so a middleware added to
+production is exercised by the suite the moment it lands, and one omitted from
+the suite cannot exist.
 
 ### The interception counter
 

@@ -1,6 +1,6 @@
 # 04 — Data model
 
-Evidence: the five entity files under `apps/api/src/entities/` and the five migrations under
+Evidence: the five entity files under `apps/api/src/entities/` and the six migrations under
 `apps/api/src/migrations/`, all read in full. `synchronize: false`
 (`config/data-source.ts:41`) and migrations are registered explicitly, never by glob
 (`config/data-source.ts:34-40`) — a migration file not listed there is silently ignored.
@@ -17,7 +17,7 @@ Evidence: the five entity files under `apps/api/src/entities/` and the five migr
 | `permissions` | `PermissionEntity` (`user.entity.ts:11`) | `code` UNIQUE |
 | `role_permissions` | join (`user.entity.ts:37-43`) | PK `(role_id, permission_id)` |
 | `user_roles` | join (`user.entity.ts:84-90`) | PK `(user_id, role_id)` |
-| `documents` | `Document` (`document.entity.ts:13`) | `status`, `version_number`, `storage_key`, `approval_date`, `expiry_date` |
+| `documents` | `Document` (`document.entity.ts:13`) | `status`, `version_number`, `storage_key`, `issuing_authority`, `approval_date`, `expiry_date` |
 | `document_versions` | `DocumentVersion` (`document.entity.ts:66`) | UNIQUE `(document_id, version_number)` |
 | `document_chunks` | `DocumentChunk` (`document.entity.ts:104`) | `embedding vector(384)`, `embedding_provider`, `chunk_index`, `page_number` |
 | `document_approvals` | `DocumentApproval` (`document.entity.ts:132`) | `action`, `from_status`, `to_status`, nullable `actor_id` |
@@ -87,11 +87,13 @@ erDiagram
 
 ## Two findings for a reviewer, not defects
 
-1. **`documents` has no issuing-authority column.** Read the table above: title, category, status,
-   version, dates, storage — nothing records *which body published the source*. A citation can
-   therefore say "Hand Hygiene Policy, page 2, approved 2026-03-01" but not under whose authority.
-   For a platform whose thesis is "answers bound to approved sources", that is the first question an
-   IRB or CBAHI reviewer asks.
+1. ~~**`documents` has no issuing-authority column.**~~ **Closed.** Migration `1720000005000`
+   adds `documents.issuing_authority` and, deliberately, `citations.issuing_authority` as a
+   snapshot — the record of what a nurse was told must survive later edits to the document, which
+   is the same reason `citations.document_id` is `SET NULL` rather than `CASCADE`. A citation can
+   now say "Hand Hygiene Policy, page 2, issued by the Nursing Department, approved 2026-03-01". The
+   column is nullable with no backfill: every existing row genuinely has no recorded authority, and
+   inferring one would be worse than the blank.
 2. **`dose_calculations.inputs` stores patient attributes** — weight and age
    (`dose.service.ts:185-195`, column at `initial-schema.ts:187`). They are not identifiers, and the
    PHI screen does not cover them by design. Whether a clinical calculation log should retain them,

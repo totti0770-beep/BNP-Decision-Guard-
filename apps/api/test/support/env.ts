@@ -19,8 +19,12 @@ process.env.POSTGRES_DB = process.env.E2E_POSTGRES_DB ?? 'bnp_e2e';
 process.env.JWT_SECRET = 'e2e-jwt-secret-not-a-default';
 process.env.JWT_REFRESH_SECRET = 'e2e-jwt-refresh-secret-not-a-default';
 
-// Throttling is a real control with its own dedicated spec; the functional
-// suites raise the ceiling so unrelated assertions don't trip it.
+// Throttling is asserted by `test/edge-controls.e2e-spec.ts`, which lowers
+// these before AppModule loads (see `support/edge-env.ts`). The functional
+// suites raise the ceiling so unrelated assertions don't trip it. From the day
+// this file was added (a0c92a0, 2026-08-17) this comment promised "a dedicated
+// spec" that did not exist: the ceiling was raised on the strength of a test
+// nobody had written.
 process.env.RATE_LIMIT_MAX = '10000';
 process.env.AUTH_RATE_LIMIT_MAX = '10000';
 

@@ -247,17 +247,24 @@ by a provider that is no longer configured. It looks approved on every screen
 and answers nothing, and until this report there was no way to see that
 without a SQL client.
 
-**Two fields are reported as `null` because the database does not record
-them**, and both are named in `fieldsNotInSchema` so the gap is machine-
-readable rather than a footnote:
+Per document it also reports **`issuingAuthority`** — the body that published
+it, as recorded by the knowledge manager at upload or via `PATCH
+/documents/:id`. It is `null` for any document nobody has filled it in for, and
+it is **never** inferred from the title or filename: a guess that is right often
+enough to be trusted and wrong often enough to mislead is worse than an honest
+blank. The same value travels on every citation, so an answer names not just
+which document and page but under whose authority.
+
+**One field is reported as `null` because the database does not record it**,
+and it is named in `fieldsNotInSchema` so the gap is machine-readable rather
+than a footnote:
 
 | Field | Why |
 | --- | --- |
-| `issuingBody` | `documents` has no issuing-body, publisher or provenance column. **Not** inferred from the title or filename: a guess that is right often enough to be trusted and wrong often enough to mislead is worse than an honest blank. |
 | `effectiveDate` | `documents` has no effective-date column. `approvalDate` is reported separately under its own name — it is when *this platform* approved the document, not when an issuing authority made it effective. |
 
-Adding either means a migration and an upload-form field; neither is
-synthesised here.
+Adding it means a migration and an upload-form field; it is not synthesised
+here.
 
 **The JSON carries no generation timestamp**, on purpose: two runs against an
 unchanged database produce byte-identical output, so reports diff cleanly
@@ -269,8 +276,8 @@ every question until a document is indexed.
 ## Tests
 
 ```bash
-npm test                        # 416 unit tests — mocked repositories, no I/O
-npm run test:e2e -w @bnp/api    # 229 integration tests — real HTTP + real Postgres
+npm test                        # 428 unit tests — mocked repositories, no I/O
+npm run test:e2e -w @bnp/api    # 257 integration tests — real HTTP + real Postgres
 cd apps/mobile && npm test      # 32 mobile unit tests — separate install
 ```
 

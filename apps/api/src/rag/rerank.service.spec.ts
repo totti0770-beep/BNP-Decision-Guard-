@@ -5,6 +5,7 @@ const chunk = (over: Partial<RetrievedChunk> = {}): RetrievedChunk => ({
   chunkId: 'c1',
   documentId: 'd1',
   documentTitle: 'Vancomycin Dilution Guide',
+  issuingAuthority: null,
   category: 'MEDICATIONS',
   pageNumber: 4,
   approvalDate: new Date('2026-02-01'),

@@ -14,6 +14,7 @@ apps/api/jest-e2e.config.js
 apps/api/package.json
 apps/api/src/analytics/analytics.module.ts
 apps/api/src/app.module.ts
+apps/api/src/app.setup.ts
 apps/api/src/approval/approval.service.spec.ts
 apps/api/src/approval/approval.service.ts
 apps/api/src/audit/audit.controller.ts
@@ -31,6 +32,7 @@ apps/api/src/chat/chat.controller.ts
 apps/api/src/chat/chat.module.ts
 apps/api/src/chat/chat.service.ts
 apps/api/src/common/decorators.ts
+apps/api/src/common/filters/all-exceptions.filter.spec.ts
 apps/api/src/common/filters/all-exceptions.filter.ts
 apps/api/src/common/guards/jwt-auth.guard.ts
 apps/api/src/common/guards/permissions.guard.spec.ts
@@ -45,6 +47,7 @@ apps/api/src/common/pagination.ts
 apps/api/src/config/data-source.ts
 apps/api/src/config/env.spec.ts
 apps/api/src/config/env.ts
+apps/api/src/documents/document-upload.middleware.ts
 apps/api/src/documents/documents.controller.ts
 apps/api/src/documents/documents.module.ts
 apps/api/src/documents/documents.service.spec.ts
@@ -77,6 +80,7 @@ apps/api/src/migrations/1720000001000-token-version.ts
 apps/api/src/migrations/1720000002000-account-security.ts
 apps/api/src/migrations/1720000003000-embedding-provider.ts
 apps/api/src/migrations/1720000004000-chunk-uniqueness.ts
+apps/api/src/migrations/1720000005000-issuing-authority.ts
 apps/api/src/notifications/notifications.controller.ts
 apps/api/src/notifications/notifications.module.ts
 apps/api/src/notifications/notifications.service.spec.ts
@@ -123,9 +127,11 @@ apps/api/src/users/users.controller.ts
 apps/api/src/users/users.module.ts
 apps/api/src/users/users.service.ts
 apps/api/test/answer-quality.e2e-spec.ts
+apps/api/test/answer-review.e2e-spec.ts
 apps/api/test/auth.e2e-spec.ts
 apps/api/test/create-admin.e2e-spec.ts
 apps/api/test/document-lifecycle.e2e-spec.ts
+apps/api/test/edge-controls.e2e-spec.ts
 apps/api/test/field-set.e2e-spec.ts
 apps/api/test/health.e2e-spec.ts
 apps/api/test/inventory.e2e-spec.ts
@@ -136,6 +142,7 @@ apps/api/test/rag-integrity.e2e-spec.ts
 apps/api/test/rbac-and-dose.e2e-spec.ts
 apps/api/test/support/demo-corpus.ts
 apps/api/test/support/e2e-app.ts
+apps/api/test/support/edge-env.ts
 apps/api/test/support/env.ts
 apps/api/test/support/gold-set.ts
 apps/api/tsconfig.build.json

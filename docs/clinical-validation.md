@@ -23,7 +23,7 @@ These are verified, with evidence, and the reviewer may take them as given.
 | **Refusal-by-Design** | When no approved source qualifies, the assistant returns a fixed Arabic refusal and **zero** citations. Four independent gates route to it: no candidates, below the similarity threshold, the model found nothing, the model errored. |
 | **Citations cannot be invented** | The model is never given a field in which to write one. Every citation — document, page, approval date — is copied from a database row describing a chunk that was actually retrieved. This is structural, not a guardrail that can be prompted around. |
 | **Only approved content is reachable** | Retrieval applies four hard SQL filters: document is ACTIVE (fully approved and indexed), not expired, chunk version matches the document's current version, and the chunk was embedded by the provider currently in use. Draft, rejected, expired, superseded and deactivated documents are unreachable. |
-| **The live index is coherent** | Production reports 725 chunks, all embedded by the active provider, against a matching vector column. No stale or orphaned chunks. |
+| **The live index is coherent** | Production reports **2,706 chunks**, all embedded by the active provider, against a matching vector column. No stale or orphaned chunks. Source: the API's boot log on Railway deployment `f750d589` (commit `a3e4f21`, 2026-09-14T20:11:01Z): `Embedding index: provider="openai-embedding" chunks=2706 staleRetrievable=0 staleOrphaned=0 columnDimensions=384 refusalThreshold=0.25`. (This row read 725 from the 2026-08-22 go-live log until it was re-measured; the corpus has grown since.) |
 | **Dose calculations carry the safety warning** | Every dose result includes the contractual Arabic warning verbatim; tests assert exact string equality. |
 
 ## 2. What engineering has NOT established
@@ -54,7 +54,7 @@ describe a different configuration:
 | | Automated gold set | Production |
 | --- | --- | --- |
 | Embedding provider | `mock` — a hashed bag-of-words | `openai-embedding` |
-| Corpus | 4 seeded demo documents | 725 chunks |
+| Corpus | 4 seeded demo documents | 2,706 chunks (2026-09-14 reading) |
 | Question phrasing | shares vocabulary with the source | whatever a nurse types |
 
 The gold set measures **lexical** retrieval over four documents. It is a

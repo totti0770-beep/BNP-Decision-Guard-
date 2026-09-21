@@ -9,6 +9,7 @@ export interface RetrievedChunk {
   chunkId: string;
   documentId: string;
   documentTitle: string;
+  issuingAuthority: string | null;
   category: string;
   pageNumber: number | null;
   approvalDate: Date | null;
@@ -64,6 +65,7 @@ export class RetrievalService {
                 c.page_number   AS page_number,
                 c.content       AS content,
                 d.title         AS document_title,
+                d.issuing_authority AS issuing_authority,
                 d.category      AS category,
                 d.approval_date AS approval_date,
                 1 - (c.embedding <=> $1::vector) AS similarity
@@ -108,6 +110,7 @@ export class RetrievalService {
       chunkId: r.chunk_id,
       documentId: r.document_id,
       documentTitle: r.document_title,
+      issuingAuthority: r.issuing_authority ?? null,
       category: r.category,
       pageNumber: r.page_number,
       approvalDate: r.approval_date,

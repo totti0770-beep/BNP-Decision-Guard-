@@ -21,6 +21,7 @@ export default function UploadPage() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [issuingAuthority, setIssuingAuthority] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [expiryDate, setExpiryDate] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -58,6 +59,7 @@ export default function UploadPage() {
       form.append('title', title);
       form.append('category', category);
       if (description) form.append('description', description);
+      if (issuingAuthority.trim()) form.append('issuingAuthority', issuingAuthority.trim());
       if (expiryDate) form.append('expiryDate', new Date(expiryDate).toISOString());
       // api() only forces Content-Type for string bodies, so FormData keeps
       // its browser-generated multipart boundary — and the upload now gets
@@ -112,6 +114,15 @@ export default function UploadPage() {
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+            />
+          </Field>
+
+          <Field label={t('issuingAuthority')} hint={t('issuingAuthorityHint')}>
+            <Input
+              dir="auto"
+              maxLength={255}
+              value={issuingAuthority}
+              onChange={(e) => setIssuingAuthority(e.target.value)}
             />
           </Field>
 

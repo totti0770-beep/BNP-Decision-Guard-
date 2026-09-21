@@ -18,7 +18,7 @@ clinical pilot is almost entirely *not* engineering work.
 | **API** | **Completed and deployable** | 50 routes, every one backed by a service that touches a database, S3 or an LLM. No module returns canned data. `grep -rniE 'TODO\|FIXME\|HACK\|XXX' apps/api/src apps/web/src apps/mobile/src` → **0 hits**. |
 | **Web** | **Completed and deployable** | 18 routes under `apps/web/src/app`, **all 18** reaching the real API — the two that do not import `lib/api` directly (`assistant`, `drug-prep`) delegate to `AssistantChat`, which does. **No UI-only screen exists.** |
 | **Mobile** | **Completed as a thin client; three advertised capabilities absent** | 6 screens, all calling the real API. `apps/mobile/package.json` declares six runtime dependencies — `expo`, `react`, `react-native`, `react-native-safe-area-context`, `expo-secure-store`, `@react-native-async-storage/async-storage`. There is **no biometric library, no SQLCipher, no offline database**: those are concept only. |
-| **Data model** | **Completed** | 15 `@Entity` classes, 5 migrations, `synchronize: false` (`config/data-source.ts:41`). Column-by-column reconciliation found **no schema drift**. |
+| **Data model** | **Completed** | 15 `@Entity` classes, 6 migrations, `synchronize: false` (`config/data-source.ts:41`). Column-by-column reconciliation found **no schema drift**. |
 | **Governance workflow** | **Completed** | `DRAFT → IN_REVIEW → APPROVED → INDEXED → ACTIVE` enforced by a `TRANSITIONS` map (`approval.service.ts:17-30`), exercised end to end in `test/document-lifecycle.e2e-spec.ts`. |
 | **RAG chain** | **Completed** | Four hard SQL filters (`retrieval.service.ts:71-74`), four refusal gates all routing through one `refusal()` (`rag-query.service.ts:122,160,167,177`). |
 | **Infrastructure** | **Architecture only, except Railway** | `infra/k8s/*` are reference manifests pointing at `bnp-decision-guard/api:latest`, an image that exists in no registry (`infra/k8s/README.md:52`). `infra/railway/README.md` documents the one deployment that is actually running. |
@@ -41,7 +41,7 @@ a clinical deployment it represents.
 | Web | routes reaching the API | 18/18 | 100% | 15% |
 | Mobile | screens reaching the API | 6/6 | 100% | 5% |
 | Mobile hardening | advertised capabilities implemented (offline store, biometrics, at-rest encryption) | 0/3 | 0% | 5% |
-| Automated testing | suites green | 403 unit + 229 e2e + 32 mobile | 90% — web UI has **no unit tests at all**; the browser smoke is the only web coverage | 15% |
+| Automated testing | suites green | 428 unit + 257 e2e + 32 mobile | 90% — web UI has **no unit tests at all**; the browser smoke is the only web coverage | 15% |
 | Operability | health ✅, readiness ✅, structured logs ✅, metrics ❌, tracing ❌, error tracking ❌, backups ❌ | 3/7 | 43% | 10% |
 | Clinical validation | reviewer-scored questions on a real corpus | 0 | 0% | 10% |
 
@@ -63,8 +63,8 @@ the clinical-validation row.
 ## 3. Critical missing components
 
 1. **Clinical validation has never been performed.** `docs/production-readiness.md:260` carries it as 🔴. The instrument now exists (`npm run eval:field` emits the §5.2 sheet with the machine columns filled and the four judgement columns blank); a filled sheet does not.
-2. **No approved clinical corpus.** The four seeded documents are synthetic by design. Production is documented at **725 chunks** (`docs/production-readiness.md:343` quotes the boot log: `chunks=725 staleRetrievable=0 staleOrphaned=0`), and their provenance is unaudited — `GET /documents/inventory` answers that, and has not yet been run against the deployment. *This line previously said ~2,706 chunks, a figure with no source anywhere in the repository; see the correction in `09-GAPS.md`.*
-3. **`documents` records no issuing authority.** There is no column for it, so a citation cannot state which body published the source. For an IRB or CBAHI reviewer this is the first question.
+2. **No approved clinical corpus.** The four seeded documents are synthetic by design. Production reports **2,706 chunks**, all on the active provider, none stale — the API's boot log on Railway deployment `f750d589` (commit `a3e4f21`, 2026-09-14T20:11:01Z): `Embedding index: provider="openai-embedding" chunks=2706 staleRetrievable=0 staleOrphaned=0 columnDimensions=384 refusalThreshold=0.25`. Their provenance is unaudited: `GET /documents/inventory` answers that and needs an authenticated call. *This line said ~2,706 without a source, was corrected to the documented 725, and is now 2,706 again with the source attached — the sequence is recorded in `09-GAPS.md`, because the number was right and the documentation was stale, which is a different failure from the one the correction assumed.*
+3. ~~**`documents` records no issuing authority.**~~ **Closed** — `issuing_authority` on `documents` and, as a snapshot, on `citations`; surfaced on upload, edit, the policies list, every citation in both clients, and the inventory report. Existing rows are `null` until a knowledge manager records the real body; nothing is inferred.
 4. **No backup or restore.** Nothing in the repository backs anything up; a restore that has never been rehearsed is not a backup.
 5. **No observability.** `/health` and `/health/ready` exist and logs are structured JSON, but nothing ships them anywhere and nothing measures latency, refusal rate or error rate in production.
 6. **Container images exist in no registry.** `infra/k8s/*` reference `bnp-decision-guard/api:latest`; CI builds images and pushes them nowhere.
@@ -82,9 +82,9 @@ the clinical-validation row.
 
 ## 5. Recommended next actions
 
-1. **Run `GET /documents/inventory` against production** and reconcile the documented 725 chunks against what is actually there. Until their provenance is known, nothing else about the corpus can be asserted — and the only figure anyone has is a boot log quoted in a document, not a reading taken today. *You, today, five minutes.*
+1. **Run `GET /documents/inventory` against production.** The chunk count is now known and current (2,706, from today's boot log); what is not known is which documents they belong to and whether each passed the governed workflow. That needs a `documents:read` token. *You, today, five minutes.*
 2. **Commission the clinical review.** 40 questions from ward staff, ≥12 unanswerable, scored by a clinician per §5.2. The runner produces the paperwork. *Nurse educator + reviewer, ~2 weeks.*
-3. **Add an issuing-authority column** and surface it in citations. *~1 day.*
+3. ~~**Add an issuing-authority column** and surface it in citations.~~ **Done.** What remains is data entry: the 725 production documents' authorities are unrecorded until someone who knows them fills them in via `PATCH /documents/:id`.
 4. **Managed Postgres backups + one rehearsed restore.** *~1 day.*
 5. **Ship logs and add error tracking.** *~2 days.*
 6. ~~**Plan the NestJS 12 migration.**~~ **Done differently, and in minutes rather than days.** The advisories it was supposed to close were one package (`multer`) plus six inherited markers; the tree is now at 0 findings without it. NestJS 12 is now an ordinary upgrade to schedule, not a security action.
@@ -104,7 +104,7 @@ The engineering is done; this is a sequencing problem.
 
 ## 7. Fastest path to fully functional
 
-Add to the above: an issuing-authority field; the expiry
+Add to the above: the expiry
 cron moved to a single-replica `CronJob`; images pushed to a registry and pinned
 by digest; web unit tests; metrics and tracing; a data-retention policy. **None
 of it is on the pilot's critical path** — which is the useful finding, because it

@@ -8,8 +8,8 @@ What this audit has **not** established, stated as plainly as what it has.
 block, run on this commit. At the time of writing:
 
 ```
-ON DISK : 232
-READ    : 229
+ON DISK : 239
+READ    : 236
 MISSING : 3
 --- NOT READ ---
 apps/api/field-eval-report.md
@@ -23,7 +23,7 @@ skipped table below: two npm lockfiles and one gitignored generated report.
 There is no source file, no configuration file, no test file and no document
 left unopened — verified by the command above rather than asserted.
 
-That took 229 files. Where a file exceeded 400 lines it was read in consecutive
+That took 236 files. Where a file exceeded 400 lines it was read in consecutive
 chunks to the end, which is what produced several of the findings in this
 report: the advisory lock in `indexing.service.ts`, the `token_version` binding
 on reset tokens in `auth.service.ts`, and both count errors in
@@ -32,7 +32,7 @@ that summarises it wrongly.
 
 That distinction is the point of keeping the ledger. A counted fact — 50 routes,
 18 web pages, 0 TODO markers, 15 entities — is produced by a command over the
-whole tree and is as true at 229 files read as at 232. A described fact — what a
+whole tree and is as true at 236 files read as at 239. A described fact — what a
 service does, why a comment says what it says — requires the file to have been
 opened, and every non-generated file has been.
 
@@ -65,16 +65,22 @@ that this audit did **not** prove.
    that and has not been run against production. Nothing in any report here
    describes the real corpus.
 
-   **Correction.** Earlier versions of this file and of
-   `10-EXECUTIVE-SUMMARY.md` stated "roughly 2,706 chunks", five times across
-   the two reports. That number has no source. It appears nowhere in the
-   repository outside these audit files — `git log -S'2,706'` traces it to
-   `b798be9`, the commit that wrote the executive summary, and no earlier — and
-   the project's own three documents say 725. It is withdrawn. An audit whose
-   first rule is that every factual statement carries a citation put an
-   uncited production figure in its headline summary and repeated it until it
-   read like a fact; that is the failure mode the rule exists to prevent, and
-   catching it required reading a document the audit had not yet reached.
+   **Correction, and then a correction to the correction.** Earlier versions of
+   this file and of `10-EXECUTIVE-SUMMARY.md` stated "roughly 2,706 chunks",
+   five times, with no citation anywhere in the repository — the project's own
+   three documents said 725 — so it was withdrawn under the audit's first rule.
+   That was the right procedure and the wrong number to land on. After PR #50
+   merged, the API's boot log on the new Railway deployment read
+   `chunks=2706 staleRetrievable=0 staleOrphaned=0` (deployment `f750d589`,
+   2026-09-14T20:11:01Z). The 2,706 had evidently come from a production log
+   read earlier in this session that could not be cited after context was
+   compacted; the 725 was the go-live reading from 2026-08-22, and the corpus
+   had grown almost fourfold since. So: the uncited figure was correct, the
+   documented figure was stale, and the audit — correctly refusing to state
+   what it could not cite — replaced a true number with a false one that had a
+   citation. Both lessons stand. A figure without a source cannot be asserted,
+   *and* a source is a reading with a date on it, not a property of the system.
+   The documents now carry 2,706 with the deployment and timestamp attached.
 2. **That the live deployment matches this commit.** `infra/railway/README.md`
    documents auto-deploy from `main`; I have not queried the running service to
    confirm which commit it serves, and this branch is not merged.
@@ -94,10 +100,11 @@ that this audit did **not** prove.
 
 ## Open questions for a developer or operator
 
-1. Where did the 725 production chunks come from, and were those documents
-   approved through the governed workflow? (The figure is
-   `docs/production-readiness.md:343`'s quoted boot log; nothing in this audit
-   contacted the deployment to confirm it still holds.)
+1. Where did the 2,706 production chunks come from, and were those documents
+   approved through the governed workflow? (The figure is the post-merge boot
+   log of Railway deployment `f750d589`, 2026-09-14 — read directly this time.
+   The count is current; the provenance is still unknown and needs an
+   authenticated `GET /documents/inventory`.)
 2. Which commit is the Railway deployment currently serving?
 3. Is `EMBEDDING_PROVIDER` on production `openai`, and does the stored corpus
    match it? A mismatch makes the assistant refuse everything — safe, but
@@ -107,6 +114,110 @@ that this audit did **not** prove.
 5. Who is the qualified reviewer, and when can they sit down with the sheet?
 
 ## Found by reading, and not guarded by any test
+
+### The PHI screen on document upload never ran — found by writing the test, not by reading
+
+This is the most serious defect this branch produced, and the audit's
+file-by-file read did not find it. Reading found the opposite: the route
+carried `@ScreenForPhi({ body: ['title', 'description', 'changeNote'],
+profile: PhiProfile.METADATA })`, the guard behind it was read line by line,
+and both were recorded as correct. They were correct. The wiring between them
+was not.
+
+Nest runs **middleware → guards → interceptors → pipes → handler**.
+`PhiScreenGuard` reads `req.body`, so it screens only what something earlier
+already parsed. Every other screened route sends JSON, and `express.json()` is
+middleware, so those work. `POST /documents/upload` is the only multipart
+route, and its body was parsed by `FileInterceptor` — an *interceptor*, one
+stage after the guard. At guard time `req.body` was `undefined`, the guard
+found no string to scan and returned true.
+
+The decorator reached the upload route in `49bfcba` on 2026-09-10 and was found
+inert on 2026-09-20. It never screened that route for a single day — which is
+the point: the gap is not something that crept in later, it was there the
+moment the control was written, and the test that would have shown it was not.
+
+The failure mode is the bad one. No error, no log line, no degraded response:
+the decorator was present, the route read as screened in review, and uploads
+returned 201. A national ID typed into a document title was written to
+`documents` and `document_versions`. Proven, not inferred — reverting the fix
+and re-running the suite fails six tests, including
+*"wrote no document row — the 400 is a rejection, not a rollback"*, which
+queries the table directly.
+
+**How it was actually found.** Not by suspicion. A new e2e case put an
+identifier in the new `issuingAuthority` field and expected a 400; CI returned
+201. The first hypothesis was that the new test was wrong. Checking whether any
+*existing* test proved a multipart field was screened is what turned a
+suspected test bug into a security gap — nothing did. Every test
+of the control used a JSON route.
+
+**The fix** is `apps/api/src/documents/document-upload.middleware.ts`: multer
+runs as middleware, registered in `DocumentsModule.configure()`, so the body is
+parsed before the guards. Screening later instead — a second interceptor, the
+`ValidationPipe`, or `DocumentsService` — would have put the rejection back
+inside `AuditInterceptor`'s scope and given up the structural guarantee that
+rejected text reaches no store at all. Parsing in middleware also means nothing
+maps multer's errors any more, so the middleware maps them itself; without that
+an over-size upload answers 500 instead of 413.
+
+**What generalises.** Three things, in descending order of how much they cost:
+
+1. **A control's configuration is not its behaviour.** The audit verified that
+   the decorator named the right fields, that the guard scanned the right
+   patterns, and that the scanner matched the right identifiers. All three were
+   true simultaneously while the control did nothing. Only an end-to-end
+   assertion — send the bad input, expect the rejection — can distinguish a
+   control from a decoration, and no amount of reading substitutes for it.
+2. **Framework execution order is a security boundary.** It is already treated
+   as one in this repository, in the right direction: `SECURITY.md` explains at
+   length why the screen is a guard and not a DTO rule. The same ordering that
+   buys the no-store guarantee constrains what the guard can read, and only the
+   first half was written down.
+3. **The gap needed a database to find, and the audit had one.**
+   `08-BUILD-AND-RUN.md` recorded the integration suite as impossible to run
+   here, because nothing was listening on port 5432. PostgreSQL 16 and pgvector
+   0.6.0 were installed in this container the whole time. Deferring every
+   database-dependent check to CI is what let this reach a pull request. The
+   correction is in that file, with the commands.
+
+
+### Five more controls with a configuration and no test — the sweep the upload finding demanded
+
+The upload finding's third lesson was that the audit had verified a control's
+configuration three layers deep and concluded it worked. So every row of the
+`SECURITY.md` control table was re-checked against one question: *is there a
+test that sends the bad request and demands the rejection?* For twenty rows
+there is. For six there was not, and two of the six hid defects.
+
+| Control | What the audit had accepted | What was true |
+| --- | --- | --- |
+| Rate limiting | `SECURITY.md`: "Verified: 6th rapid login returns HTTP 429" | No test anywhere asserted a 429. `test/support/env.ts` raised the limit to 10,000 for every suite, citing "its own dedicated spec". There was no such spec. |
+| CORS allowlist | `main.ts` reads `CORS_ORIGINS` and calls `enableCors()` | The integration harness kept its own copy of the bootstrap, and the copy had never contained `enableCors()`. The control could not have been tested there whatever anyone wrote. |
+| Security headers | `app.use(helmet())` | No test read a header off a response. |
+| JSON body cap | `express.json({ limit })` | No test sent an oversized body. When one did, the answer was **500**: `express.json` throws an `http-errors` object, not an `HttpException`, and the filter treated it as unhandled — a client fault reported as a server fault and audited as `ERROR:UNHANDLED` on every oversized request. |
+| 5xx suppression in production | `if (isProduction) message = 'Internal server error'` | The integration suite runs as `NODE_ENV=test`, and the filter had no unit spec. The one line that is the control had never executed under a test. |
+| Answer review, write path | `SECURITY.md`: "verified end-to-end incl. RBAC (nurse: 403 on both endpoints)" | Only the GET was tested. `POST /chat/answers/:id/review` was exercised by nothing — and on an unknown answer it returned `{ok: true}` and wrote an `AI:ANSWER_REVIEWED` audit event for a record that did not exist. A governance action reporting success on nothing. |
+
+**Fixed**, and each fix verified by mutation:
+
+- `apps/api/src/app.setup.ts` — `configureApp()` is now the one HTTP edge, called by
+  `main.ts` and by the harness. The harness proves production's wiring, not a copy of it.
+- `apps/api/test/edge-controls.e2e-spec.ts` — helmet, CORS, body cap and throttling,
+  each provoked. Limits are lowered by `support/edge-env.ts` before `AppModule` loads.
+- `AllExceptionsFilter` honours an `http-errors` 4xx (`expose: true`) instead of
+  reporting it as a server fault; `all-exceptions.filter.spec.ts` loads the filter
+  under each `NODE_ENV` and proves the production branch.
+- `ChatService.reviewAnswer()` answers 404 on zero affected rows;
+  `apps/api/test/answer-review.e2e-spec.ts` proves the write path.
+
+**What the rate-limiting row teaches that the others do not.** The claim in
+`SECURITY.md` was specific — "6th rapid login" — which is the shape of a claim
+that has been checked. It had the form of evidence and none of the substance,
+and it survived the file-by-file read because the read verified that the
+throttler was *registered*, which it was. A specific number is not a citation.
+The citation is the test, by path, and this audit now names one for every
+control it calls verified.
 
 ### The i18n claim was broader than the implementation — now closed
 
@@ -269,9 +380,9 @@ from the document:
 
 The first is the one that stings. This same file, two sections up, names
 `GET /documents/inventory` as the single thing that would answer what the
-production corpus actually contains — 725 chunks by the repository's own
-documentation, none of which anyone in this audit has seen — and it was not in
-the API reference someone would look it up in. An
+production corpus actually contains — 2,706 chunks by the post-merge boot log,
+none of which anyone in this audit has seen by title — and it was not in the
+API reference someone would look it up in. An
 endpoint that is not documented is, for most purposes, an endpoint that does
 not exist. Both are added to `docs/api.md` in this branch.
 
@@ -675,7 +786,7 @@ the completion condition the audit was given.
 The report set is complete too — eleven documents:
 
 ```
-00-FILE-INDEX          231 rows, one per file, each with an evidence-backed role
+00-FILE-INDEX          239 rows, one per file, each with an evidence-backed role
 01-OVERVIEW            what this is, sized by command
 02-ARCHITECTURE        four Mermaid diagrams, every edge cited
 03-MODULES-backend     21 directories

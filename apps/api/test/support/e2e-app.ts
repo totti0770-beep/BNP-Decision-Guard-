@@ -1,19 +1,16 @@
 import 'reflect-metadata';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
-import helmet from 'helmet';
-import * as express from 'express';
 import * as bcrypt from 'bcryptjs';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { Permission, ROLE_PERMISSIONS, RoleName } from '@bnp/shared';
 
 import { AppModule } from '../../src/app.module';
+import { configureApp } from '../../src/app.setup';
 import { loadEnv } from '../../src/config/env';
 import { buildDataSourceOptions } from '../../src/config/data-source';
-import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.filter';
-import { AuditService } from '../../src/audit/audit.service';
 import { StorageService } from '../../src/storage/storage.service';
 import { MailService, MailMessage } from '../../src/mail/mail.service';
 import {
@@ -208,10 +205,12 @@ export async function seedRolesAndUsers(
 }
 
 /**
- * Boots the real AppModule with the same global pipeline main.ts installs —
- * helmet, the JSON body cap, ValidationPipe(whitelist+transform) and the
- * exception filter — so the suite exercises the wiring a request actually
- * meets in production, not a reduced test harness.
+ * Boots the real AppModule through the same `configureApp()` main.ts calls —
+ * helmet, the JSON body cap, the CORS allowlist, ValidationPipe and the
+ * exception filter — so the suite exercises the edge a request actually meets
+ * in production, not a hand-maintained copy of it. This file used to keep its
+ * own copy of that list, and the copy had no `enableCors()`: the CORS
+ * allowlist was installed in production and proven by nothing.
  */
 export async function createE2eApp(): Promise<E2eContext> {
   const storage = new InMemoryStorageService();
@@ -227,14 +226,10 @@ export async function createE2eApp(): Promise<E2eContext> {
     .useValue(pdf)
     .compile();
 
-  const app = moduleRef.createNestApplication();
-  const env = loadEnv();
-
-  app.use(helmet());
-  app.use(express.json({ limit: env.bodyLimit }));
-  app.use(express.urlencoded({ extended: true, limit: env.bodyLimit }));
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.useGlobalFilters(new AllExceptionsFilter(app.get(AuditService)));
+  // `bodyParser: false` matches main.ts: the JSON cap installed by
+  // configureApp() must be the only one, or the test proves Nest's default.
+  const app = moduleRef.createNestApplication({ bodyParser: false });
+  configureApp(app, loadEnv());
 
   await app.init();
 

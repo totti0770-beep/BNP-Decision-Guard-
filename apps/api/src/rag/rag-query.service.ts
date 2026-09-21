@@ -9,6 +9,8 @@ export interface RagCitation {
   documentId: string;
   chunkId: string;
   documentTitle: string;
+  /** The publishing body, from `documents.issuing_authority`. Null when never recorded. */
+  issuingAuthority: string | null;
   pageNumber: number | null;
   approvalDate: Date | null;
   similarity: number;
@@ -200,6 +202,7 @@ export class RagQueryService {
       documentId: chunk.documentId,
       chunkId: chunk.chunkId,
       documentTitle: chunk.documentTitle,
+      issuingAuthority: chunk.issuingAuthority,
       pageNumber: chunk.pageNumber,
       approvalDate: chunk.approvalDate,
       similarity: Math.round((chunk.rerankScore ?? chunk.similarity) * 1000) / 1000,

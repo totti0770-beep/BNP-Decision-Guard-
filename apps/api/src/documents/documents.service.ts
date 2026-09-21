@@ -24,6 +24,8 @@ export function isPdf(buffer: Buffer): boolean {
 export interface UploadDocumentInput {
   title: string;
   description?: string;
+  /** The publishing body. Optional at upload; never inferred when absent. */
+  issuingAuthority?: string;
   category: DocumentCategory;
   expiryDate?: string;
   changeNote?: string;
@@ -44,6 +46,7 @@ export class DocumentsService {
       id: doc.id,
       title: doc.title,
       description: doc.description,
+      issuingAuthority: doc.issuingAuthority,
       category: doc.category,
       status: doc.status,
       versionNumber: doc.versionNumber,
@@ -100,6 +103,8 @@ export class DocumentsService {
       doc.approvedBy = null;
       if (input.title) doc.title = input.title;
       if (input.description !== undefined) doc.description = input.description;
+      if (input.issuingAuthority !== undefined)
+        doc.issuingAuthority = input.issuingAuthority || null;
       if (input.expiryDate !== undefined)
         doc.expiryDate = input.expiryDate ? new Date(input.expiryDate) : null;
       const saved = await this.documents.save(doc);
@@ -135,6 +140,7 @@ export class DocumentsService {
         id,
         title: input.title,
         description: input.description ?? null,
+        issuingAuthority: input.issuingAuthority?.trim() || null,
         category: input.category,
         status: DocumentStatus.DRAFT,
         versionNumber: 1,
@@ -198,7 +204,12 @@ export class DocumentsService {
 
   async update(
     id: string,
-    input: { title?: string; description?: string; expiryDate?: string | null },
+    input: {
+      title?: string;
+      description?: string;
+      issuingAuthority?: string | null;
+      expiryDate?: string | null;
+    },
     actor: AuthenticatedUser,
   ) {
     const doc = await this.findOne(id);
@@ -210,6 +221,13 @@ export class DocumentsService {
     if (input.description !== undefined) {
       changes.description = 'updated';
       doc.description = input.description;
+    }
+    if (input.issuingAuthority !== undefined) {
+      // Provenance is audited by value, like the title: a reviewer needs to
+      // see that "Nursing Department" became "P&T Committee", not just that
+      // something changed.
+      changes.issuingAuthority = { from: doc.issuingAuthority, to: input.issuingAuthority || null };
+      doc.issuingAuthority = input.issuingAuthority || null;
     }
     if (input.expiryDate !== undefined) {
       changes.expiryDate = { from: doc.expiryDate, to: input.expiryDate };

@@ -84,10 +84,12 @@ describe('Document governance lifecycle (upload -> approve -> index -> cite)', (
       .set(auth(managerToken))
       .field('title', 'IV Paracetamol Preparation and Administration Guide')
       .field('category', DocumentCategory.MEDICATIONS)
+      .field('issuingAuthority', 'Pharmacy & Therapeutics Committee')
       .attach('file', pdf, 'paracetamol.pdf')
       .expect(201);
 
     expect(res.body.status).toBe('DRAFT');
+    expect(res.body.issuingAuthority).toBe('Pharmacy & Therapeutics Committee');
     documentId = res.body.id;
     expect(documentId).toBeTruthy();
   });
@@ -211,6 +213,8 @@ describe('Document governance lifecycle (upload -> approve -> index -> cite)', (
     expect(citation.documentTitle).toContain('Paracetamol');
     expect(citation.pageNumber).toBeGreaterThanOrEqual(1);
     expect(citation.approvalDate).toBeTruthy();
+    // The publishing body recorded at upload reaches the nurse on the citation.
+    expect(citation.issuingAuthority).toBe('Pharmacy & Therapeutics Committee');
     // The extractive mock LLM can only quote retrieved text.
     expect(res.body.shortAnswer).toMatch(/15 mg|paracetamol/i);
   });
@@ -229,6 +233,16 @@ describe('Document governance lifecycle (upload -> approve -> index -> cite)', (
       'لا توجد وثيقة معتمدة كافية للإجابة. الرجاء الرجوع للمسؤول المختص.',
     );
     expect(res.body.citations).toHaveLength(0);
+  });
+
+  it('snapshots the issuing authority onto the stored citation', async () => {
+    // citations.issuing_authority is a copy taken at answer time, like
+    // document_title. The record of what a nurse was told must survive a
+    // later edit to the document.
+    const [row] = await ctx.dataSource.query(
+      `SELECT issuing_authority FROM citations WHERE document_id = '${documentId}' LIMIT 1`,
+    );
+    expect(row.issuing_authority).toBe('Pharmacy & Therapeutics Committee');
   });
 
   it('persists the question, answer and citations for the audit trail', async () => {

@@ -7,6 +7,7 @@ import { Badge, Button, EmptyState, Skeleton, cx } from '@/components/ui';
 
 interface Citation {
   documentTitle: string;
+  issuingAuthority?: string | null;
   pageNumber: number | null;
   approvalDate: string | null;
   similarity: number;
@@ -227,6 +228,11 @@ function AnswerBody({ answer }: { answer: Answer }) {
                   <span className="tnum text-xs text-muted">
                     {t('pageAbbrev')}
                     {c.pageNumber}
+                  </span>
+                )}
+                {c.issuingAuthority && (
+                  <span dir="auto" className="text-xs text-muted">
+                    {t('issuedBy', { body: c.issuingAuthority })}
                   </span>
                 )}
                 {c.approvalDate && (

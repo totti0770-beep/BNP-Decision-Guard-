@@ -7,6 +7,7 @@ import { TokenVersion1720000001000 } from '../migrations/1720000001000-token-ver
 import { AccountSecurity1720000002000 } from '../migrations/1720000002000-account-security';
 import { EmbeddingProvider1720000003000 } from '../migrations/1720000003000-embedding-provider';
 import { ChunkUniqueness1720000004000 } from '../migrations/1720000004000-chunk-uniqueness';
+import { IssuingAuthority1720000005000 } from '../migrations/1720000005000-issuing-authority';
 
 /**
  * Connection options for both the Nest app and the standalone
@@ -37,6 +38,7 @@ export function buildDataSourceOptions(): DataSourceOptions {
       AccountSecurity1720000002000,
       EmbeddingProvider1720000003000,
       ChunkUniqueness1720000004000,
+      IssuingAuthority1720000005000,
     ],
     synchronize: false,
     logging: process.env.TYPEORM_LOGGING === 'true',

@@ -130,11 +130,11 @@ revoking every outstanding refresh token for that account.
 
 | Method | Path | Handler | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| POST | `/documents/upload` | `:58` | `DOCUMENTS_UPLOAD` · **PHI** (`:54-57`, METADATA profile, fields `title`/`description`/`changeNote`) | multipart `file` + `UploadDto` `:27-34` — `title`, `category` (enum), optional `description`/`expiryDate`/`changeNote`/`documentId` | document DTO (`documents.service.ts:42-63`) | 413 over 25 MB (`:63-65`, matched to the web upload screen's advertised cap — the two used to disagree, `:60-62`) |
+| POST | `/documents/upload` | `:59` | `DOCUMENTS_UPLOAD` · **PHI** (`:55-58`, METADATA profile, fields `title`/`description`/`changeNote`/`issuingAuthority`) | multipart `file` + `UploadDto` `:27-35` — `title`, `category` (enum), optional `description`/`issuingAuthority` (≤255)/`expiryDate`/`changeNote`/`documentId` | document DTO (`documents.service.ts:42-63`) | 413 over 25 MB (`:63-65`, matched to the web upload screen's advertised cap — the two used to disagree, `:60-62`) |
 | GET | `/documents` | `:74` | `DOCUMENTS_READ` | query `category`, `status`, `search`, `limit`/`offset` via `PAGE_INT` (`:80-81`) | `{ items: [documentDto], total }` (`documents.service.ts:190`) | 400 on a non-integer `limit`/`offset` |
 | GET | `/documents/inventory` | `:98` | `DOCUMENTS_READ` | — | `InventoryReport` — `{ schema, fieldsNotInSchema[], totals{…}, documents[] }` (`inventory.service.ts:67-85`) | — |
 | GET | `/documents/:id` | `:104` | `DOCUMENTS_READ` | — | document DTO | 400 non-UUID; 404 |
-| PATCH | `/documents/:id` | `:114` | `DOCUMENTS_MANAGE` · **PHI** (`:110-113`) | `UpdateDocumentDto` `:36-40` | document DTO | 400; 404 |
+| PATCH | `/documents/:id` | `:116` | `DOCUMENTS_MANAGE` · **PHI** (`:112-115`, fields `title`/`description`/`issuingAuthority`) | `UpdateDocumentDto` `:37-42` — `issuingAuthority` audited by value, empty string clears | document DTO | 400; 404 |
 | GET | `/documents/:id/versions` | `:124` | `DOCUMENTS_READ` | — | `document_versions` rows, newest first (`documents.service.ts:230-236`) | 400; 404 |
 | GET | `/documents/:id/download-url` | `:130` | `DOCUMENTS_DOWNLOAD` | — | `{ url, expiresInSeconds: 300 }` (`documents.service.ts:248`) | 400; 404; 403 for roles without the permission |
 | GET | `/documents/:id/approval-history` | `:139` | `DOCUMENTS_READ` | — | `[{ id, action, fromStatus, toStatus, actor, comment, … }]` (`approval.service.ts:165-171`) | 400; 404 |

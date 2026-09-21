@@ -308,9 +308,13 @@ production. Use this as the launch checklist.
 >   being approved through the governed workflow, and no one has audited their
 >   provenance — `GET /documents/inventory` would, and has not been run.
 >
-> The 725-chunk figure itself is left as it stands: it is sourced, to the boot
-> log quoted in the go-live table below. It is a reading taken on 2026-08-22,
-> not a property of the system today.
+> The 725-chunk figure in the go-live table below is left as it stands: it is a
+> sourced reading from 2026-08-22. It is no longer the current number. The
+> deployment of `a3e4f21` on 2026-09-14 booted with
+> `chunks=2706 staleRetrievable=0 staleOrphaned=0` — the corpus has almost
+> quadrupled since go-live, and the index is still coherent. Which documents
+> those chunks belong to, and whether each passed the governed workflow, is
+> what `GET /documents/inventory` reports and what nobody has yet pulled.
 
 > **Audit update (Sep 2026) — all dependency advisories closed, no framework
 > major.** The scorecard row and the item below both said the remaining highs
@@ -342,15 +346,15 @@ production. Use this as the launch checklist.
 | Security hardening (headers, rate limit, CORS, secret fail-fast, token revocation, account lockout, password reset) | ✅ | ✅ | 🟡 (add secret mgr; set `MAIL_PROVIDER=smtp`) |
 | Demo credentials neutralised in production | ✅ | ✅ | ✅ **verified live** — 7 accounts disabled on the 2026-08-22 deploy with matching audit rows |
 | Single validated secret-resolution path (`loadEnv()`) | ✅ | ✅ | ✅ |
-| Index integrity (advisory lock + UNIQUE constraint, real column-width check) | ✅ | ✅ | ✅ `staleRetrievable=0` on 725 chunks |
+| Index integrity (advisory lock + UNIQUE constraint, real column-width check) | ✅ | ✅ | ✅ `staleRetrievable=0` on **2,706** chunks — re-measured 2026-09-14 from the post-merge boot log (was 725 at go-live) |
 | **Clinical validation of answers** | 🔴 | 🔴 **blocker** | 🔴 — protocol in `docs/clinical-validation.md`, awaiting reviewer |
 | Dependency vulnerability posture | ✅ | ✅ | ✅ **0 findings at every severity** — `npm audit` on this commit. The 8 high / 1 moderate this row carried were closed without a framework major; see the Sep 2026 note above and `SECURITY.md` |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
-| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 416 unit (measured on this commit) + the integration suite against real Postgres+pgvector + the browser flow, all gate CI | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 428 unit + 257 integration against real Postgres+pgvector (both measured on this commit) + the browser flow, all gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
-| Approved clinical content corpus | 🔴 synthetic | 🟡 725 chunks **indexed** in production (`chunks=725`, go-live log below); whether they were approved through the governed workflow is unaudited — see the runbook row *Real approved clinical corpus* | ✅ |
+| Approved clinical content corpus | 🔴 synthetic | 🟡 **2,706** chunks **indexed** in production (`chunks=2706`, boot log of deployment `f750d589`, 2026-09-14; the go-live table below records 725 on 2026-08-22); whether they were approved through the governed workflow is unaudited — see the runbook row *Real approved clinical corpus* | ✅ |
 | High availability (HA Postgres, replicas, HPA, Ingress+TLS) | ➖ | 🟡 | ✅ required |
 | Observability (logs/metrics/traces/alerts) | 🟡 structured JSON logs + liveness/readiness | 🟡 | ✅ required |
 | Compliance (CBAHI/HIPAA, pen-test, DPIA, BAA) | ➖ | 🟡 in progress | ✅ signed off |

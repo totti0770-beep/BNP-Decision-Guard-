@@ -29,7 +29,7 @@ a mobile app.
 | Unit | Stack | Size | In the npm workspace? |
 | --- | --- | --- | --- |
 | `packages/shared` | TypeScript, **zero runtime dependencies** | 4 source files | ✅ |
-| `apps/api` | NestJS 11, TypeORM, PostgreSQL 16 + pgvector | 50 routes, 12 controllers, 15 entities, 5 migrations | ✅ |
+| `apps/api` | NestJS 11, TypeORM, PostgreSQL 16 + pgvector | 50 routes, 12 controllers, 15 entities, 6 migrations | ✅ |
 | `apps/web` | Next.js 16 App Router, Tailwind, React 18 | 15 protected screens + 4 public routes, all statically prerendered | ✅ |
 | `apps/mobile` | Expo 57 / React Native 0.86 / React 19 | 6 screens, hand-rolled tab switch, no router | ❌ separate install |
 
@@ -95,8 +95,8 @@ remembers to follow — and each is pinned by a test.
 
 | Suite | Spec files | Tests | Measured here? |
 | --- | --- | --- | --- |
-| API unit | 29 | **416** | ✅ run on this commit — 29 suites, 0 failures |
-| API integration | 12 | 229 | ❌ needs PostgreSQL; this container has none. CI runs it |
+| API unit | 30 | **428** | ✅ run on this commit — 30 suites, 0 failures |
+| API integration | 14 | **257** | ✅ run on this commit against a local PostgreSQL 16 + pgvector 0.6.0 — 14 suites, 0 failures. This row said "this container has none" until the cluster was started by hand; see the correction in `08-BUILD-AND-RUN.md` |
 | Mobile | 2 | 32 | ❌ separate install, absent here. CI runs it |
 | **Web** | **0** | **0** | there is no web test runner at all |
 | `packages/shared` | 0 | 0 | exercised only indirectly, through API tests |

@@ -28,6 +28,7 @@ const LIMIT = 50;
 interface Doc {
   id: string;
   title: string;
+  issuingAuthority: string | null;
   category: string;
   status: string;
   versionNumber: number;
@@ -154,7 +155,12 @@ export default function PoliciesPage() {
               {data.items.map((d) => (
                 <tr key={d.id}>
                   <Td className="font-medium text-text">
-                    {d.title}
+                    <span dir="auto">{d.title}</span>
+                    {d.issuingAuthority && (
+                      <span dir="auto" className="mt-0.5 block text-xs font-normal text-muted">
+                        {d.issuingAuthority}
+                      </span>
+                    )}
                     <span className="mt-0.5 block text-2xs text-subtle sm:hidden">
                       {d.category.replaceAll('_', ' ')} · v{d.versionNumber}
                     </span>

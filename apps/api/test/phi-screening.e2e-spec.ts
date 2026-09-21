@@ -370,4 +370,147 @@ describe('PHI screening keeps rejected text out of every store', () => {
       expect(row.comment).toContain('2019-03-01');
     });
   });
+
+  describe('issuing authority — document metadata, screened under the METADATA profile', () => {
+    it('rejects an identifier smuggled into the issuing-authority field on upload', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy')
+        .field('category', 'NURSING_POLICIES')
+        .field('issuingAuthority', `Nursing Dept ref ${ID_NUMBER}`)
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(400);
+
+      expect(res.body.message).toBe(PHI_REJECTION_MESSAGE_AR);
+    });
+
+    it('accepts a real publishing body, names and all', async () => {
+      // A committee name is exactly what this field is for. The FREE_TEXT
+      // profile's identifying-phrase pattern would be wrong here; METADATA
+      // screens identifiers only.
+      const res = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy')
+        .field('category', 'NURSING_POLICIES')
+        .field('issuingAuthority', 'Infection Prevention & Control Committee, chaired by Dr. Ali')
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(201);
+
+      expect(res.body.issuingAuthority).toBe(
+        'Infection Prevention & Control Committee, chaired by Dr. Ali',
+      );
+    });
+
+    it('rejects an identifier in the field on PATCH as well', async () => {
+      const upload = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy')
+        .field('category', 'NURSING_POLICIES')
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(201);
+
+      const res = await request(ctx.app.getHttpServer())
+        .patch(`/documents/${upload.body.id}`)
+        .set(auth(managerToken))
+        .send({ issuingAuthority: `Committee ${ID_NUMBER}` })
+        .expect(400);
+
+      expect(res.body.message).toBe(PHI_REJECTION_MESSAGE_AR);
+    });
+  });
+
+  describe('document upload — the multipart fields the guard is declared to screen', () => {
+    /**
+     * These cover a gap that existed from the day `@ScreenForPhi` was put on
+     * the upload route until the parse was moved into middleware.
+     *
+     * Nest runs middleware -> guards -> interceptors. The multipart body was
+     * parsed by a `FileInterceptor`, one step *after* the guard, so
+     * `PhiScreenGuard` read `req.body` while it was still `undefined`, found
+     * no string to scan, and let everything through. The route read as
+     * screened, the decorator listed the right fields, and nothing returned an
+     * error: a national ID typed into a document title was simply stored.
+     *
+     * Every other screened route sends JSON, which `express.json()` parses as
+     * middleware — before the guard. Upload was the only multipart route, so
+     * it was the only one affected, and the only one no test covered.
+     */
+    beforeAll(async () => {
+      await clearAudit();
+    });
+
+    it('rejects an identifier in the title', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', `Hand Hygiene Policy for ${ID_NUMBER}`)
+        .field('category', 'NURSING_POLICIES')
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(400);
+
+      expect(res.body.message).toBe(PHI_REJECTION_MESSAGE_AR);
+    });
+
+    it('rejects a mobile number in the description', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy')
+        .field('description', `queries to ${MOBILE}`)
+        .field('category', 'NURSING_POLICIES')
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(400);
+
+      expect(res.body.message).toBe(PHI_REJECTION_MESSAGE_AR);
+    });
+
+    it('wrote no document row — the 400 is a rejection, not a rollback', async () => {
+      expect(
+        await countMatching(
+          `SELECT count(*) FROM documents d WHERE d::text LIKE '%${ID_NUMBER}%' OR d::text LIKE '%${MOBILE}%'`,
+        ),
+      ).toBe(0);
+      expect(
+        await countMatching(
+          `SELECT count(*) FROM document_versions v WHERE v::text LIKE '%${ID_NUMBER}%' OR v::text LIKE '%${MOBILE}%'`,
+        ),
+      ).toBe(0);
+    });
+
+    it('wrote nothing to the audit trail either', async () => {
+      // The guard throws before the interceptor chain, so `AuditInterceptor`
+      // never runs on these two requests: there is no `HTTP:POST:` row at all,
+      // let alone one carrying the text.
+      await settleAudit();
+      expect(await auditCarrying(ID_NUMBER)).toBe(0);
+      expect(await auditCarrying(MOBILE)).toBe(0);
+      expect(await auditRows('HTTP:POST:/documents/upload')).toHaveLength(0);
+    });
+
+    it('recorded the interception itself, with categories and no content', async () => {
+      const rows = await waitForAudit('SECURITY:PHI_BLOCKED', 2);
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+      for (const row of rows) {
+        expect(row.metadata.route).toBe('/documents/upload');
+        expect(row.metadata.profile).toBe('METADATA');
+        expect(JSON.stringify(row.metadata)).not.toContain(ID_NUMBER);
+        expect(JSON.stringify(row.metadata)).not.toContain(MOBILE);
+      }
+    });
+
+    it('still accepts an ordinary policy upload', async () => {
+      // The control has to be the kind a knowledge manager never notices.
+      await request(ctx.app.getHttpServer())
+        .post('/documents/upload')
+        .set(auth(managerToken))
+        .field('title', 'Hand Hygiene Policy, 2026 revision')
+        .field('description', 'Supersedes the 2019-03-01 edition')
+        .field('category', 'NURSING_POLICIES')
+        .attach('file', Buffer.from('%PDF-1.4 hand hygiene'), 'policy.pdf')
+        .expect(201);
+    });
+  });
 });
