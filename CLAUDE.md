@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (428), mocked repositories, no I/O
+npm test                      # API unit tests (439), mocked repositories, no I/O
 npm run test:e2e -w @bnp/api  # API integration tests (257), real HTTP + real Postgres
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
@@ -133,6 +133,25 @@ shared pool and then gets misread, so extraction failed intermittently for any
 document small enough to be pooled. Passing a plain `Uint8Array` fixes it, and
 `apps/api/src/rag/pdf-extraction.service.spec.ts` now covers extraction
 directly using real pdfkit-generated PDFs.
+
+### The web suite — `src/lib` only, and it says so
+
+`npm test -w @bnp/web` is a fourth jest project (24 tests) over `src/lib/api.ts`
+and `src/lib/i18n.ts`. Like mobile's it runs on `testEnvironment: node` rather
+than jsdom, because neither module imports React: `test/setup.ts` installs
+stand-ins for the only two browser globals `api.ts` touches — `localStorage`
+and `window.location` — so a test can assert what was stored and where the page
+was sent. `tsconfig.spec.json` overrides the app's `moduleResolution: 'bundler'`,
+which ts-jest's CommonJS output cannot use.
+
+It exists because refresh-on-401 is the web app's session layer and nothing ran
+it. The browser smoke drives a logged-in flow but never lets a token expire, so
+"the token refreshes" was an untested claim about the code every screen depends
+on. The five refresh assertions are mutation-verified: dropping the retry,
+dropping the session clear, or ignoring `retryOn401: false` each fails them.
+
+**The screens still have no runtime coverage** — that needs jsdom plus
+`@testing-library/react`, and this suite does not claim it.
 
 Mobile (separate install, not an npm workspace):
 

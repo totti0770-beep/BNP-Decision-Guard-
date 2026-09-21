@@ -122,6 +122,7 @@ apps/api/src/seed/seed-policy.ts
 apps/api/src/seed/seed.ts
 apps/api/src/settings/settings.module.ts
 apps/api/src/storage/storage.module.ts
+apps/api/src/storage/storage.service.spec.ts
 apps/api/src/storage/storage.service.ts
 apps/api/src/users/users.controller.ts
 apps/api/src/users/users.module.ts
@@ -173,6 +174,7 @@ apps/mobile/test/mocks/expo-secure-store.ts
 apps/mobile/tsconfig.json
 apps/mobile/tsconfig.spec.json
 apps/web/e2e-smoke.mjs
+apps/web/jest.config.js
 apps/web/next-env.d.ts
 apps/web/next.config.mjs
 apps/web/package.json
@@ -206,13 +208,17 @@ apps/web/src/components/language-toggle.tsx
 apps/web/src/components/shell.tsx
 apps/web/src/components/theme-toggle.tsx
 apps/web/src/components/ui/index.tsx
+apps/web/src/lib/api.spec.ts
 apps/web/src/lib/api.ts
 apps/web/src/lib/async.ts
 apps/web/src/lib/auth.tsx
+apps/web/src/lib/i18n.spec.ts
 apps/web/src/lib/i18n.ts
 apps/web/src/lib/language.tsx
 apps/web/tailwind.config.ts
+apps/web/test/setup.ts
 apps/web/tsconfig.json
+apps/web/tsconfig.spec.json
 docker-compose.yml
 docs/api.md
 docs/architecture.md
