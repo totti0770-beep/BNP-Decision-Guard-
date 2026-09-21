@@ -82,7 +82,7 @@ the clinical-validation row.
 
 ## 5. Recommended next actions
 
-1. **Run `GET /documents/inventory` against production.** The chunk count is now known and current (2,706, from today's boot log); what is not known is which documents they belong to and whether each passed the governed workflow. That needs a `documents:read` token. *You, today, five minutes.*
+1. **Run `GET /documents/inventory` against production.** The chunk count is now known and current (2,745 on 2026-09-21, from today's boot log); what is not known is which documents they belong to and whether each passed the governed workflow. That needs a `documents:read` token. *You, today, five minutes.*
 2. **Commission the clinical review.** 40 questions from ward staff, ≥12 unanswerable, scored by a clinician per §5.2. The runner produces the paperwork. *Nurse educator + reviewer, ~2 weeks.*
 3. ~~**Add an issuing-authority column** and surface it in citations.~~ **Done.** What remains is data entry: the 725 production documents' authorities are unrecorded until someone who knows them fills them in via `PATCH /documents/:id`.
 4. **Managed Postgres backups + one rehearsed restore.** *~1 day.*

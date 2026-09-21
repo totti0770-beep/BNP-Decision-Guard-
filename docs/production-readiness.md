@@ -311,7 +311,7 @@ production. Use this as the launch checklist.
 > The 725-chunk figure in the go-live table below is left as it stands: it is a
 > sourced reading from 2026-08-22. It is no longer the current number. The
 > deployment of `a3e4f21` on 2026-09-14 booted with
-> `chunks=2706 staleRetrievable=0 staleOrphaned=0` — the corpus has almost
+> `chunks=2745 staleRetrievable=0 staleOrphaned=0` (2026-09-21; 2706 on 09-14) — the corpus has almost
 > quadrupled since go-live, and the index is still coherent. Which documents
 > those chunks belong to, and whether each passed the governed workflow, is
 > what `GET /documents/inventory` reports and what nobody has yet pulled.
