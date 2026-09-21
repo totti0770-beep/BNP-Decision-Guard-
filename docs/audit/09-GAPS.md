@@ -80,7 +80,11 @@ that this audit did **not** prove.
    what it could not cite — replaced a true number with a false one that had a
    citation. Both lessons stand. A figure without a source cannot be asserted,
    *and* a source is a reading with a date on it, not a property of the system.
-   The documents now carry 2,706 with the deployment and timestamp attached.
+   The documents now carry the figure with its deployment and timestamp
+   attached. **A third reading, for the same reason:** the post-merge boot log
+   of `8458ec0` on 2026-09-21 reads `chunks=2745`. The corpus is live and
+   growing, so any single number here is a reading with a date on it and not a
+   property of the system — which is the whole lesson of this entry.
 2. **That the live deployment matches this commit.** `infra/railway/README.md`
    documents auto-deploy from `main`; I have not queried the running service to
    confirm which commit it serves, and this branch is not merged.
@@ -100,18 +104,38 @@ that this audit did **not** prove.
 
 ## Open questions for a developer or operator
 
-1. Where did the 2,706 production chunks come from, and were those documents
-   approved through the governed workflow? (The figure is the post-merge boot
-   log of Railway deployment `f750d589`, 2026-09-14 — read directly this time.
-   The count is current; the provenance is still unknown and needs an
-   authenticated `GET /documents/inventory`.)
-2. Which commit is the Railway deployment currently serving?
-3. Is `EMBEDDING_PROVIDER` on production `openai`, and does the stored corpus
-   match it? A mismatch makes the assistant refuse everything — safe, but
-   silent to a nurse.
-4. Does the hospital have an MRN format? `PHI_MRN_PATTERN` is shipped disabled
+Two of the original five are now answered, from the boot log of the deployment
+that carried PR #51 to production — read through the Railway connector, which
+reaches the service by a path this container's egress proxy does not block.
+
+**Answered.**
+
+- ~~*Which commit is the Railway deployment currently serving?*~~ **`8458ec0`**,
+  the PR #51 merge, deployed 2026-09-21T17:16 UTC to both services
+  (`45445d82`, `b8272aee`, both SUCCESS). The migration applied cleanly against
+  the live database — `Applied migrations: IssuingAuthority1720000005000`, that
+  one alone, the earlier five already present — and the API came up
+  `env=production` with CORS scoped to the web origin.
+- ~~*Is `EMBEDDING_PROVIDER` on production `openai`, and does the corpus match?*~~
+  **Yes to both**, and nothing had to be inferred:
+  `provider="openai-embedding" chunks=2745 staleRetrievable=0 staleOrphaned=0
+  columnDimensions=384 refusalThreshold=0.25`. Provider matches, no chunk is
+  stranded on another provider, the column is the width the code expects, and
+  the threshold is the shipped default rather than a value loosened in place.
+
+**Still open.**
+
+1. Where did the production chunks come from, and were those documents approved
+   through the governed workflow? The count is current and rising — 725 on
+   2026-08-22, 2,706 on 2026-09-14, **2,745 on 2026-09-21** — but a count is not
+   provenance. This needs an authenticated `GET /documents/inventory`, which
+   needs a `documents:read` credential this session does not have, from a host
+   that can reach `*.up.railway.app`, which this container cannot: the egress
+   proxy refuses the CONNECT outright. The two `curl` commands are in PR #51's
+   thread. **Nothing in these reports describes the real corpus.**
+2. Does the hospital have an MRN format? `PHI_MRN_PATTERN` is shipped disabled
    and one variable away from being enforced.
-5. Who is the qualified reviewer, and when can they sit down with the sheet?
+3. Who is the qualified reviewer, and when can they sit down with the sheet?
 
 ## Found by reading, and not guarded by any test
 
@@ -380,7 +404,7 @@ from the document:
 
 The first is the one that stings. This same file, two sections up, names
 `GET /documents/inventory` as the single thing that would answer what the
-production corpus actually contains — 2,706 chunks by the post-merge boot log,
+production corpus actually contains — 2,745 chunks by the 2026-09-21 boot log,
 none of which anyone in this audit has seen by title — and it was not in the
 API reference someone would look it up in. An
 endpoint that is not documented is, for most purposes, an endpoint that does

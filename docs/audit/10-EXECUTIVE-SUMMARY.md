@@ -41,7 +41,7 @@ a clinical deployment it represents.
 | Web | routes reaching the API | 18/18 | 100% | 15% |
 | Mobile | screens reaching the API | 6/6 | 100% | 5% |
 | Mobile hardening | advertised capabilities implemented (offline store, biometrics, at-rest encryption) | 0/3 | 0% | 5% |
-| Automated testing | suites green | 428 unit + 257 e2e + 32 mobile | 90% — web UI has **no unit tests at all**; the browser smoke is the only web coverage | 15% |
+| Automated testing | suites green | 439 API unit + 257 e2e + 24 web + 32 mobile | 92% — the web **session layer** is now covered; its **screens** still have no runtime coverage | 15% |
 | Operability | health ✅, readiness ✅, structured logs ✅, metrics ❌, tracing ❌, error tracking ❌, backups ❌ | 3/7 | 43% | 10% |
 | Clinical validation | reviewer-scored questions on a real corpus | 0 | 0% | 10% |
 
@@ -82,7 +82,7 @@ the clinical-validation row.
 
 ## 5. Recommended next actions
 
-1. **Run `GET /documents/inventory` against production.** The chunk count is now known and current (2,706, from today's boot log); what is not known is which documents they belong to and whether each passed the governed workflow. That needs a `documents:read` token. *You, today, five minutes.*
+1. **Run `GET /documents/inventory` against production.** The chunk count is now known and current (2,745 on 2026-09-21, from today's boot log); what is not known is which documents they belong to and whether each passed the governed workflow. That needs a `documents:read` token. *You, today, five minutes.*
 2. **Commission the clinical review.** 40 questions from ward staff, ≥12 unanswerable, scored by a clinician per §5.2. The runner produces the paperwork. *Nurse educator + reviewer, ~2 weeks.*
 3. ~~**Add an issuing-authority column** and surface it in citations.~~ **Done.** What remains is data entry: the 725 production documents' authorities are unrecorded until someone who knows them fills them in via `PATCH /documents/:id`.
 4. **Managed Postgres backups + one rehearsed restore.** *~1 day.*

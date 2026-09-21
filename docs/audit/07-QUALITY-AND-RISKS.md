@@ -33,8 +33,8 @@ and the UNIQUE constraint (revert each separately against a real database), the
 audit gate (stub a critical, stub an error, remove the lockfile), and every
 mobile assertion (checked against a deliberately broken copy of the module).
 
-**Measured on this commit:** 428 unit tests across 30 suites, 0 failures; **257
-integration tests across 14 suites, 0 failures**, against a local PostgreSQL 16
+**Measured on this commit:** 439 unit tests across 31 suites, 0 failures; **257
+integration tests across 14 suites, 0 failures**; 24 web unit tests across 2 suites, against a local PostgreSQL 16
 with pgvector 0.6.0; lint 0 errors / 10 warnings, all `no-explicit-any`;
 `next build` producing 20/20 static pages; `npm audit` 0 critical.
 
@@ -130,29 +130,33 @@ The original mitigation still stands, and is still not built: either CI writes
 these numbers or the documents stop stating them. It would have caught the
 count. It would *not* have caught the rationale.
 
-### 🟠 4. The web app has no tests, and one defect class is caught by nothing
+### 🟡 4. The web app's *screens* have no tests — its session layer now does
 
-Zero spec files, no test runner, no coverage instrumentation. The only automated
-checks are `next build` (which typechecks) and the Playwright browser smoke.
+**Downgraded from 🟠.** `apps/web` had no test runner at all. It now has one
+(`npm test -w @bnp/web`, in CI's web job): 24 tests over `src/lib/api.ts` and
+`src/lib/i18n.ts`, node environment, with stand-ins for the two browser globals
+`api.ts` touches.
 
-That smoke is good — role-visibility is asserted in **both** directions, so a
-locator matching nothing can no longer make a check pass vacuously — but it is
-one flow, not a suite, and it reports no test count.
+That closes the part of this risk that mattered most. Refresh-on-401 is what
+every screen depends on to stay logged in, and nothing ran it — the browser
+smoke drives a logged-in flow but never lets a token expire. Five assertions
+now pin it, mutation-verified: one refresh per 401 with the stored token, the
+original request retried once with the *new* token, a second 401 surfaced
+rather than looped, a failed refresh clearing the session and redirecting to
+`/login`, and `retryOn401: false` honoured.
 
-One class of defect is caught by nothing at all: **a hardcoded English literal.**
-It never enters the dictionary, so compiler-enforced parity cannot see it; the
-smoke asserts `dir`/`lang` and one Arabic nav label but nothing about shared
-chrome. `ErrorState` and `Pagination` rendered English on 14 and 3 surfaces
-respectively while every screen around them translated, and `genericError` had
-been in the dictionary the whole time.
+**What remains open, and it is the original wording's real target:** no screen
+has runtime coverage. A component that renders the wrong thing, a permission
+filter that shows a nurse an approval button, an RTL layout that does not
+mirror — none of that is caught by anything but the browser smoke's one flow.
+That needs jsdom plus `@testing-library/react`, which is a separate piece of
+work.
 
-No test was added, and the honest reasons are recorded: a browser assertion
-would pass vacuously whenever `Pagination` does not render (the demo corpus is
-four documents against a limit of 50), and a grep-based lint rule is too fragile
-to trust. The class is caught by review, and saying so is better than a check
-that looks like coverage.
+### ✅ 5. `storage/` was executed by no test — now covered
 
-### 🟠 5. `storage/` is executed by no test — and a sibling gap that has now bitten
+**Closed.** `apps/api/src/storage/storage.service.spec.ts` (11 tests) mocks the S3 client at the module boundary and asserts what the service *sends*: the client built from `loadEnv()` and nothing else; `isHealthy()` false rather than throwing, and creating nothing; `ensureBucket()` creating only on a HEAD failure, tolerating `BucketAlreadyOwnedByYou` and rethrowing anything else; `upload()`/`download()` key, bytes and content type; and the presigned URL's **300-second** expiry, which is the "5-min" promise in `docs/api.md`. Mutation-verified: widening the expiry, swallowing a creation failure, or letting the health probe create the bucket each fails exactly one assertion. The original text of this risk follows, since its reasoning is what produced the spec.
+
+#### Original finding
 
 **The sibling bit first, so it is no longer hypothetical.** The multer wiring
 between `@UseInterceptors(FileInterceptor(...))` and `isPdf()` had no coverage

@@ -311,7 +311,7 @@ production. Use this as the launch checklist.
 > The 725-chunk figure in the go-live table below is left as it stands: it is a
 > sourced reading from 2026-08-22. It is no longer the current number. The
 > deployment of `a3e4f21` on 2026-09-14 booted with
-> `chunks=2706 staleRetrievable=0 staleOrphaned=0` — the corpus has almost
+> `chunks=2745 staleRetrievable=0 staleOrphaned=0` (2026-09-21; 2706 on 09-14) — the corpus has almost
 > quadrupled since go-live, and the index is still coherent. Which documents
 > those chunks belong to, and whether each passed the governed workflow, is
 > what `GET /documents/inventory` reports and what nobody has yet pulled.
@@ -350,7 +350,7 @@ production. Use this as the launch checklist.
 | **Clinical validation of answers** | 🔴 | 🔴 **blocker** | 🔴 — protocol in `docs/clinical-validation.md`, awaiting reviewer |
 | Dependency vulnerability posture | ✅ | ✅ | ✅ **0 findings at every severity** — `npm audit` on this commit. The 8 high / 1 moderate this row carried were closed without a framework major; see the Sep 2026 note above and `SECURITY.md` |
 | CI (build + test + migrate + SCA gate on every push/PR) | ✅ | ✅ | ✅ |
-| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 428 unit + 257 integration against real Postgres+pgvector (both measured on this commit) + the browser flow, all gate CI | ✅ | ✅ |
+| Integration/E2E tests (real HTTP + Postgres, browser smoke) | ✅ 439 API unit + 257 integration against real Postgres+pgvector + 24 web unit (both measured on this commit) + the browser flow, all gate CI | ✅ | ✅ |
 | Scientific-committee answer review UI | ✅ | ✅ | ✅ |
 | Real semantic AI (provider-stamped index, reindex endpoint, timeouts) | ✅ turn-key | ✅ (key + eval) | ✅ |
 | Mobile store-build config (EAS profiles, bundle ids) | ✅ | 🟡 (needs Expo/store accounts) | ✅ signed builds |
