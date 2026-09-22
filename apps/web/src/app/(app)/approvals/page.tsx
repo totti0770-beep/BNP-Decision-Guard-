@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAsyncData } from '@/lib/async';
 import { useT } from '@/lib/language';
 import { StatusBadge } from '@/components/shell';
+import { FindingsPanel } from '@/components/findings-panel';
+import { blocksApproval, Finding } from '@/lib/findings';
 import {
   Alert,
   Button,
@@ -75,6 +77,7 @@ function LifecycleTrack({ status }: { status: string }) {
 export default function ApprovalsPage() {
   const t = useT();
   const { hasPermission } = useAuth();
+  const canReadFindings = hasPermission('findings:read');
 
   const [offset, setOffset] = useState(0);
   const fetchDocs = useCallback(
@@ -90,6 +93,7 @@ export default function ApprovalsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [versions, setVersions] = useState<VersionEntry[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
@@ -120,31 +124,47 @@ export default function ApprovalsPage() {
       setRejectingId(null);
       setRejectComment('');
       reload();
-      if (expanded === id) await showHistory(id);
+      if (expanded === id) await showDetail(id);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : t('actionFailed'));
+      // The conflict gate refuses an approval with a 400 naming the rule. The
+      // findings that caused it — and the only controls that can clear them —
+      // live in the disclosure below, so open it rather than leaving the
+      // reviewer holding an error with nowhere to act on it.
+      if (path === 'approve' && err instanceof ApiError && err.status === 400) {
+        await showDetail(id);
+      }
     } finally {
       setBusyId(null);
     }
   }
 
-  async function showHistory(id: string) {
+  async function showDetail(id: string) {
     setExpanded(id);
     setHistoryLoading(true);
     try {
-      // One disclosure, two records: what happened to the document
-      // (approval events) and what the document physically was (uploads).
-      const [h, v] = await Promise.all([
+      // One disclosure, three records: what happened to the document
+      // (approval events), what the document physically was (uploads), and
+      // what the pre-activation scan found in it.
+      const [h, v, f] = await Promise.all([
         api<HistoryEntry[]>(`/documents/${id}/approval-history`),
         api<VersionEntry[]>(`/documents/${id}/versions`).catch(
           () => [] as VersionEntry[],
         ),
+        // NURSE_USER reaches this screen on `documents:read` but is denied
+        // `findings:read`, because evidence is verbatim source text. Asking
+        // anyway would 403 and blank the whole disclosure.
+        canReadFindings
+          ? api<Finding[]>(`/documents/${id}/findings`).catch(() => [] as Finding[])
+          : Promise.resolve([] as Finding[]),
       ]);
       setHistory(h);
       setVersions(v);
+      setFindings(f);
     } catch {
       setHistory([]);
       setVersions([]);
+      setFindings([]);
     } finally {
       setHistoryLoading(false);
     }
@@ -269,7 +289,7 @@ export default function ApprovalsPage() {
                       variant="ghost"
                       aria-expanded={open}
                       aria-controls={`history-${d.id}`}
-                      onClick={() => (open ? setExpanded(null) : showHistory(d.id))}
+                      onClick={() => (open ? setExpanded(null) : showDetail(d.id))}
                     >
                       {open ? t('hideApprovalHistory') : t('showApprovalHistory')}
                     </Button>
@@ -324,7 +344,27 @@ export default function ApprovalsPage() {
 
                 {open && (
                   <div id={`history-${d.id}`} className="mt-4 border-t border-border pt-3">
-                    <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
+                    {canReadFindings && (
+                      <>
+                        {findings.some((f) => blocksApproval(f, d.versionNumber)) && (
+                          <Alert className="mb-3">
+                            <span className="font-medium">{t('approvalBlockedTitle')}</span>{' '}
+                            {t('approvalBlockedBody')}
+                          </Alert>
+                        )}
+                        <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
+                          {t('conflictFindings')}
+                        </p>
+                        <FindingsPanel
+                          findings={findings}
+                          currentVersion={d.versionNumber}
+                          loading={historyLoading}
+                          onChanged={() => showDetail(d.id)}
+                        />
+                      </>
+                    )}
+
+                    <p className="mb-1.5 mt-4 text-2xs font-medium uppercase tracking-wide text-subtle">
                       {t('approvalHistory')}
                     </p>
                     {historyLoading ? (
