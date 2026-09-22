@@ -144,13 +144,34 @@ console.log('approval workflow screen OK');
 const firstDisclosure = page.getByRole('button', { name: 'Details', exact: true }).first();
 await firstDisclosure.click();
 await page.waitForSelector('text=Conflict findings', { timeout: 15000 });
-const cleanCount = await page.getByText('No findings were raised on this version.').count();
+// The heading renders with the disclosure; the panel below it is still
+// fetching. Counting before that settles reads an empty panel and calls it a
+// clean scan — wait for the skeleton to detach instead of racing it.
+await page
+  .getByRole('status', { name: 'Loading findings' })
+  .waitFor({ state: 'detached', timeout: 15000 });
+
+// Non-vacuous: the panel must have rendered *something*, or a silently broken
+// fetch would satisfy the BLOCKING check below by rendering nothing at all.
+const clean = await page.getByText('No findings were raised on this version.').count();
+const severities = await page.getByText(/^(BLOCKING|MAJOR|MINOR)$/).count();
 check(
-  cleanCount >= 1,
-  `expected the findings panel to report a clean scan, saw ${cleanCount} such messages`,
+  clean + severities > 0,
+  'findings panel rendered neither a clean-scan message nor any finding',
+);
+
+// The seeded corpus must scan free of BLOCKING findings, or `npm run seed`
+// could not have taken these four documents ACTIVE in the first place — the
+// gate would have refused the approve() the seeder performs in-process.
+// MAJOR and MINOR are recorded and enforce nothing, so asserting "no findings
+// at all" would make this brittle against a future rule for no safety gain.
+const blocking = await page.getByText('BLOCKING', { exact: true }).count();
+check(
+  blocking === 0,
+  `seeded corpus produced ${blocking} BLOCKING findings; the seed path would be gated`,
 );
 await page.screenshot({ path: `${shots}/07b-findings.png` });
-console.log('conflict findings panel OK, seeded corpus scans clean');
+console.log('conflict findings panel OK, seeded corpus carries no blocking finding');
 
 // 8. Arabic / RTL. Asserts the layout actually mirrors, not just that the text
 // changed: `dir="rtl"` with a sidebar still pinned left is the classic
