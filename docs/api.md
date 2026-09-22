@@ -96,6 +96,43 @@ roles travel in the JWT: use `POST /users` and `PATCH /users/:id`.
 | `POST /documents/:id/index` (extract→chunk→embed→ACTIVE) | `documents:index` |
 | `POST /documents/:id/deactivate` `{comment?}` (removes from AI) | `documents:deactivate` |
 
+### Pre-activation conflict findings
+
+`submit-review` runs a deterministic scan over the document's text before the
+status changes (`approval.service.ts`, `findings/scan.service.ts`), and
+`approve` refuses with **400** while an unresolved `BLOCKING` finding stands
+against the version being approved (`findings/conflict-gate.service.ts`). The
+refusal is audited as `DOCUMENTS:APPROVE_BLOCKED`; no `document_approvals` row
+is written for the attempt.
+
+| Endpoint | Permission |
+| --- | --- |
+| `GET /documents/:id/findings` — every finding on every version, with page-anchored evidence, resolutions, and `waiverRolesOutstanding` | `findings:read` |
+| `POST /findings/:findingId/resolve` `{justification}` — one signature; refused (400) for `BLOCKING` | `findings:resolve` |
+| `POST /findings/:findingId/dismiss` `{justification}` — one signature; refused (400) for `BLOCKING` | `findings:resolve` |
+| `POST /findings/:findingId/waive` `{justification}` — one of the **two** signatures a `BLOCKING` waiver needs | `findings:waive-blocking` |
+
+A blocking waiver completes only when signatures from **both**
+`PHARMACIST_REVIEWER` and `CBAHI_QUALITY_OFFICER` are on the finding, from two
+different users. The first signature moves it to `WAIVER_PENDING`, which still
+blocks. The check is on role membership read from the database at signing
+time — not on the permission, because `SUPER_ADMIN` holds every permission and
+would otherwise satisfy both halves alone, and not on the JWT, whose roles are
+a login-time snapshot. Whoever created the version under review
+(`document_versions.created_by_id`) may not resolve, dismiss or sign against
+it (**403**). `justification` is mandatory (≥ 10 characters) and PHI-screened
+under the `FREE_TEXT` profile.
+
+`AUDITOR` deliberately lacks `findings:read`: evidence is verbatim source text,
+which the matrix withholds from that role for the same reason it withholds
+`documents:download`.
+
+Findings are per version. Re-uploading bumps the version, and the gate only
+reads findings whose `version_number` matches the document's current one, so a
+waiver never carries forward. Scan failures (`SCAN_FAILED`, `SCAN_TIMEOUT`) and
+a PDF with no extractable text (`ZERO_EXTRACTION`) are recorded as `BLOCKING`;
+the scan never fails the submission itself.
+
 `GET /documents/inventory` is the one endpoint that answers *"what can the
 assistant actually cite right now"* rather than *"what has been uploaded"*.
 Per document it reports `chunkCount`, `supersededChunks`, `embeddingProviders`,

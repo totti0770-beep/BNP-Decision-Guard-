@@ -25,6 +25,10 @@ export enum Permission {
   DOCUMENTS_APPROVE = 'documents:approve',
   DOCUMENTS_INDEX = 'documents:index',
   DOCUMENTS_DEACTIVATE = 'documents:deactivate',
+  // Pre-activation conflict findings
+  FINDINGS_READ = 'findings:read',
+  FINDINGS_RESOLVE = 'findings:resolve',
+  FINDINGS_WAIVE_BLOCKING = 'findings:waive-blocking',
   // AI
   AI_ASK = 'ai:ask',
   AI_SEARCH = 'ai:search',
@@ -65,6 +69,17 @@ const CLINICAL_READ: Permission[] = [
  *
  * Note: DOCUMENTS_DOWNLOAD is deliberately withheld from NURSE_USER and
  * AUDITOR — nurses read answers with citations, they do not copy source PDFs.
+ *
+ * FINDINGS_READ is withheld from the same two roles for the same reason.
+ * Finding evidence is verbatim text lifted out of the PDF, so granting it to
+ * AUDITOR would hand the one role the matrix deliberately denies source text a
+ * paginated, searchable window onto it.
+ *
+ * FINDINGS_WAIVE_BLOCKING is necessary but NOT sufficient: waiving a blocking
+ * finding takes two signatures from two different roles, and that rule is
+ * enforced on role membership inside FindingsService — never on this
+ * permission — because SUPER_ADMIN holds ALL_PERMISSIONS and would otherwise
+ * satisfy a permission-based check twice over by itself.
  */
 export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   [RoleName.SUPER_ADMIN]: ALL_PERMISSIONS,
@@ -78,6 +93,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.DOCUMENTS_DOWNLOAD,
     Permission.DOCUMENTS_SUBMIT_REVIEW,
     Permission.DOCUMENTS_DEACTIVATE,
+    Permission.FINDINGS_READ,
     Permission.AUDIT_READ,
     Permission.ANALYTICS_READ,
     Permission.SETTINGS_READ,
@@ -92,6 +108,8 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.DOCUMENTS_APPROVE,
     Permission.DOCUMENTS_INDEX,
     Permission.DOCUMENTS_DEACTIVATE,
+    Permission.FINDINGS_READ,
+    Permission.FINDINGS_RESOLVE,
     Permission.AI_REVIEW_ANSWERS,
     Permission.ANALYTICS_READ,
   ],
@@ -101,6 +119,9 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.DOCUMENTS_APPROVE,
     Permission.DOSE_FORMULAS_MANAGE,
     Permission.DOSE_FORMULAS_APPROVE,
+    Permission.FINDINGS_READ,
+    Permission.FINDINGS_RESOLVE,
+    Permission.FINDINGS_WAIVE_BLOCKING,
     Permission.AI_REVIEW_ANSWERS,
   ],
   [RoleName.CBAHI_QUALITY_OFFICER]: [
@@ -109,6 +130,9 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.DOCUMENTS_DOWNLOAD,
     Permission.DOCUMENTS_SUBMIT_REVIEW,
     Permission.DOCUMENTS_APPROVE,
+    Permission.FINDINGS_READ,
+    Permission.FINDINGS_RESOLVE,
+    Permission.FINDINGS_WAIVE_BLOCKING,
     Permission.AI_REVIEW_ANSWERS,
     Permission.ANALYTICS_READ,
   ],

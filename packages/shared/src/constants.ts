@@ -48,6 +48,44 @@ export enum ApprovalAction {
   EXPIRE = 'EXPIRE',
 }
 
+/**
+ * Pre-activation conflict detection.
+ *
+ * A finding is something a deterministic check noticed in a document while it
+ * sat in review. BLOCKING findings stop `approve()`; MAJOR and MINOR are
+ * recorded for the reviewer and stop nothing.
+ */
+export enum FindingSeverity {
+  BLOCKING = 'BLOCKING',
+  MAJOR = 'MAJOR',
+  MINOR = 'MINOR',
+}
+
+/**
+ * WAIVER_PENDING is the state after one of the two required signatures. The
+ * approval gate treats it as still blocking — a half-signed waiver is not a
+ * waiver — and it exists so the reviewer can be shown "1 of 2" rather than a
+ * finding that looks untouched.
+ *
+ * SUPERSEDED is cosmetic. Whether a finding still blocks is decided by
+ * `version_number = documents.version_number` in the gate's WHERE clause, not
+ * by this status. See ConflictGateService.
+ */
+export enum FindingStatus {
+  OPEN = 'OPEN',
+  WAIVER_PENDING = 'WAIVER_PENDING',
+  RESOLVED = 'RESOLVED',
+  WAIVED = 'WAIVED',
+  SUPERSEDED = 'SUPERSEDED',
+  DISMISSED = 'DISMISSED',
+}
+
+export enum FindingAction {
+  RESOLVE = 'RESOLVE',
+  WAIVE = 'WAIVE',
+  DISMISS = 'DISMISS',
+}
+
 export enum ConfidenceLevel {
   HIGH = 'HIGH',
   MEDIUM = 'MEDIUM',

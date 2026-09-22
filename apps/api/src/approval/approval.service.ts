@@ -7,6 +7,8 @@ import { DocumentsService } from '../documents/documents.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../common/decorators';
 import { IndexingService } from '../rag/indexing.service';
+import { ScanService } from '../findings/scan.service';
+import { ConflictGateService } from '../findings/conflict-gate.service';
 
 /**
  * Document lifecycle state machine:
@@ -38,6 +40,11 @@ export class ApprovalService {
     private readonly documentsService: DocumentsService,
     private readonly indexing: IndexingService,
     private readonly audit: AuditService,
+    // Appended, not inserted. `approval.service.spec.ts` builds this service
+    // positionally, so a parameter added in the middle silently reorders
+    // every mock in a 200-line spec that drives the whole transition matrix.
+    private readonly scan: ScanService,
+    private readonly gate: ConflictGateService,
   ) {}
 
   /**
@@ -105,14 +112,44 @@ export class ApprovalService {
     });
   }
 
+  /**
+   * Moves a document into review, running the pre-activation conflict scan on
+   * the way in.
+   *
+   * Two details of the ordering are load-bearing.
+   *
+   * The status check is hoisted out of `transition()` and read from
+   * TRANSITIONS, exactly as `index()` does below and for the same reason: the
+   * scan must not run on a move that is about to be refused.
+   *
+   * The scan then runs BEFORE the transition, not after. `transition()` is not
+   * transactional, so scan-after-transition would leave any bug that escaped
+   * the scanner's own catch with a document sitting in IN_REVIEW carrying zero
+   * findings — which the approval gate cannot distinguish from a document that
+   * scanned clean. Scanning first leaves the same bug's victim in DRAFT, where
+   * it blocks nothing and hides nothing.
+   *
+   * `scanDocument` never throws; extraction failures come back as BLOCKING
+   * findings. See ScanService.
+   */
   async submitReview(id: string, actor: AuthenticatedUser, comment?: string) {
     const doc = await this.documentsService.findOne(id);
+    if (!TRANSITIONS[ApprovalAction.SUBMIT_REVIEW].includes(doc.status)) {
+      throw new BadRequestException(
+        `Only DRAFT or REJECTED documents can be submitted for review (current: ${doc.status})`,
+      );
+    }
+    await this.scan.scanDocument(doc);
     await this.transition(doc, ApprovalAction.SUBMIT_REVIEW, DocumentStatus.IN_REVIEW, actor, comment);
     return this.documentsService.toDto(doc);
   }
 
   async approve(id: string, actor: AuthenticatedUser, comment?: string) {
     const doc = await this.documentsService.findOne(id);
+    // Before the two assignments below, so a refused approval leaves no
+    // half-mutated document behind, and before `transition()`, so no
+    // DOCUMENTS:APPROVE row is written for an attempt that did not happen.
+    await this.gate.assertApprovable(doc, actor);
     doc.approvedBy = { id: actor.userId } as never;
     doc.approvalDate = new Date();
     await this.transition(doc, ApprovalAction.APPROVE, DocumentStatus.APPROVED, actor, comment);
