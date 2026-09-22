@@ -326,6 +326,29 @@ export const dict = {
     loadingHistory: 'Loading history',
     noWorkflowEvents: 'No workflow events yet.',
 
+    // Pre-activation conflict findings
+    conflictFindings: 'Conflict findings',
+    loadingFindings: 'Loading findings',
+    noFindings: 'No findings were raised on this version.',
+    findingPage: 'p.{page}',
+    findingOnVersion: 'raised on v{version}',
+    resolveFinding: 'Resolve',
+    dismissFinding: 'Dismiss',
+    waiveFinding: 'Waive',
+    confirmResolve: 'Confirm resolve',
+    confirmDismiss: 'Confirm dismiss',
+    confirmWaiver: 'Sign waiver',
+    justificationLabel: 'Why?',
+    justificationHint:
+      'Recorded against your name and role, and kept with the document. At least 10 characters. Do not include patient identifiers.',
+    justificationPlaceholder:
+      'e.g. Abbreviation corrected in the source document before re-upload',
+    waiverAwaiting: 'Waiver still needs a signature from: {roles}',
+    approvalBlockedTitle: 'Approval is blocked',
+    approvalBlockedBody:
+      'A blocking finding stands against this version. Correct the document and upload a new version, or have two different reviewers sign a waiver below.',
+    showFindings: 'Findings',
+
     statusActive: 'Active',
     statusDisabled: 'Disabled',
     disableUser: 'Disable',
@@ -504,8 +527,8 @@ export const dict = {
     noDocumentsTitle: 'No documents yet',
     noDocumentsDesc:
       'Upload a PDF to start the approval workflow. Until a document reaches ACTIVE the assistant cannot cite it.',
-    hideApprovalHistory: 'Hide history',
-    showApprovalHistory: 'History',
+    hideApprovalHistory: 'Hide details',
+    showApprovalHistory: 'Details',
     actionFailed: 'Action failed',
     lifecycleStage: 'Lifecycle stage: {status}',
 
@@ -812,6 +835,29 @@ export const dict = {
     loadingHistory: 'جارٍ تحميل السجل',
     noWorkflowEvents: 'لا توجد أحداث في المسار بعد.',
 
+    // ملاحظات التعارض قبل التفعيل
+    conflictFindings: 'ملاحظات التعارض',
+    loadingFindings: 'جارٍ تحميل الملاحظات',
+    noFindings: 'لم تُسجَّل ملاحظات على هذا الإصدار.',
+    findingPage: 'ص{page}',
+    findingOnVersion: 'مسجَّلة على الإصدار {version}',
+    resolveFinding: 'حل',
+    dismissFinding: 'استبعاد',
+    waiveFinding: 'تنازل',
+    confirmResolve: 'تأكيد الحل',
+    confirmDismiss: 'تأكيد الاستبعاد',
+    confirmWaiver: 'توقيع التنازل',
+    justificationLabel: 'ما المبرر؟',
+    justificationHint:
+      'يُسجَّل باسمك ودورك ويُحفظ مع الوثيقة. عشرة أحرف على الأقل. لا تُدرج بيانات تعريف المرضى.',
+    justificationPlaceholder:
+      'مثال: صُحِّح الاختصار في الوثيقة المصدر قبل إعادة الرفع',
+    waiverAwaiting: 'التنازل ما زال ينتظر توقيعاً من: {roles}',
+    approvalBlockedTitle: 'الاعتماد محجوب',
+    approvalBlockedBody:
+      'توجد ملاحظة حاجبة على هذا الإصدار. صحّح الوثيقة وارفع إصداراً جديداً، أو ليوقّع مراجعان مختلفان تنازلاً أدناه.',
+    showFindings: 'الملاحظات',
+
     statusActive: 'نشط',
     statusDisabled: 'معطّل',
     disableUser: 'تعطيل',
@@ -970,8 +1016,8 @@ export const dict = {
     noDocumentsTitle: 'لا توجد وثائق بعد',
     noDocumentsDesc:
       'ارفع ملف PDF لبدء سير الاعتماد. لا يمكن للمساعد الاستشهاد بوثيقة حتى تصل إلى الحالة ACTIVE.',
-    hideApprovalHistory: 'إخفاء السجل',
-    showApprovalHistory: 'السجل',
+    hideApprovalHistory: 'إخفاء التفاصيل',
+    showApprovalHistory: 'التفاصيل',
     actionFailed: 'فشل الإجراء',
     lifecycleStage: 'مرحلة دورة الحياة: {status}',
 

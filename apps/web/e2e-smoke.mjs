@@ -134,6 +134,24 @@ await page.waitForSelector('text=Peripheral IV Cannulation', { timeout: 15000 })
 await page.screenshot({ path: `${shots}/07-approvals.png` });
 console.log('approval workflow screen OK');
 
+// 7b. Pre-activation conflict findings reach the reviewer.
+//
+// The four seeded documents scan clean, so the assertion is that the panel
+// renders and says so — not that it lists something. That is still the whole
+// chain: a knowledge manager's session reaching GET /documents/:id/findings
+// (a permission NURSE_USER is denied), the response rendering, and no crash.
+// Before this screen existed the endpoint had no caller in the product at all.
+const firstDisclosure = page.getByRole('button', { name: 'Details', exact: true }).first();
+await firstDisclosure.click();
+await page.waitForSelector('text=Conflict findings', { timeout: 15000 });
+const cleanCount = await page.getByText('No findings were raised on this version.').count();
+check(
+  cleanCount >= 1,
+  `expected the findings panel to report a clean scan, saw ${cleanCount} such messages`,
+);
+await page.screenshot({ path: `${shots}/07b-findings.png` });
+console.log('conflict findings panel OK, seeded corpus scans clean');
+
 // 8. Arabic / RTL. Asserts the layout actually mirrors, not just that the text
 // changed: `dir="rtl"` with a sidebar still pinned left is the classic
 // half-done RTL, and it looks fine in a diff. Comparing the sidebar's x
