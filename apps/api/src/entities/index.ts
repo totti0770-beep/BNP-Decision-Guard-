@@ -5,6 +5,11 @@ import {
   DocumentChunk,
   DocumentVersion,
 } from './document.entity';
+import {
+  FindingEvidence,
+  FindingResolution,
+  ReviewFinding,
+} from './finding.entity';
 import { AiAnswer, AiQuestion, Citation } from './ai.entity';
 import { DoseCalculation, DoseFormula } from './dose.entity';
 import { AuditLog, Notification, Setting } from './misc.entity';
@@ -17,6 +22,9 @@ export {
   DocumentApproval,
   DocumentChunk,
   DocumentVersion,
+  ReviewFinding,
+  FindingEvidence,
+  FindingResolution,
   AiAnswer,
   AiQuestion,
   Citation,
@@ -35,6 +43,9 @@ export const entities = [
   DocumentApproval,
   DocumentChunk,
   DocumentVersion,
+  ReviewFinding,
+  FindingEvidence,
+  FindingResolution,
   AiAnswer,
   AiQuestion,
   Citation,

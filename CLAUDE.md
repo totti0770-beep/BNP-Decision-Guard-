@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (439), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (257), real HTTP + real Postgres
+npm test                      # API unit tests (517), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (278), real HTTP + real Postgres
 npm test -w @bnp/web          # web unit tests (24) — src/lib only, see below
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
@@ -263,6 +263,59 @@ Both LLM and embeddings are pluggable via `LLM_PROVIDER` / `EMBEDDING_PROVIDER` 
 - The `index` action performs INDEX **and** ACTIVATE in one call — one click takes an approved doc live.
 - Re-uploading bumps `versionNumber` and resets status to `DRAFT`; a new version must be re-approved before the AI can cite it.
 - A daily cron (`notifications.service.ts`) expires stale documents, removing them from retrieval immediately.
+- `submitReview()` runs the pre-activation conflict scan **before** `transition()`, and `approve()` consults the conflict gate **before** assigning `approvedBy`/`approvalDate`. Both orderings are mutation-tested in `approval.service.spec.ts`; see the next section for why.
+
+### Pre-activation conflict detection (`apps/api/src/findings/`)
+
+A deterministic scan runs over a document's text on `submit-review` and writes
+`review_findings`; `approve()` refuses (400, audited as
+`DOCUMENTS:APPROVE_BLOCKED`) while a `BLOCKING` finding stands against the
+version being approved. Layer 1 only — no model, no corpus, no formulary. The
+rules are pure functions in `findings/l1/structural-rules.ts`, following
+`packages/shared/src/phi.ts`; the ISMP abbreviation table is data in
+`findings/l1/ismp-abbreviations.ts` so a pharmacist can edit it without touching
+matching logic.
+
+Five things here are load-bearing and easy to undo by accident:
+
+- **The scan never throws, and a failure is a `BLOCKING` finding.** An
+  extraction error or timeout becomes `SCAN_FAILED`/`SCAN_TIMEOUT`. If it
+  propagated, `submit-review` would error and reviewers would retry until it
+  passed (`phi-screening.e2e-spec.ts:319-323` is the canary: it submits with
+  no stub text set and expects 201); if it were swallowed, the gate would see zero findings on a
+  document nobody could read. It is awaited, not dispatched — there is no job
+  queue, and `seed.ts:187-190` calls `submitReview()` then `approve()` in the
+  same process with nothing in between.
+- **Scan before transition, gate before mutation.** `transition()` is not
+  transactional. Scan-after would leave a bug's victim `IN_REVIEW` with no
+  findings — fail-open. The status check is hoisted and read from
+  `TRANSITIONS`, exactly as `index()` does, so the scan never runs on a move
+  the state machine is about to refuse.
+- **The gate is service-level, not a route guard**, because `seed.ts:189`
+  calls `approve()` with no HTTP request.
+- **Supersession is the version predicate, not the `SUPERSEDED` status.**
+  `ConflictGateService` reads `version_number = doc.versionNumber`; the stamp
+  `ScanService` writes is for the reviewer's history and is *not* what the gate
+  consults. `UNIQUE (document_id, version_number, fingerprint)` +
+  `ON CONFLICT DO NOTHING` makes a `REJECTED → IN_REVIEW` re-scan idempotent
+  and leaves a `WAIVED` row untouched.
+- **Dual control is enforced on role membership read from the database.** A
+  `BLOCKING` waiver needs two different users covering both
+  `PHARMACIST_REVIEWER` and `CBAHI_QUALITY_OFFICER` (set cover, not a count:
+  two pharmacists fail, one dual-role user fails). Not on the permission —
+  `ROLE_PERMISSIONS[SUPER_ADMIN] = ALL_PERMISSIONS` would let one admin sign
+  both halves — and not on `actor.roles`, a login-time JWT snapshot. Separation
+  of duties anchors on `document_versions.created_by_id` for the current
+  version, **not** `documents.uploaded_by_id`, which re-upload never rewrites.
+  `WAIVER_PENDING` still blocks.
+
+`MAJOR` and `MINOR` findings are recorded and enforce nothing. Rules are held
+to a false-positive bar, not a detection bar: bare `GP` is glycoprotein in this
+corpus, bare `MS` is multiple sclerosis, `03/04/2026` is undecidable — each is
+deliberately not matched, and each has a test that fails if someone widens it.
+`RagModule` exports `PdfExtractionService` and `ChunkingService` for the
+scanner, which reads text without indexing and so spends no embedding quota.
+`AUDITOR` lacks `findings:read` because evidence is verbatim source text.
 
 ### Document provenance and the inventory
 

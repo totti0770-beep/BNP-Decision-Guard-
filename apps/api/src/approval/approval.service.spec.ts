@@ -64,6 +64,17 @@ function harness(status: DocumentStatus) {
     removeDocumentChunks: jest.fn(async () => undefined),
   };
   const audit = { record: jest.fn() };
+  // The conflict scan and the approval gate are both no-ops here: this spec
+  // drives the transition matrix, and their own behaviour is covered by
+  // scan.service.spec.ts and conflict-gate.service.spec.ts.
+  const scan = {
+    scanDocument: jest.fn(async (_doc: { status: DocumentStatus }) => undefined),
+  };
+  const gate = {
+    assertApprovable: jest.fn(
+      async (_doc: unknown, _actor?: AuthenticatedUser) => undefined,
+    ),
+  };
 
   const service = new ApprovalService(
     documents as never,
@@ -71,9 +82,11 @@ function harness(status: DocumentStatus) {
     documentsService as never,
     indexing as never,
     audit as never,
+    scan as never,
+    gate as never,
   );
 
-  return { service, doc, approvalRows, documents, approvals, indexing, audit };
+  return { service, doc, approvalRows, documents, approvals, indexing, audit, scan, gate };
 }
 
 /** Drives the action a controller would, so the test exercises the real entry point. */
@@ -216,5 +229,69 @@ describe('Expiry is a first-class lifecycle transition', () => {
       await expect(service.expire(doc as never)).rejects.toBeInstanceOf(BadRequestException);
       expect(doc.status).toBe(status);
     }
+  });
+});
+
+/**
+ * The conflict gate and the conflict scan, as ApprovalService orders them.
+ *
+ * What the gate decides is `conflict-gate.service.spec.ts`'s business. What is
+ * asserted here is the *sequencing* — which is where this integration can go
+ * wrong without either component being at fault.
+ */
+describe('Pre-activation conflict detection is wired into the lifecycle', () => {
+  it('scans on submit-review, before the status changes', async () => {
+    const { service, doc, scan } = harness(DocumentStatus.DRAFT);
+    scan.scanDocument.mockImplementation(async (d: { status: DocumentStatus }) => {
+      // The scanner must see the document in the state it was submitted from.
+      // Scanning after the transition would mean a bug escaping the scanner's
+      // own catch leaves a document IN_REVIEW carrying no findings, which the
+      // gate cannot tell apart from a document that scanned clean.
+      expect(d.status).toBe(DocumentStatus.DRAFT);
+    });
+
+    await service.submitReview('doc-1', ACTOR);
+
+    expect(scan.scanDocument).toHaveBeenCalledTimes(1);
+    expect(doc.status).toBe(DocumentStatus.IN_REVIEW);
+  });
+
+  it('does not scan a submit-review that the state machine refuses', async () => {
+    for (const status of ALL_STATUSES.filter(
+      (s) => !LEGAL_FROM[ApprovalAction.SUBMIT_REVIEW].includes(s),
+    )) {
+      const { service, scan } = harness(status);
+      await expect(service.submitReview('doc-1', ACTOR)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(scan.scanDocument).not.toHaveBeenCalled();
+    }
+  });
+
+  it('consults the gate before approving', async () => {
+    const { service, doc, gate } = harness(DocumentStatus.IN_REVIEW);
+    await service.approve('doc-1', ACTOR);
+    expect(gate.assertApprovable).toHaveBeenCalledWith(doc, ACTOR);
+    expect(doc.status).toBe(DocumentStatus.APPROVED);
+  });
+
+  /**
+   * A refused approval must leave nothing behind. The gate is called before
+   * `approvedBy` and `approvalDate` are assigned, so a blocked attempt cannot
+   * leave a half-mutated entity for a later save to pick up.
+   */
+  it('leaves the document untouched when the gate refuses', async () => {
+    const { service, doc, gate, approvalRows, documents } = harness(DocumentStatus.IN_REVIEW);
+    gate.assertApprovable.mockRejectedValue(new BadRequestException('blocked'));
+
+    await expect(service.approve('doc-1', ACTOR)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(doc.status).toBe(DocumentStatus.IN_REVIEW);
+    expect((doc as Record<string, unknown>).approvedBy).toBeUndefined();
+    expect((doc as Record<string, unknown>).approvalDate).toBeUndefined();
+    expect(documents.save).not.toHaveBeenCalled();
+    // And no APPROVE row in the history: the refusal happens before
+    // transition(), which is the only writer of document_approvals.
+    expect(approvalRows).toHaveLength(0);
   });
 });

@@ -71,7 +71,22 @@ export class InMemoryStorageService {
 export class StubPdfExtractionService {
   pages: ExtractedPage[] = [];
 
+  /**
+   * Yield no text on purpose, for specs about a scanned or image-only PDF.
+   *
+   * Separate from leaving `pages` empty, which stays an error: that throw is
+   * the safety net catching "a spec forgot to set the text", and it has
+   * caught exactly that more than once. A spec that *wants* an empty document
+   * has to say so.
+   */
+  emptyOnPurpose = false;
+
+  /** Fail extraction on purpose, for specs about an unreadable PDF. */
+  failWith: Error | null = null;
+
   async extractPages(): Promise<ExtractedPage[]> {
+    if (this.failWith) throw this.failWith;
+    if (this.emptyOnPurpose) return [];
     if (this.pages.length === 0) {
       throw new Error(
         'e2e: StubPdfExtractionService.pages was not set before indexing',
@@ -114,6 +129,9 @@ export interface E2eContext {
 
 /** Every table the suites touch, ordered so CASCADE has nothing left to chase. */
 const TABLES = [
+  'finding_evidence',
+  'finding_resolutions',
+  'review_findings',
   'citations',
   'ai_answers',
   'ai_questions',

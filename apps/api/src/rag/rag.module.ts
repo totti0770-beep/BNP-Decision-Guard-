@@ -25,7 +25,13 @@ import { RagController } from './rag.controller';
   // to say which provider is active to decide whether a document's chunks are
   // still reachable, and that answer must come from the same object retrieval
   // filters on rather than from a second read of the environment.
+  // PdfExtractionService and ChunkingService are exported for the conflict
+  // scanner, which reads a document's text without indexing it. Exporting
+  // them is also what lets the e2e harness's PdfExtractionService override
+  // reach the scanner as well as the indexer.
   exports: [
+    PdfExtractionService,
+    ChunkingService,
     IndexingService,
     RagQueryService,
     RetrievalService,

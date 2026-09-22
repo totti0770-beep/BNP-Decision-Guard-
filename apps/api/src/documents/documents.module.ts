@@ -7,12 +7,14 @@ import { DocumentUploadMiddleware } from './document-upload.middleware';
 import { InventoryService } from './inventory.service';
 import { ApprovalService } from '../approval/approval.service';
 import { RagModule } from '../rag/rag.module';
+import { FindingsModule } from '../findings/findings.module';
 
 /** DocumentsModule also hosts the approval-workflow endpoints/services. */
 @Module({
   imports: [
     TypeOrmModule.forFeature([Document, DocumentVersion, DocumentApproval]),
     RagModule,
+    FindingsModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService, ApprovalService, InventoryService],
