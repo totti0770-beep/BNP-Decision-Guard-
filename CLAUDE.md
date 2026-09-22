@@ -14,12 +14,14 @@ npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
 npm test                      # API unit tests (439), mocked repositories, no I/O
 npm run test:e2e -w @bnp/api  # API integration tests (257), real HTTP + real Postgres
+npm test -w @bnp/web          # web unit tests (24) — src/lib only, see below
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
 npm run dev:api               # API on :4000
 npm run dev:web               # web on :3000
 npm run seed                  # migrations + idempotent demo data
+npm run inventory             # prints the clinical reference inventory
 ```
 
 Single test (run from repo root):
@@ -159,7 +161,7 @@ Mobile (separate install, not an npm workspace):
 cd apps/mobile && npm install && npx tsc --noEmit && npm test && npm start
 ```
 
-`npm test` there is a third, independent jest project (32 tests) covering
+`npm test` there is its own independent jest project (32 tests) covering
 `src/api.ts` and `src/i18n.ts` — session storage, refresh-on-401, and the
 bilingual helpers. It runs on `testEnvironment: node` rather than the
 `jest-expo` preset, because neither module imports a React Native component;
@@ -179,7 +181,7 @@ minio/minio`, before any container existed. `quay.io/minio/minio` is MinIO's own
 registry, so this is a registry change, not a change of software. The
 `minio-init` service was deleted rather than repointed: its only job was
 `mc mb`, and `StorageService.ensureBucket()` (`storage.service.ts:53-64`) already
-creates the bucket, called from `documents.service.ts:82` on every upload and
+creates the bucket, called from `documents.service.ts:85` on every upload and
 from `seed.ts:160` on boot.
 
 Migrations run automatically on API container boot; standalone: `node apps/api/dist/scripts/migrate.js`.
@@ -196,10 +198,10 @@ npm workspaces monorepo: `apps/api` (NestJS 11), `apps/web` (Next.js 16 App Rout
 - `PHI_REJECTION_MESSAGE_AR` — thrown by `PhiScreenGuard` when a request carries patient-identifying data (`phi-screen.guard.ts:105`)
 
 This section listed only the first two until an audit compared it against the
-file. The third is under exactly the same contract, not a lesser one: five
+file. The third is under exactly the same contract, not a lesser one: nine
 tests assert it with `toBe` — `phi-screen.guard.spec.ts:100` and
-`phi-screening.e2e-spec.ts:137,273,299,331` — so rewording it fails the build
-the same way rewording a refusal does.
+`phi-screening.e2e-spec.ts:137,273,299,331,385,421,454,467` — so rewording it
+fails the build the same way rewording a refusal does.
 
 ### PHI screening runs as a guard, so it only sees a body middleware parsed
 
@@ -223,12 +225,12 @@ which `FileInterceptor` used to provide for free.
 
 ### Refusal-first RAG chain (`apps/api/src/rag/`)
 
-`RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **four** independent points, which `RagDiagnostics.refusedAt` names (`rag-query.service.ts:55-59`):
+`RagQueryService.ask()` orchestrates: `RetrievalService` → `RerankService` → threshold → `LlmService`. It returns the exact refusal at **four** independent points, which `RagDiagnostics.refusedAt` names (`rag-query.service.ts:57-62`):
 
-1. `NO_CANDIDATES` — retrieval returned nothing (`:129`)
-2. `BELOW_THRESHOLD` — nothing scored above `RAG_MIN_SIMILARITY` (`:160`)
-3. `MODEL_ERROR` — the LLM call itself failed (`:171`)
-4. `MODEL_FOUND_NOTHING` — the LLM produced an empty answer (`:182`)
+1. `NO_CANDIDATES` — retrieval returned nothing (`:131`)
+2. `BELOW_THRESHOLD` — nothing scored above `RAG_MIN_SIMILARITY` (`:162`)
+3. `MODEL_ERROR` — the LLM call itself failed (`:173`)
+4. `MODEL_FOUND_NOTHING` — the LLM produced an empty answer (`:184`)
 
 Three of those are governance and one is not, and the difference is
 load-bearing: `MODEL_ERROR` is an infrastructure failure wearing a refusal's
@@ -262,6 +264,39 @@ Both LLM and embeddings are pluggable via `LLM_PROVIDER` / `EMBEDDING_PROVIDER` 
 - Re-uploading bumps `versionNumber` and resets status to `DRAFT`; a new version must be re-approved before the AI can cite it.
 - A daily cron (`notifications.service.ts`) expires stale documents, removing them from retrieval immediately.
 
+### Document provenance and the inventory
+
+**`issuing_authority` lives on two tables, and the duplication is the point.**
+Migration `1720000005000` adds `issuing_authority varchar(255)`, nullable, to
+both. `documents.issuing_authority` (`document.entity.ts:28`) is the governed
+value, edited by `documents:manage`. `citations.issuing_authority`
+(`ai.entity.ts:106`) is a **snapshot taken at answer time**, exactly as
+`document_title` and `approval_date` already are on that table: the record of
+what a nurse was told must survive a later edit to the document — the same
+reason `citations.document_id` is `ON DELETE SET NULL` rather than `CASCADE`.
+Do not "normalise" the citation copy away.
+
+No default and no backfill, on purpose. Every pre-existing row genuinely has no
+recorded authority, and inferring one from a title or filename would produce a
+provenance column right often enough to be trusted and wrong often enough to
+mislead. `update()` audits the field **by value** (from → to); an empty string
+clears it.
+
+**`GET /documents/inventory`** answers *"what can the assistant actually cite
+right now"*, which is not the same question as *"what has been uploaded"*. Per
+document it reports chunk counts, superseded chunks, embedding providers, the
+indexing window and a `notRetrievableReason` that is non-null whenever a
+nominally ACTIVE document is excluded by one of the four retrieval filters. Two
+constraints when touching it:
+
+- The route is declared **before** `@Get(':id')` (`documents.controller.ts:96`
+  vs `:102`). Express matches in declaration order, so below it the literal
+  path would be parsed as a document id and rejected by `ParseUUIDPipe`.
+- The payload carries a version, `INVENTORY_SCHEMA_VERSION`
+  (`inventory.service.ts:41`). Tests assert against the constant, never a
+  literal — a literal goes stale on a bump and fails the build for the change
+  that was the point.
+
 ### RBAC
 
 `packages/shared/src/rbac.ts` is the single source of truth: 7 roles × permission matrix. `PermissionsGuard` enforces the permissions `JwtStrategy` derives from that matrix and **never reads the database** — the seeded `roles`/`role_permissions` rows are a projection for the UI, not an input to authorization. That is why the roles API is read-only (`GET /roles` only): editing `role_permissions` would change nothing, so endpoints that appeared to do so were removed. Change permissions in `rbac.ts`, not in the DB and not in controllers. A role that exists only in the database grants nothing, since it has no entry in the matrix. Assigning *users* to roles (`POST /users`, `PATCH /users/:id`) is genuinely enforced, because roles travel in the JWT.
@@ -285,7 +320,7 @@ Session lives in `localStorage`; `apps/web/src/lib/api.ts` wraps fetch with auto
 **i18n (EN/AR).** `lib/i18n.ts` holds the dictionary + `t()`/`isRtl()`/`localeTag()`; `lib/language.tsx` is the provider and `useT()` hook. Deliberately **not** next-intl and **not** locale-routed: routes stay language-independent so URLs, the browser smoke test and the Railway `/login` healthcheck are unaffected, and every route stays statically prerendered. Language persists in `localStorage` under `bnp.lang` and is applied to `<html lang|dir>` by the `LANG_INIT` script in `app/layout.tsx` **before first paint** — same trick as `THEME_INIT`, and for a stronger reason: a direction flip on hydration moves every element on the page. Two rules when touching web UI:
 - Use logical Tailwind classes (`start-*`/`end-*`, `ps-`/`pe-`, `border-s`/`border-e`, `text-start`/`text-end`), never `left`/`right`/`pl`/`pr`/`text-left`. Physical classes do not mirror, which is how you get `dir="rtl"` with a sidebar still pinned left.
 - Put `dir="auto"` on anything rendered from API data (document titles, citations, answers, warnings). It takes direction from its own content, which matters because an assistant answer comes back in the language of the question, not of the UI.
-Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page numbers and timestamps stay comparable against English source PDFs. The two governed clinical strings are never in the dictionary — they come verbatim from `@bnp/shared`.
+Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page numbers and timestamps stay comparable against English source PDFs. The three governed clinical strings are never in the dictionary — they come verbatim from `@bnp/shared`.
 
 ## Gotchas
 
@@ -303,11 +338,13 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 - **Demo accounts are neutralised in production.** The seed refuses under `NODE_ENV=production` (in `seed-policy.ts` *and* in the container CMD), and `DemoAccountGuardService` disables any account still using a README-published password at boot. It compares against the shipped literal only, never `SEED_PASSWORD_*`, so it cannot false-positive on a rotated account. `scripts/create-admin.ts` is the break-glass.
 - **`MAIL_PROVIDER` deliberately does NOT fail-fast.** It is `log` (default) or `smtp`; `smtp` requires `MAIL_HOST` or boot fails, but a production deploy left on `log` only warns. Mail is a degraded feature, not a security hole, and refusing to boot would take the whole clinical assistant offline over undelivered reset links. `log` writes the reset link into the application log, so it must not serve real users.
 - **`CORS_ORIGINS` must be set in production.** Empty means block all cross-origin browser calls, so the web app silently fails against the API.
-- **A nested lockfile entry can silently defeat a dependency upgrade.** `next` was pinned at `apps/web/node_modules/next` rather than hoisted, and npm kept reusing that node: raising the range to `^16.3.4` and running `npm install next@16.3.4 -w @bnp/web` printed `up to date` and left `16.3.1` on disk — npm resolving *below* its own declared floor, with no error. Deleting the stale `apps/web/node_modules/{next,@next/*}` entries from `package-lock.json` let npm re-resolve and hoist them. Any dependency bump can fail this way, and a security bump failing this way looks like success: `package.json` reads fixed while the vulnerable code is still installed. **After any upgrade, verify the resolved version, not the declared range** — `npm ci` then `node -e "console.log(require(require.resolve('next/package.json',{paths:['./apps/web']})).version)"`. `npm ci` is the reference because it is what CI runs and it installs the lockfile exactly.
+- **A nested lockfile entry can silently defeat a dependency upgrade.** `next` was pinned at `apps/web/node_modules/next` rather than hoisted, and npm kept reusing that node: raising the declared range and running `npm install next@<newer> -w @bnp/web` printed `up to date` and left the older version on disk — npm resolving *below* its own declared floor, with no error. Deleting the stale `apps/web/node_modules/{next,@next/*}` entries from `package-lock.json` let npm re-resolve and hoist them. Any dependency bump can fail this way, and a security bump failing this way looks like success: `package.json` reads fixed while the vulnerable code is still installed. **After any upgrade, verify the resolved version, not the declared range** — `npm ci` then `node -e "console.log(require(require.resolve('next/package.json',{paths:['./apps/web']})).version)"`. `npm ci` is the reference because it is what CI runs and it installs the lockfile exactly.
+- **`edge-controls.e2e-spec.ts` imports `./support/edge-env` first, and that ordering is load-bearing.** `loadEnv()` caches on its first call, and both `ThrottlerModule.forRoot` and the auth controller's `@Throttle` read it at module load — so the spec's low rate limits, CORS origin and body cap must be in `process.env` before anything pulls in `AppModule`. Move that import down and the spec fails with an error that explains none of this. Each jest file has its own module registry, so those values do not leak into the other suites, which keep the ceilings `test/support/env.ts` raises.
+- **`AllExceptionsFilter` honours an `http-errors` 4xx.** Express middleware does not throw `HttpException`: `express.json()` rejects an oversized body with `status: 413, expose: true`, and the same shape covers malformed JSON (400) and a bad charset (415). `clientFaultOf()` maps those to their own status. Without it every oversized request answered **500** and was audited as `ERROR:UNHANDLED` — a client fault reported as a server fault. If you add middleware that throws this way, that is why it surfaces correctly.
 - **`NEXT_PUBLIC_API_URL` is baked in at Docker build time** (an `ARG` in `Dockerfile.web`), not read at runtime. Changing it requires a rebuild.
 
 ## Docs
 
-`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`).
+`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`), `docs/clinical-validation.md` (the reviewer's protocol and the unsigned attestation block), `docs/audit/` (15 forensic reports plus the coverage ledger) and `REPO-DISCOVERY.md` (an earlier discovery report, pinned to its own commit).
 
-CI (`.github/workflows/ci.yml`) runs dependency-audit gates (root and mobile, both hard-fail on critical), API build+test+migrations against a real pgvector service, web build, browser smoke, and mobile typecheck+tests.
+CI (`.github/workflows/ci.yml`) runs six jobs: dependency-audit gates (root and mobile, both hard-fail on critical), lint, API build+unit+migrations+integration against a real pgvector service, web **unit tests then build**, browser smoke against the composed stack, and mobile typecheck+tests. The web job runs `npm test -w @bnp/web` before `next build`, so a broken session-layer test fails the build.
