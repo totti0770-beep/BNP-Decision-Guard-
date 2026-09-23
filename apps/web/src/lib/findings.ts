@@ -85,3 +85,27 @@ export function offeredActions(
 
 /** The justification floor the API's DTO enforces with `@MinLength(10)`. */
 export const MIN_JUSTIFICATION = 10;
+
+/**
+ * Whether the screen offers to scan a document in place. ACTIVE only: DRAFT
+ * and REJECTED are scanned by submit-review, where a blocking finding gates
+ * approval, and the API refuses every other status with a 400.
+ */
+export function offersLiveScan(status: string, canScan: boolean): boolean {
+  return canScan && status === 'ACTIVE';
+}
+
+/**
+ * What to say when a document has no findings.
+ *
+ * For a document still in the workflow, an empty list means the submit-time
+ * scan ran and found nothing, because submit-review cannot complete without
+ * scanning. For a live document it means nothing of the kind: every document
+ * approved before the scan shipped has an empty list and was never read by
+ * it. Saying "no findings were raised" there reads as a clean result, and on
+ * the production corpus at the time of writing it would have said so about
+ * all five live documents.
+ */
+export function emptyFindingsKey(status: string): 'noFindings' | 'noFindingsLive' {
+  return status === 'ACTIVE' ? 'noFindingsLive' : 'noFindings';
+}

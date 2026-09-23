@@ -348,6 +348,13 @@ export const dict = {
     approvalBlockedBody:
       'A blocking finding stands against this version. Correct the document and upload a new version, or have two different reviewers sign a waiver below.',
     showFindings: 'Findings',
+    noFindingsLive:
+      'No findings are recorded on this version. That does not mean it was scanned: documents approved before the scan existed have none. Scan it to find out.',
+    scanNow: 'Scan now',
+    scanCleanJustNow: 'Scanned just now: no findings on this version.',
+    liveScanNote:
+      'This document is live. Findings raised here are recorded for review and do not remove it from the assistant; deactivating it is a separate decision.',
+    provenanceTitle: 'Provenance',
 
     statusActive: 'Active',
     statusDisabled: 'Disabled',
@@ -857,6 +864,13 @@ export const dict = {
     approvalBlockedBody:
       'توجد ملاحظة حاجبة على هذا الإصدار. صحّح الوثيقة وارفع إصداراً جديداً، أو ليوقّع مراجعان مختلفان تنازلاً أدناه.',
     showFindings: 'الملاحظات',
+    noFindingsLive:
+      'لا ملاحظات مسجّلة على هذا الإصدار. هذا لا يعني أنه فُحص: الوثائق المعتمدة قبل وجود الفحص ليس لها ملاحظات. افحصها لتعرف.',
+    scanNow: 'افحص الآن',
+    scanCleanJustNow: 'فُحصت الآن: لا ملاحظات على هذا الإصدار.',
+    liveScanNote:
+      'هذه الوثيقة نشطة. الملاحظات المسجّلة هنا للمراجعة ولا تُخرج الوثيقة من المساعد؛ تعطيلها قرار منفصل.',
+    provenanceTitle: 'المصدر',
 
     statusActive: 'نشط',
     statusDisabled: 'معطّل',

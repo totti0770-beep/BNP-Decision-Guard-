@@ -65,6 +65,34 @@ describe('Pre-activation conflict detection', () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
   };
 
+  /**
+   * The audit rows for a document, once at least `atLeast` of them exist.
+   *
+   * `AuditService.record` does not return its save, so nothing can await it.
+   * A fixed sleep lost that race on a loaded CI runner — the "audits the
+   * block" assertion read zero rows after 150 ms on PR #56 — so a positive
+   * audit assertion polls instead, up to a ceiling that only a row that was
+   * never written reaches. It still fails the test in that case: it returns
+   * whatever it found and the caller's expectation does the failing.
+   */
+  const auditRows = async (
+    documentId: string,
+    action: string,
+    atLeast = 1,
+  ): Promise<{ metadata: { version?: number; findings?: { ruleCode: string }[] } }[]> => {
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      const rows = await ctx.dataSource.query(
+        `SELECT metadata FROM audit_logs
+          WHERE resource_id = $1 AND action = $2
+          ORDER BY created_at`,
+        [documentId, action],
+      );
+      if (rows.length >= atLeast || Date.now() > deadline) return rows;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  };
+
   async function upload(title: string, token = managerToken): Promise<string> {
     const pdf = await buildPdf(title, [[title]]);
     const res = await ctx
@@ -267,14 +295,9 @@ describe('Pre-activation conflict detection', () => {
      * anywhere.
      */
     it('audits the block', async () => {
-      await settleAudit();
-      const rows = await ctx.dataSource.query(
-        `SELECT action, metadata FROM audit_logs
-          WHERE resource_id = $1 AND action = 'DOCUMENTS:APPROVE_BLOCKED'`,
-        [documentId],
-      );
+      const rows = await auditRows(documentId, 'DOCUMENTS:APPROVE_BLOCKED');
       expect(rows.length).toBeGreaterThanOrEqual(1);
-      expect(rows[0].metadata.findings[0].ruleCode).toBe('ZERO_EXTRACTION');
+      expect(rows[0].metadata.findings?.[0]?.ruleCode).toBe('ZERO_EXTRACTION');
     });
 
     /**
@@ -561,6 +584,153 @@ describe('Pre-activation conflict detection', () => {
         .set(auth(pharmacistToken))
         .send({ justification: 'ok' })
         .expect(400);
+    });
+  });
+
+  /**
+   * The scan used to run only at submit-review, which accepts DRAFT and
+   * REJECTED. A document already live could be scanned only by re-uploading
+   * it, which resets it to DRAFT and takes it out of retrieval until someone
+   * approves it again. These pin the in-place scan: it finds what the
+   * submit-time scan would, and it moves nothing.
+   */
+  describe('scanning a document that is already live', () => {
+    let documentId: string;
+    const LIVE_TEXT =
+      'Heparin Infusion Protocol. Start the infusion at 18 units per kg per hour ' +
+      'and titrate to the anti-Xa level recorded on the chart.';
+
+    const scan = (id: string, token: string) =>
+      ctx.http().post(`/documents/${id}/findings/scan`).set(auth(token));
+
+    const statusAndChunks = async (id: string) => {
+      const [row] = await ctx.dataSource.query(
+        `SELECT d.status, d.version_number,
+                (SELECT count(*)::int FROM document_chunks c WHERE c.document_id = d.id) AS chunks
+           FROM documents d WHERE d.id = $1`,
+        [id],
+      );
+      return row as { status: string; version_number: number; chunks: number };
+    };
+
+    beforeAll(async () => {
+      documentId = await upload('Heparin Infusion Protocol');
+      // Clean at submit time, so every finding below comes from the live scan.
+      setText([LIVE_TEXT]);
+      await ctx
+        .http()
+        .post(`/documents/${documentId}/submit-review`)
+        .set(auth(managerToken))
+        .send({})
+        .expect(201);
+      await ctx
+        .http()
+        .post(`/documents/${documentId}/approve`)
+        .set(auth(pharmacistToken))
+        .send({})
+        .expect(201);
+      await ctx
+        .http()
+        .post(`/documents/${documentId}/index`)
+        .set(auth(managerToken))
+        .send({})
+        .expect(201);
+      expect((await statusAndChunks(documentId)).status).toBe('ACTIVE');
+      expect((await findings(documentId, managerToken).expect(200)).body).toHaveLength(0);
+    });
+
+    it('records what the submit-time scan would have found', async () => {
+      // Same document, now read as though it carried a trailing zero: the
+      // situation of every document that went live before the scan existed.
+      setText([LIVE_TEXT, 'For breakthrough clotting give a bolus of 5.0 mL.']);
+      const res = await scan(documentId, managerToken).expect(201);
+      expect(res.body.map((f: { ruleCode: string }) => f.ruleCode)).toContain(
+        'ISMP_TRAILING_ZERO',
+      );
+    });
+
+    /**
+     * A blocking finding on a live document is shown, not enforced. Taking a
+     * document offline is the deactivate action, with its own approval-history
+     * event; it must never be a side effect of looking.
+     */
+    it('leaves the document live and retrievable even when it finds a blocker', async () => {
+      const before = await statusAndChunks(documentId);
+      ctx.pdf.failWith = new Error('corrupt cross-reference table');
+      const res = await scan(documentId, managerToken).expect(201);
+      ctx.pdf.failWith = null;
+
+      expect(
+        res.body.some(
+          (f: { ruleCode: string; severity: string }) =>
+            f.ruleCode === 'SCAN_FAILED' && f.severity === 'BLOCKING',
+        ),
+      ).toBe(true);
+      expect(await statusAndChunks(documentId)).toEqual(before);
+
+      const hits = await ctx
+        .http()
+        .get('/rag/search')
+        .query({ q: 'heparin infusion anti-Xa titrate' })
+        .set(auth(nurseToken))
+        .expect(200);
+      expect(hits.body.items.map((i: { documentId: string }) => i.documentId)).toContain(
+        documentId,
+      );
+
+      const events = await ctx.dataSource.query(
+        `SELECT action FROM document_approvals WHERE document_id = $1 ORDER BY created_at`,
+        [documentId],
+      );
+      expect(events.map((e: { action: string }) => e.action)).toEqual([
+        'SUBMIT_REVIEW',
+        'APPROVE',
+        'INDEX',
+        'ACTIVATE',
+      ]);
+    });
+
+    it('adds nothing when the same bytes are scanned again', async () => {
+      const count = async () =>
+        (
+          await ctx.dataSource.query(
+            `SELECT count(*)::int AS n FROM review_findings WHERE document_id = $1`,
+            [documentId],
+          )
+        )[0].n;
+      setText([LIVE_TEXT, 'For breakthrough clotting give a bolus of 5.0 mL.']);
+      const before = await count();
+      await scan(documentId, managerToken).expect(201);
+      await scan(documentId, managerToken).expect(201);
+      expect(await count()).toBe(before);
+    });
+
+    it('audits each scan', async () => {
+      const rows = await auditRows(documentId, 'FINDINGS:RETRO_SCAN', 4);
+      expect(rows.length).toBeGreaterThanOrEqual(4);
+      expect(rows[0].metadata.version).toBe(1);
+    });
+
+    /** Draft documents are scanned by submit-review, where a blocker gates. */
+    it('refuses a document that is not live', async () => {
+      const draftId = await upload('Pressure Injury Bundle');
+      const res = await scan(draftId, managerToken).expect(400);
+      expect(res.body.message).toContain('Only ACTIVE documents');
+      const rows = await ctx.dataSource.query(
+        `SELECT 1 FROM review_findings WHERE document_id = $1`,
+        [draftId],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it('is refused to a nurse and to an auditor', async () => {
+      await scan(documentId, nurseToken).expect(403);
+      await scan(documentId, auditorToken).expect(403);
+    });
+
+    it('is open to both waiver authorities', async () => {
+      await scan(documentId, pharmacistToken).expect(201);
+      await scan(documentId, qualityToken).expect(201);
     });
   });
 });

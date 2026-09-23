@@ -134,44 +134,66 @@ await page.waitForSelector('text=Peripheral IV Cannulation', { timeout: 15000 })
 await page.screenshot({ path: `${shots}/07-approvals.png` });
 console.log('approval workflow screen OK');
 
-// 7b. Pre-activation conflict findings reach the reviewer.
+// 7b. Pre-activation conflict findings reach the reviewer, and a live
+// document can be scanned in place.
 //
-// The four seeded documents scan clean, so the assertion is that the panel
-// renders and says so — not that it lists something. That is still the whole
-// chain: a knowledge manager's session reaching GET /documents/:id/findings
-// (a permission NURSE_USER is denied), the response rendering, and no crash.
-// Before this screen existed the endpoint had no caller in the product at all.
+// The seeded documents are ACTIVE. For a live document an empty findings list
+// is not a clean result — every document approved before the scan shipped has
+// one — so the panel must not say "no findings were raised" until a scan has
+// actually run. The knowledge manager then scans in place, which runs the real
+// extractor and the real L1 rules over the real seeded PDFs through
+// POST /documents/:id/findings/scan, and the document must come back scanned
+// and free of BLOCKING findings. That the scan leaves the document ACTIVE is
+// asserted against the database in conflict-detection.e2e-spec.ts.
 const firstDisclosure = page.getByRole('button', { name: 'Details', exact: true }).first();
 await firstDisclosure.click();
 await page.waitForSelector('text=Conflict findings', { timeout: 15000 });
 // The heading renders with the disclosure; the panel below it is still
-// fetching. Counting before that settles reads an empty panel and calls it a
-// clean scan — wait for the skeleton to detach instead of racing it.
-await page
-  .getByRole('status', { name: 'Loading findings' })
-  .waitFor({ state: 'detached', timeout: 15000 });
+// fetching. Counting before that settles reads an empty panel — wait for the
+// skeleton to detach instead of racing it.
+const findingsSettled = () =>
+  page
+    .getByRole('status', { name: 'Loading findings' })
+    .waitFor({ state: 'detached', timeout: 30000 });
+await findingsSettled();
 
-// Non-vacuous: the panel must have rendered *something*, or a silently broken
-// fetch would satisfy the BLOCKING check below by rendering nothing at all.
-const clean = await page.getByText('No findings were raised on this version.').count();
-const severities = await page.getByText(/^(BLOCKING|MAJOR|MINOR)$/).count();
+const severity = () => page.getByText(/^(BLOCKING|MAJOR|MINOR)$/).count();
+const falseClean = await page.getByText('No findings were raised on this version.').count();
 check(
-  clean + severities > 0,
-  'findings panel rendered neither a clean-scan message nor any finding',
+  falseClean === 0,
+  'a live document with no recorded findings was described as having none raised, which reads as a clean scan',
+);
+const honest = await page.getByText(/^No findings are recorded on this version\./).count();
+check(
+  honest + (await severity()) > 0,
+  'findings panel rendered neither the unscanned-live message nor any finding',
+);
+
+await page.getByRole('button', { name: 'Scan now', exact: true }).first().click();
+await page.waitForSelector('text=Scanned just now', { timeout: 30000 }).catch(() => null);
+await findingsSettled();
+
+// Non-vacuous: after a scan the panel must say it scanned clean or list what
+// it found. A silently failed request would satisfy the BLOCKING check below
+// by rendering nothing at all.
+const scannedClean = await page.getByText('Scanned just now: no findings on this version.').count();
+check(
+  scannedClean + (await severity()) > 0,
+  'live scan rendered neither a clean-scan message nor any finding',
 );
 
 // The seeded corpus must scan free of BLOCKING findings, or `npm run seed`
-// could not have taken these four documents ACTIVE in the first place — the
-// gate would have refused the approve() the seeder performs in-process.
-// MAJOR and MINOR are recorded and enforce nothing, so asserting "no findings
-// at all" would make this brittle against a future rule for no safety gain.
+// could not have taken these documents ACTIVE in the first place — the gate
+// would have refused the approve() the seeder performs in-process. MAJOR and
+// MINOR are recorded and enforce nothing, so asserting "no findings at all"
+// would make this brittle against a future rule for no safety gain.
 const blocking = await page.getByText('BLOCKING', { exact: true }).count();
 check(
   blocking === 0,
   `seeded corpus produced ${blocking} BLOCKING findings; the seed path would be gated`,
 );
 await page.screenshot({ path: `${shots}/07b-findings.png` });
-console.log('conflict findings panel OK, seeded corpus carries no blocking finding');
+console.log('conflict findings panel OK, live scan ran, seeded corpus carries no blocking finding');
 
 // 8. Arabic / RTL. Asserts the layout actually mirrors, not just that the text
 // changed: `dir="rtl"` with a sidebar still pinned left is the classic

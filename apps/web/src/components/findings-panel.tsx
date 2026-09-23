@@ -51,11 +51,14 @@ export function FindingsPanel({
   currentVersion,
   loading,
   onChanged,
+  emptyMessage,
 }: {
   findings: Finding[];
   currentVersion: number;
   loading: boolean;
   onChanged: () => void;
+  /** Replaces the default "no findings" line, which only holds after a scan. */
+  emptyMessage?: string;
 }) {
   const t = useT();
   const { hasPermission } = useAuth();
@@ -88,7 +91,7 @@ export function FindingsPanel({
 
   if (loading) return <SkeletonRows rows={2} label={t('loadingFindings')} />;
   if (findings.length === 0)
-    return <p className="text-xs text-subtle">{t('noFindings')}</p>;
+    return <p className="text-xs text-subtle">{emptyMessage ?? t('noFindings')}</p>;
 
   return (
     <div className="space-y-2.5">

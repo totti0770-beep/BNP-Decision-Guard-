@@ -29,6 +29,7 @@ export enum Permission {
   FINDINGS_READ = 'findings:read',
   FINDINGS_RESOLVE = 'findings:resolve',
   FINDINGS_WAIVE_BLOCKING = 'findings:waive-blocking',
+  FINDINGS_SCAN = 'findings:scan',
   // AI
   AI_ASK = 'ai:ask',
   AI_SEARCH = 'ai:search',
@@ -75,6 +76,12 @@ const CLINICAL_READ: Permission[] = [
  * AUDITOR would hand the one role the matrix deliberately denies source text a
  * paginated, searchable window onto it.
  *
+ * FINDINGS_SCAN runs the L1 scan on a document that is already ACTIVE. It
+ * goes to the three roles that can settle a finding and to nobody else: a
+ * scan writes findings, and a role that could raise findings but not act on
+ * them would only be able to create work for someone else. It changes no
+ * document status, so it grants no path to take a document live or offline.
+ *
  * FINDINGS_WAIVE_BLOCKING is necessary but NOT sufficient: waiving a blocking
  * finding takes two signatures from two different roles, and that rule is
  * enforced on role membership inside FindingsService — never on this
@@ -110,6 +117,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.DOCUMENTS_DEACTIVATE,
     Permission.FINDINGS_READ,
     Permission.FINDINGS_RESOLVE,
+    Permission.FINDINGS_SCAN,
     Permission.AI_REVIEW_ANSWERS,
     Permission.ANALYTICS_READ,
   ],
@@ -121,6 +129,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.DOSE_FORMULAS_APPROVE,
     Permission.FINDINGS_READ,
     Permission.FINDINGS_RESOLVE,
+    Permission.FINDINGS_SCAN,
     Permission.FINDINGS_WAIVE_BLOCKING,
     Permission.AI_REVIEW_ANSWERS,
   ],
@@ -132,6 +141,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.DOCUMENTS_APPROVE,
     Permission.FINDINGS_READ,
     Permission.FINDINGS_RESOLVE,
+    Permission.FINDINGS_SCAN,
     Permission.FINDINGS_WAIVE_BLOCKING,
     Permission.AI_REVIEW_ANSWERS,
     Permission.ANALYTICS_READ,

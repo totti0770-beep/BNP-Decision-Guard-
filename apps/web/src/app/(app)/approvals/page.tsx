@@ -7,12 +7,15 @@ import { useAsyncData } from '@/lib/async';
 import { useT } from '@/lib/language';
 import { StatusBadge } from '@/components/shell';
 import { FindingsPanel } from '@/components/findings-panel';
-import { blocksApproval, Finding } from '@/lib/findings';
+import { issuingAuthorityPatch } from '@/lib/documents';
+import { blocksApproval, emptyFindingsKey, Finding, offersLiveScan } from '@/lib/findings';
 import {
   Alert,
   Button,
   EmptyState,
   ErrorState,
+  Field,
+  Input,
   PageHeader,
   Pagination,
   Panel,
@@ -29,6 +32,7 @@ interface Doc {
   category: string;
   status: string;
   versionNumber: number;
+  issuingAuthority: string | null;
   uploadedBy: { fullName: string } | null;
   createdAt: string;
 }
@@ -78,6 +82,8 @@ export default function ApprovalsPage() {
   const t = useT();
   const { hasPermission } = useAuth();
   const canReadFindings = hasPermission('findings:read');
+  const canScan = hasPermission('findings:scan');
+  const canEditProvenance = hasPermission('documents:manage');
 
   const [offset, setOffset] = useState(0);
   const fetchDocs = useCallback(
@@ -99,6 +105,10 @@ export default function ApprovalsPage() {
   const [rejectComment, setRejectComment] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
+  const [scanningId, setScanningId] = useState<string | null>(null);
+  const [justScanned, setJustScanned] = useState<string | null>(null);
+  const [authorityDraft, setAuthorityDraft] = useState('');
+  const [savingAuthority, setSavingAuthority] = useState(false);
 
   /** A document needs a human when it is mid-workflow, not once it is live. */
   function needsAction(d: Doc) {
@@ -139,8 +149,44 @@ export default function ApprovalsPage() {
     }
   }
 
+  /**
+   * Scans a live document in place. The API changes no status, so the list
+   * does not need reloading; only the findings in the open disclosure do.
+   */
+  async function scanLive(id: string) {
+    setActionError('');
+    setScanningId(id);
+    try {
+      const f = await api<Finding[]>(`/documents/${id}/findings/scan`, { method: 'POST' });
+      setFindings(f);
+      setJustScanned(id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : t('actionFailed'));
+    } finally {
+      setScanningId(null);
+    }
+  }
+
+  async function saveAuthority(id: string) {
+    setActionError('');
+    setSavingAuthority(true);
+    try {
+      await api(`/documents/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(issuingAuthorityPatch(authorityDraft)),
+      });
+      reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : t('saveFailed'));
+    } finally {
+      setSavingAuthority(false);
+    }
+  }
+
   async function showDetail(id: string) {
     setExpanded(id);
+    setJustScanned(null);
+    setAuthorityDraft(docs.find((d) => d.id === id)?.issuingAuthority ?? '');
     setHistoryLoading(true);
     try {
       // One disclosure, three records: what happened to the document
@@ -352,16 +398,64 @@ export default function ApprovalsPage() {
                             {t('approvalBlockedBody')}
                           </Alert>
                         )}
-                        <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
-                          {t('conflictFindings')}
-                        </p>
+                        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-2xs font-medium uppercase tracking-wide text-subtle">
+                            {t('conflictFindings')}
+                          </p>
+                          {offersLiveScan(d.status, canScan) && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              loading={scanningId === d.id}
+                              onClick={() => scanLive(d.id)}
+                            >
+                              {t('scanNow')}
+                            </Button>
+                          )}
+                        </div>
+                        {offersLiveScan(d.status, canScan) && (
+                          <p className="mb-2 text-2xs text-muted">{t('liveScanNote')}</p>
+                        )}
                         <FindingsPanel
                           findings={findings}
                           currentVersion={d.versionNumber}
-                          loading={historyLoading}
+                          loading={historyLoading || scanningId === d.id}
                           onChanged={() => showDetail(d.id)}
+                          emptyMessage={t(
+                            justScanned === d.id ? 'scanCleanJustNow' : emptyFindingsKey(d.status),
+                          )}
                         />
                       </>
+                    )}
+
+                    {canEditProvenance && (
+                      <div className="mt-4">
+                        <p className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-subtle">
+                          {t('provenanceTitle')}
+                        </p>
+                        <Field
+                          label={t('issuingAuthority')}
+                          hint={t('issuingAuthorityHint')}
+                          className="max-w-md"
+                        >
+                          <div className="flex gap-2">
+                            <Input
+                              dir="auto"
+                              maxLength={255}
+                              value={authorityDraft}
+                              onChange={(e) => setAuthorityDraft(e.target.value)}
+                            />
+                            <Button
+                              size="sm"
+                              loading={savingAuthority}
+                              disabled={authorityDraft.trim() === (d.issuingAuthority ?? '')}
+                              onClick={() => saveAuthority(d.id)}
+                            >
+                              {t('save')}
+                            </Button>
+                          </div>
+                        </Field>
+                      </div>
                     )}
 
                     <p className="mb-1.5 mt-4 text-2xs font-medium uppercase tracking-wide text-subtle">

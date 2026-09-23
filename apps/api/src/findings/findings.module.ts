@@ -13,6 +13,7 @@ import { ScanService } from './scan.service';
 import { ConflictGateService } from './conflict-gate.service';
 import { FindingsService } from './findings.service';
 import { FindingsController } from './findings.controller';
+import { LiveScanService } from './live-scan.service';
 
 /**
  * Pre-activation conflict detection.
@@ -40,7 +41,7 @@ import { FindingsController } from './findings.controller';
     RagModule,
   ],
   controllers: [FindingsController],
-  providers: [ScanService, ConflictGateService, FindingsService],
+  providers: [ScanService, ConflictGateService, FindingsService, LiveScanService],
   exports: [ScanService, ConflictGateService, FindingsService],
 })
 export class FindingsModule {}

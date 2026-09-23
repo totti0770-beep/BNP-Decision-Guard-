@@ -12,9 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (517), mocked repositories, no I/O
-npm run test:e2e -w @bnp/api  # API integration tests (278), real HTTP + real Postgres
-npm test -w @bnp/web          # web unit tests (24) — src/lib only, see below
+npm test                      # API unit tests (527), mocked repositories, no I/O
+npm run test:e2e -w @bnp/api  # API integration tests (285), real HTTP + real Postgres
+npm test -w @bnp/web          # web unit tests (45) — src/lib only, see below
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
 npm run build:api             # builds shared + api
 npm run build:web             # builds shared + web
@@ -138,9 +138,10 @@ directly using real pdfkit-generated PDFs.
 
 ### The web suite — `src/lib` only, and it says so
 
-`npm test -w @bnp/web` is a fourth jest project (24 tests) over `src/lib/api.ts`
-and `src/lib/i18n.ts`. Like mobile's it runs on `testEnvironment: node` rather
-than jsdom, because neither module imports React: `test/setup.ts` installs
+`npm test -w @bnp/web` is a fourth jest project (45 tests) over `src/lib/api.ts`,
+`src/lib/i18n.ts`, and the pure decisions the governance screens make
+(`src/lib/findings.ts`, `src/lib/documents.ts`). Like mobile's it runs on
+`testEnvironment: node` rather than jsdom, because none of these imports React: `test/setup.ts` installs
 stand-ins for the only two browser globals `api.ts` touches — `localStorage`
 and `window.location` — so a test can assert what was stored and where the page
 was sent. `tsconfig.spec.json` overrides the app's `moduleResolution: 'bundler'`,
@@ -317,6 +318,21 @@ deliberately not matched, and each has a test that fails if someone widens it.
 scanner, which reads text without indexing and so spends no embedding quota.
 `AUDITOR` lacks `findings:read` because evidence is verbatim source text.
 
+**A live document is scanned in place, never through the workflow.**
+`SUBMIT_REVIEW` accepts only DRAFT and REJECTED, so every document that went
+ACTIVE before the scan existed could otherwise be scanned only by re-uploading
+it — which resets it to DRAFT and takes it out of retrieval. On production that
+was the formulary, 77% of the citable corpus. `POST /documents/:id/findings/scan`
+(`findings/live-scan.service.ts`, permission `findings:scan`) runs the same
+`scanDocument` on an ACTIVE document and **writes nothing to the document**: a
+BLOCKING finding there is shown, not enforced, because the gate lives in
+`approve()` and taking a live document offline is the deactivate action's job.
+It refuses every other status. The corollary for the screen: on an ACTIVE
+document an empty findings list is *not* a clean result, and the panel must not
+say it is (`emptyFindingsKey` in `apps/web/src/lib/findings.ts`). No table
+records a scan that found nothing, so "never scanned" and "scanned clean" are
+indistinguishable in the data — see `docs/production-corpus-audit.md` §7.
+
 ### Document provenance and the inventory
 
 **`issuing_authority` lives on two tables, and the duplication is the point.**
@@ -398,6 +414,6 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 
 ## Docs
 
-`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`), `docs/clinical-validation.md` (the reviewer's protocol and the unsigned attestation block), `docs/audit/` (15 forensic reports plus the coverage ledger) and `REPO-DISCOVERY.md` (an earlier discovery report, pinned to its own commit).
+`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`), `docs/clinical-validation.md` (the reviewer's protocol and the unsigned attestation block), `docs/production-corpus-audit.md` (what the live assistant can cite, reconciled chunk by chunk, 2026-09-23), `docs/audit/` (15 forensic reports plus the coverage ledger) and `REPO-DISCOVERY.md` (an earlier discovery report, pinned to its own commit).
 
 CI (`.github/workflows/ci.yml`) runs six jobs: dependency-audit gates (root and mobile, both hard-fail on critical), lint, API build+unit+migrations+integration against a real pgvector service, web **unit tests then build**, browser smoke against the composed stack, and mobile typecheck+tests. The web job runs `npm test -w @bnp/web` before `next build`, so a broken session-layer test fails the build.
