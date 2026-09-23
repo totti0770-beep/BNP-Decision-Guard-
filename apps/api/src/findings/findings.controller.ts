@@ -8,6 +8,7 @@ import {
   ScreenForPhi,
 } from '../common/decorators';
 import { FindingsService } from './findings.service';
+import { LiveScanService } from './live-scan.service';
 
 class JustificationDto {
   /**
@@ -37,12 +38,28 @@ class JustificationDto {
  */
 @Controller()
 export class FindingsController {
-  constructor(private readonly findings: FindingsService) {}
+  constructor(
+    private readonly findings: FindingsService,
+    private readonly liveScan: LiveScanService,
+  ) {}
 
   @Get('documents/:id/findings')
   @Permissions(Permission.FINDINGS_READ)
   list(@Param('id', ParseUUIDPipe) id: string) {
     return this.findings.listForDocument(id);
+  }
+
+  /**
+   * Scans a document that is already ACTIVE, without changing its status.
+   * No body, so nothing to screen for PHI. Returns the document's findings.
+   */
+  @Post('documents/:id/findings/scan')
+  @Permissions(Permission.FINDINGS_SCAN)
+  scan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.liveScan.scanActive(id, actor);
   }
 
   @ScreenForPhi({ body: ['justification'], profile: PhiProfile.FREE_TEXT })

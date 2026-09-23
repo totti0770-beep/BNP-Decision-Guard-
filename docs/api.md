@@ -111,6 +111,7 @@ is written for the attempt.
 | `POST /findings/:findingId/resolve` `{justification}` — one signature; refused (400) for `BLOCKING` | `findings:resolve` |
 | `POST /findings/:findingId/dismiss` `{justification}` — one signature; refused (400) for `BLOCKING` | `findings:resolve` |
 | `POST /findings/:findingId/waive` `{justification}` — one of the **two** signatures a `BLOCKING` waiver needs | `findings:waive-blocking` |
+| `POST /documents/:id/findings/scan` — scans an **ACTIVE** document in place and returns its findings; changes no status; 400 for any other status; audited as `FINDINGS:RETRO_SCAN` | `findings:scan` |
 
 A blocking waiver completes only when signatures from **both**
 `PHARMACIST_REVIEWER` and `CBAHI_QUALITY_OFFICER` are on the finding, from two
@@ -132,6 +133,13 @@ reads findings whose `version_number` matches the document's current one, so a
 waiver never carries forward. Scan failures (`SCAN_FAILED`, `SCAN_TIMEOUT`) and
 a PDF with no extractable text (`ZERO_EXTRACTION`) are recorded as `BLOCKING`;
 the scan never fails the submission itself.
+
+The in-place scan exists because `submit-review` accepts only DRAFT and
+REJECTED: without it, a document that went live before the scan shipped could
+be scanned only by re-uploading it, which takes it out of retrieval until it is
+re-approved. A `BLOCKING` finding raised on a live document is recorded and
+shown; it does not deactivate the document, and the approval gate never sees it
+because an ACTIVE document does not pass through `approve()` again.
 
 `GET /documents/inventory` is the one endpoint that answers *"what can the
 assistant actually cite right now"* rather than *"what has been uploaded"*.

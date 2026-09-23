@@ -1,9 +1,11 @@
 import {
   blocksApproval,
+  emptyFindingsKey,
   Finding,
   isSettled,
   MIN_JUSTIFICATION,
   offeredActions,
+  offersLiveScan,
 } from './findings';
 
 /**
@@ -130,5 +132,38 @@ describe('MIN_JUSTIFICATION', () => {
    */
   it('matches the floor the API enforces', () => {
     expect(MIN_JUSTIFICATION).toBe(10);
+  });
+});
+
+describe('offersLiveScan', () => {
+  it('offers a scan on a live document to someone who may scan', () => {
+    expect(offersLiveScan('ACTIVE', true)).toBe(true);
+  });
+
+  it('offers nothing without the permission', () => {
+    expect(offersLiveScan('ACTIVE', false)).toBe(false);
+  });
+
+  /** The API answers 400 for every other status; a button there only fails. */
+  it('offers nothing on a document that is not live', () => {
+    for (const status of ['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'EXPIRED', 'INACTIVE']) {
+      expect(offersLiveScan(status, true)).toBe(false);
+    }
+  });
+});
+
+describe('emptyFindingsKey', () => {
+  /**
+   * An empty list on a live document is not a clean scan: every document
+   * approved before the scan shipped has one. The screen must not say
+   * otherwise.
+   */
+  it('does not call an empty list on a live document clean', () => {
+    expect(emptyFindingsKey('ACTIVE')).toBe('noFindingsLive');
+  });
+
+  it('keeps the plain message where submit-review has already scanned', () => {
+    expect(emptyFindingsKey('IN_REVIEW')).toBe('noFindings');
+    expect(emptyFindingsKey('APPROVED')).toBe('noFindings');
   });
 });
