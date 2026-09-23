@@ -65,6 +65,34 @@ describe('Pre-activation conflict detection', () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
   };
 
+  /**
+   * The audit rows for a document, once at least `atLeast` of them exist.
+   *
+   * `AuditService.record` does not return its save, so nothing can await it.
+   * A fixed sleep lost that race on a loaded CI runner — the "audits the
+   * block" assertion read zero rows after 150 ms on PR #56 — so a positive
+   * audit assertion polls instead, up to a ceiling that only a row that was
+   * never written reaches. It still fails the test in that case: it returns
+   * whatever it found and the caller's expectation does the failing.
+   */
+  const auditRows = async (
+    documentId: string,
+    action: string,
+    atLeast = 1,
+  ): Promise<{ metadata: { version?: number; findings?: { ruleCode: string }[] } }[]> => {
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      const rows = await ctx.dataSource.query(
+        `SELECT metadata FROM audit_logs
+          WHERE resource_id = $1 AND action = $2
+          ORDER BY created_at`,
+        [documentId, action],
+      );
+      if (rows.length >= atLeast || Date.now() > deadline) return rows;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  };
+
   async function upload(title: string, token = managerToken): Promise<string> {
     const pdf = await buildPdf(title, [[title]]);
     const res = await ctx
@@ -267,14 +295,9 @@ describe('Pre-activation conflict detection', () => {
      * anywhere.
      */
     it('audits the block', async () => {
-      await settleAudit();
-      const rows = await ctx.dataSource.query(
-        `SELECT action, metadata FROM audit_logs
-          WHERE resource_id = $1 AND action = 'DOCUMENTS:APPROVE_BLOCKED'`,
-        [documentId],
-      );
+      const rows = await auditRows(documentId, 'DOCUMENTS:APPROVE_BLOCKED');
       expect(rows.length).toBeGreaterThanOrEqual(1);
-      expect(rows[0].metadata.findings[0].ruleCode).toBe('ZERO_EXTRACTION');
+      expect(rows[0].metadata.findings?.[0]?.ruleCode).toBe('ZERO_EXTRACTION');
     });
 
     /**
@@ -683,12 +706,7 @@ describe('Pre-activation conflict detection', () => {
     });
 
     it('audits each scan', async () => {
-      await settleAudit();
-      const rows = await ctx.dataSource.query(
-        `SELECT metadata FROM audit_logs
-          WHERE resource_id = $1 AND action = 'FINDINGS:RETRO_SCAN'`,
-        [documentId],
-      );
+      const rows = await auditRows(documentId, 'FINDINGS:RETRO_SCAN', 4);
       expect(rows.length).toBeGreaterThanOrEqual(4);
       expect(rows[0].metadata.version).toBe(1);
     });
