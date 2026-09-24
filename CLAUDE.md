@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run build:shared          # ALWAYS first after a clean install (see gotchas)
 
-npm test                      # API unit tests (527), mocked repositories, no I/O
+npm test                      # API unit tests (540), mocked repositories, no I/O
 npm run test:e2e -w @bnp/api  # API integration tests (285), real HTTP + real Postgres
 npm test -w @bnp/web          # web unit tests (45) — src/lib only, see below
 npm run lint                  # ESLint 9 flat config, whole monorepo (see gotchas)
@@ -314,6 +314,17 @@ Five things here are load-bearing and easy to undo by accident:
 to a false-positive bar, not a detection bar: bare `GP` is glycoprotein in this
 corpus, bare `MS` is multiple sclerosis, `03/04/2026` is undecidable — each is
 deliberately not matched, and each has a test that fails if someone widens it.
+The bar was set twice: first on the four demo documents, then on the first
+live scan of the production formulary, which raised 26 findings of which 21
+were false (`docs/production-corpus-audit.md` §10). Three of those were rule
+defects now pinned by fixtures in the formulary's own words — the ear/eye
+patterns were case-insensitive and read the word "as"; `NAKED_DECIMAL` let a
+letter precede the point, so a glued sentence boundary "minutes.10 mL" was a
+dose; `TRAILING_ZERO` counted laboratory values like `1.0 mmol/L`. **A page
+that quotes the do-not-use list is skipped for the abbreviation rule** on
+purpose — the formulary reproduces ISMP's table — and the trade-off is written
+at `QUOTES_DO_NOT_USE_LIST`. `OD` after a dose is once daily, not the right
+eye, and has its own entry.
 `RagModule` exports `PdfExtractionService` and `ChunkingService` for the
 scanner, which reads text without indexing and so spends no embedding quota.
 `AUDITOR` lacks `findings:read` because evidence is verbatim source text.
@@ -397,6 +408,7 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 - **`npm run build:shared` before anything else.** API and web import `@bnp/shared` from its compiled `dist/`, so on a fresh clone `npm test` fails with `Cannot find module '@bnp/shared'` until shared is built. The `build:api` / `dev:api` scripts chain it for you; bare `npm test` does not.
 - **Migrations are registered explicitly** in `apps/api/src/config/data-source.ts` (no glob). A new migration file is silently ignored until you import it and add it to the `migrations` array.
 - **`npm run lint` needs `build:shared` first**, same as `npm test` — typescript-eslint resolves `@bnp/shared` from its compiled `dist/`. CI's lint job runs `build:shared` for this reason. The config is ESLint 9 flat (`eslint.config.js`) and deliberately does **not** use `eslint-config-next`, which still peer-depends on ESLint ≤8; React coverage comes from `eslint-plugin-react-hooks` instead. Errors block CI; the ~10 `no-explicit-any` warnings are known and non-blocking.
+- **`PdfExtractionService` puts a space between same-line items that have a gap, and nothing between items that touch.** pdf.js hands back a line as several text items; joining them bare turned "for 15 minutes." + "10 mL/hour" into `minutes.10 mL/hour` on a formulary page — text a citation would show a nurse, and text the conflict scanner read as nine naked decimals. The threshold is `SAME_LINE_GAP` (1 pt): a real space is 2–3 pt, kerning inside a word a fraction of one, and `pdf-extraction.service.spec.ts` pins both sides with placed items. Chunks already in the database keep the old text until a reindex.
 - **The `embedding` column is raw SQL, not TypeORM-managed.** pgvector inserts/queries in `indexing.service.ts` and `retrieval.service.ts` use parameterized raw SQL with a `[...]::vector` literal.
 - **TypeORM QueryBuilder takes entity property names, not DB column names** — `a.createdAt`, not `a.created_at`. Using the column name throws a confusing `Cannot read properties of undefined (reading 'databaseName')` at runtime, not compile time.
 - **Production fail-fast**: with `NODE_ENV=production`, `config/env.ts` refuses to boot if `JWT_SECRET`, `JWT_REFRESH_SECRET`, `POSTGRES_PASSWORD`, `S3_ACCESS_KEY` or `S3_SECRET_KEY` is missing or left at its shipped default. This is intended — supply real secrets.
