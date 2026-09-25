@@ -1,5 +1,23 @@
+import PDFDocument from 'pdfkit';
 import { buildPdf } from '../seed/pdf';
 import { PdfExtractionService } from './pdf-extraction.service';
+
+/**
+ * A one-page PDF whose text items are placed by hand, so a test can decide
+ * exactly where one item ends and the next begins. `buildPdf` flows
+ * paragraphs and cannot express "two items on one line with a gap".
+ */
+function placedPdf(place: (doc: PDFKit.PDFDocument) => void): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 56, compress: false });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    place(doc);
+    doc.end();
+  });
+}
 
 /**
  * Extraction was documented as untestable — "pdf-parse's bundled pdf.js
@@ -95,5 +113,42 @@ describe('PdfExtractionService', () => {
     const pages = await service.extractPages(pdf);
 
     expect(pages.every((p) => p.text === '')).toBe(true);
+  });
+
+  /**
+   * Items on one line used to be joined with nothing between them, whatever
+   * the distance. On the production formulary that produced
+   * "minutes.10 mL/hour": a sentence boundary the conflict scanner read as a
+   * naked decimal, nine times on one page, and text that would reach a nurse
+   * in a citation. A visible gap is a space; contact is not.
+   */
+  describe('same-line items', () => {
+    it('separates two items with daylight between them', async () => {
+      const pdf = await placedPdf((doc) => {
+        doc.fontSize(10);
+        doc.text('for 15 minutes.', 56, 100, { lineBreak: false });
+        doc.text('10 mL/hour', 56 + doc.widthOfString('for 15 minutes.') + 6, 100, {
+          lineBreak: false,
+        });
+      });
+      const [page] = await service.extractPages(pdf);
+      expect(page.text).toContain('minutes. 10 mL/hour');
+    });
+
+    /**
+     * A word set as two glyph runs is not placed to the thousandth of a point;
+     * kerning leaves a fraction of a point between them. The threshold has to
+     * sit above that, or every kerned word in the corpus gains a space.
+     */
+    it('keeps a word split across two nearly touching items whole', async () => {
+      const pdf = await placedPdf((doc) => {
+        doc.fontSize(10);
+        doc.text('Vanco', 56, 100, { lineBreak: false });
+        doc.text('mycin', 56 + doc.widthOfString('Vanco') + 0.4, 100, { lineBreak: false });
+      });
+      const [page] = await service.extractPages(pdf);
+      expect(page.text).toContain('Vancomycin');
+      expect(page.text).not.toContain('Vanco mycin');
+    });
   });
 });

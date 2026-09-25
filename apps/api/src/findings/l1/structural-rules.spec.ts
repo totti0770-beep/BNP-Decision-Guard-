@@ -91,6 +91,81 @@ describe('L1 structural rules', () => {
       const found = runL1Rules(input(['Patients with MS require a longer review.']));
       expect(codes(found)).not.toContain('ISMP_ABBREVIATION');
     });
+
+    /*
+     * The block below is the first live scan of a real production document,
+     * the hospital formulary, turned into fixtures. It raised 26 findings and
+     * 21 were false. Each false one is pinned here in the words that produced
+     * it; each true one is pinned so the fix cannot lose it.
+     */
+
+    it('does not read the English word "as" as the left ear', () => {
+      const found = runL1Rules(
+        input([
+          'usual dosage range: 2 to 10 mcg/kg/minute; however, doses as low as 0.5 mcg/kg/min have been used in less severe cardiac decompensation',
+          'May be administered intravitreally as 2 to 2.25 mg/0.1 mL in NS in combination with vancomycin',
+        ]),
+      );
+      expect(codes(found)).not.toContain('ISMP_ABBREVIATION');
+    });
+
+    it('still catches an eye or ear written as an abbreviation', () => {
+      const found = runL1Rules(input(['Instil OD 2 drops every 4 hours; then AS 3 drops.']));
+      const titles = found.filter((f) => f.ruleCode === 'ISMP_ABBREVIATION').map((f) => f.title);
+      expect(titles.join(' ')).toContain('OU / OS / OD');
+      expect(titles.join(' ')).toContain('AU / AS / AD');
+    });
+
+    /**
+     * The one finding on that scan that mattered most clinically, and it was
+     * raised by accident: the eye pattern swallowed the sentence period and
+     * saw the "5" in "5 days", then told the reviewer to write the eye in
+     * full. OD after a dose is once daily, and that is its own hazard.
+     */
+    it('reads OD after a dose as once daily, not as the right eye', () => {
+      const found = runL1Rules(
+        input(['penicillin allergy — Doxycycline 200 mg stat then 100 mg OD. 5 days Group B']),
+      );
+      const ismp = found.filter((f) => f.ruleCode === 'ISMP_ABBREVIATION');
+      expect(ismp.map((f) => f.title).join(' ')).toContain('(once daily)');
+      expect(ismp.map((f) => f.title).join(' ')).not.toContain('OU / OS / OD');
+      expect(ismp[0].detail).toContain('daily');
+    });
+
+    it('stays silent on a page that quotes the do-not-use list', () => {
+      const found = runL1Rules(
+        input([
+          'decimal point when the dose is less than a whole unit (0.Xmg) 8. MS, MSO4, MgSO4 Confused for one another. Can mean morphine sulfate or magnesium sulfate. ' +
+            '4. Q.D., Q.O.D. (Latin abbreviation for once daily and every other day) Mistaken for each other. 5. T.I.W. (three times per week) Mistaken for three times a day. ' +
+            '12. D/C (for discharge) Interpreted as discontinue whatever medications follow.',
+        ]),
+      );
+      expect(codes(found)).not.toContain('ISMP_ABBREVIATION');
+    });
+
+    it('does not read a glossary gloss "(per os)" as a direction', () => {
+      const found = runL1Rules(
+        input(['PML Progressive multifocal leukoencephalopathy PO By mouth (per os) PR Per rectum PRN As necessary']),
+      );
+      expect(codes(found)).not.toContain('ISMP_ABBREVIATION');
+    });
+
+    it('still catches per os used as a direction', () => {
+      const found = runL1Rules(input(['Give 500 mg per os twice daily.']));
+      expect(codes(found)).toContain('ISMP_ABBREVIATION');
+    });
+
+    it('still catches IU and SUBQ after a dose', () => {
+      const found = runL1Rules(
+        input([
+          'high-dose loading (e.g. 50,000 IU weekly for 6–8 weeks) then maintenance 800–2000 IU/day.',
+          'Familial hypercholesterolemia, heterozygous: SUBQ: 140 mg once every 2 weeks',
+        ]),
+      );
+      const titles = found.filter((f) => f.ruleCode === 'ISMP_ABBREVIATION').map((f) => f.title);
+      expect(titles.join(' ')).toContain('"IU"');
+      expect(titles.join(' ')).toContain('"SQ"');
+    });
   });
 
   describe('decimal hazards', () => {
@@ -129,6 +204,47 @@ describe('L1 structural rules', () => {
       const found = runL1Rules(input(['Give 1 mg, then 0.5 mg after six hours.']));
       expect(codes(found)).not.toContain('ISMP_TRAILING_ZERO');
       expect(codes(found)).not.toContain('ISMP_NAKED_DECIMAL');
+    });
+
+    /**
+     * The extractor joins same-line text items with no separator, so a
+     * sentence ending in "minutes." followed by "10 mL/hour" arrives as
+     * "minutes.10 mL/hour". Nine of these on one formulary page were reported
+     * as doses with no leading zero. A letter before the point is a sentence
+     * boundary, never a dose.
+     */
+    it('does not read a glued sentence boundary as a naked decimal', () => {
+      const found = runL1Rules(
+        input([
+          '>20 kg: Total infusion volume: 250 mL.5 mL/hour for 15 minutes.10 mL/hour for 15 minutes.20 mL/hour for 15 minutes.40 mL/hour for 15 minutes.80 mL/hour for remainder',
+        ]),
+      );
+      expect(codes(found)).not.toContain('ISMP_NAKED_DECIMAL');
+    });
+
+    it('still catches a naked decimal after a bracket or a colon', () => {
+      const found = runL1Rules(input(['Titrate (.5 mg) then:.25 mg']));
+      expect(codes(found)).toContain('ISMP_NAKED_DECIMAL');
+    });
+
+    /** ISMP exempts laboratory values, and the formulary's monitoring sections are full of them. */
+    it('does not read a laboratory concentration as a dose', () => {
+      const found = runL1Rules(
+        input([
+          'Monitoring Serum lithium (0.6–1.0 mmol/L, 12 h post-dose), renal and thyroid function',
+          'Hepatic: bilirubin 1.2–3.0 mg/dL give 50%; bilirubin 3.1–5.0 mg/dL or AST >3× ULN give 75%',
+        ]),
+      );
+      expect(codes(found)).not.toContain('ISMP_TRAILING_ZERO');
+    });
+
+    it('still catches a trailing zero in a product strength', () => {
+      const found = runL1Rules(
+        input(['Oral liquid: aluminium hydroxide 8.0 g + magnesium hydroxide 2.0 g + dimethicone 2.5 g per 100 mL.']),
+      );
+      const hits = found.filter((f) => f.ruleCode === 'ISMP_TRAILING_ZERO').map((f) => f.title);
+      expect(hits.join(' ')).toContain('8.0 g');
+      expect(hits.join(' ')).toContain('2.0 g');
     });
 
     it('does not read a version number as a dose', () => {

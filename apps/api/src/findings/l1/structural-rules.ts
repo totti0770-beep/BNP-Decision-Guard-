@@ -123,10 +123,22 @@ function zeroExtraction(input: RuleInput): RawFinding[] {
 // Rule: ISMP error-prone abbreviations
 // ---------------------------------------------------------------------------
 
+/**
+ * A page that quotes the do-not-use list is teaching the rule, not breaking
+ * it. The formulary carries ISMP's own table — "MS, MSO4, MgSO4 Confused for
+ * one another", "Q.D., Q.O.D. Mistaken for each other" — and the first live
+ * scan reported every entry on it as a finding. The trade-off is stated: an
+ * abbreviation genuinely used elsewhere on such a page is not reported, and
+ * that page is one a reviewer reads by its subject.
+ */
+const QUOTES_DO_NOT_USE_LIST =
+  /\b(?:do not use|error[- ]prone|mistaken (?:for|as)|confused (?:for|with)|misread as)\b/i;
+
 function ismpAbbreviations(pages: NormalisedPage[]): RawFinding[] {
   const found = new Map<string, RawFinding>();
 
   for (const page of pages) {
+    if (QUOTES_DO_NOT_USE_LIST.test(page.text)) continue;
     for (const entry of ISMP_ABBREVIATIONS) {
       const pattern = new RegExp(entry.pattern.source, entry.pattern.flags);
       let match: RegExpExecArray | null;
@@ -166,8 +178,21 @@ function ismpAbbreviations(pages: NormalisedPage[]): RawFinding[] {
 // ---------------------------------------------------------------------------
 
 const DOSE_UNIT = '(?:mg|mcg|g|kg|mL|ml|L|units?|IU|mmol|mEq)';
-const TRAILING_ZERO = new RegExp(`\\b(\\d+\\.0)\\s*(${DOSE_UNIT})\\b`, 'g');
-const NAKED_DECIMAL = new RegExp(`(?<![\\d.])(\\.\\d+)\\s*(${DOSE_UNIT})\\b`, 'g');
+// Not when the unit is a concentration per litre: "lithium 0.6–1.0 mmol/L" and
+// "bilirubin 3.0 mg/dL" are laboratory values, which ISMP exempts, and the
+// formulary's monitoring sections are full of them.
+const TRAILING_ZERO = new RegExp(
+  `\\b(\\d+\\.0)\\s*(${DOSE_UNIT})\\b(?!\\s*/\\s*d?L\\b)`,
+  'g',
+);
+// A letter before the point is a sentence boundary, not a dose. The extractor
+// joins same-line items with no separator, so "for 15 minutes." followed by
+// "10 mL/hour" reaches the rules as "minutes.10 mL/hour" — nine times on one
+// formulary page.
+const NAKED_DECIMAL = new RegExp(
+  `(?<![\\p{L}\\p{N}.])(\\.\\d+)\\s*(${DOSE_UNIT})\\b`,
+  'gu',
+);
 
 /**
  * `1.0 mg` and `.5 mg` are the two highest-yield items on the ISMP list: a
