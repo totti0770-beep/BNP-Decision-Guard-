@@ -174,16 +174,23 @@ The screens have no runtime coverage; that would need `jest-expo` plus
 
 Full stack via Docker (`docker compose up --build`) → web :3000, API :4000, MinIO console :9001. Infra only: `docker compose up -d postgres minio`.
 
-**MinIO comes from `quay.io`, not Docker Hub.** `minio/minio` and `minio/mc` were
-withdrawn from Docker Hub — both answer 404 on the repository API while
-`pgvector/pgvector` beside them answers 200 — so every `docker compose up` and
-every CI browser-smoke run died at image resolution with `pull access denied for
-minio/minio`, before any container existed. `quay.io/minio/minio` is MinIO's own
-registry, so this is a registry change, not a change of software. The
-`minio-init` service was deleted rather than repointed: its only job was
-`mc mb`, and `StorageService.ensureBucket()` (`storage.service.ts:53-64`) already
-creates the bucket, called from `documents.service.ts:85` on every upload and
-from `seed.ts:160` on boot.
+**MinIO comes from `bitnamilegacy/minio`, pinned, and the reason is two dead
+registries.** `minio/minio` was withdrawn from Docker Hub (404 on the repository
+API) on 2026-09-14, and the replacement `quay.io/minio/minio:latest` pulled on
+2026-09-23 and answered `unauthorized` on 2026-09-25, twice, with nothing in the
+repository changed — every `docker compose up` and every CI browser-smoke run
+died at image resolution, before any container existed. Bitnami's frozen
+archive of its MinIO build (release 2025.7.23) is real MinIO, verified
+pullable through the Docker Hub API, and pinned so the next registry failure
+is diagnosable rather than silent. Frozen means no security updates, which is
+fine for a CI harness and a local stack and would not be for a deployment;
+production runs its own MinIO service on Railway and never reads
+`docker-compose.yml`. Bitnami's image brings its own entrypoint and data path,
+so the service has no `command:` and mounts at `/bitnami/minio/data`. The
+`minio-init` service was deleted earlier rather than repointed: its only job was
+`mc mb`, and `StorageService.ensureBucket()` (`storage.service.ts:53-64`)
+already creates the bucket, called from `documents.service.ts:85` on every
+upload and from `seed.ts:160` on boot.
 
 Migrations run automatically on API container boot; standalone: `node apps/api/dist/scripts/migrate.js`.
 
