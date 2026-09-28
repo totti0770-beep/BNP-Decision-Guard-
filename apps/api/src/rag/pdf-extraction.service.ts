@@ -6,6 +6,14 @@ export interface ExtractedPage {
   text: string;
 }
 
+/**
+ * Horizontal distance, in PDF user-space units (points), beyond which two text
+ * items on the same line are separated by a space. A space in body text is
+ * about a quarter of the font size, so 2–3 pt at typical sizes; kerning
+ * between glyph runs of one word is a fraction of a point.
+ */
+const SAME_LINE_GAP = 1;
+
 @Injectable()
 export class PdfExtractionService {
   /**
@@ -46,12 +54,31 @@ export class PdfExtractionService {
       pagerender: async (pageData: any) => {
         const textContent = await pageData.getTextContent();
         let lastY: number | null = null;
+        let lastEndX: number | null = null;
         let text = '';
         for (const item of textContent.items) {
+          if (!item.str) continue;
+          const x = item.transform?.[4];
           const y = item.transform?.[5];
-          if (lastY !== null && y !== lastY) text += '\n';
+          if (lastY !== null && y !== lastY) {
+            text += '\n';
+          } else if (
+            lastEndX !== null &&
+            typeof x === 'number' &&
+            x - lastEndX > SAME_LINE_GAP
+          ) {
+            // Two items on one line with daylight between them are two words.
+            // Joining them with nothing turned "for 15 minutes." + "10 mL/hour"
+            // into "minutes.10 mL/hour" on a formulary page — text a nurse
+            // would be shown in a citation, and text the conflict scanner
+            // read as nine doses with no leading zero. Items that touch are
+            // still joined bare: a word split across two glyph runs is one
+            // word, and a space inside it would be a different corruption.
+            text += ' ';
+          }
           text += item.str;
           lastY = y;
+          lastEndX = typeof x === 'number' ? x + (item.width ?? 0) : null;
         }
         pages.push(text);
         return text;

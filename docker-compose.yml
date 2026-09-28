@@ -19,18 +19,30 @@ services:
       timeout: 5s
       retries: 10
 
-  # MinIO is pulled from quay.io, not Docker Hub. `minio/minio` and `minio/mc`
-  # were withdrawn from Docker Hub — both now return 404 on the repository API
-  # and 401 on an anonymous manifest fetch, while `pgvector/pgvector` beside
-  # them returns 200 — so `docker compose up` and CI's browser smoke both died
-  # at image resolution, before a container existed:
-  #   minio Error pull access denied for minio/minio, repository does not exist
-  # quay.io/minio/minio is MinIO's own alternative registry, so this is a
-  # registry change and not a change of software.
+  # MinIO's own images are no longer pullable anonymously from either registry
+  # it has used. `minio/minio` on Docker Hub answers 404 on the repository API
+  # (withdrawn 2026-09-14, see git history); `quay.io/minio/minio:latest`
+  # pulled fine on 2026-09-23 and answered "unauthorized: access to the
+  # requested resource is not authorized" on 2026-09-25, on two runs 36 minutes
+  # apart with nothing in this repository changed between them. Each time the
+  # whole browser smoke died at image resolution, before a container existed.
+  #
+  # `bitnamilegacy/minio` is Bitnami's frozen archive of its MinIO build: real
+  # MinIO (release 2025.7.23), 1,027 tags, linux/amd64, verified pullable on
+  # 2026-09-25 through the Docker Hub API. Frozen is the trade-off: it will
+  # not receive security updates, which is acceptable for a CI harness and a
+  # developer's local stack and would not be for a deployment. Production runs
+  # its own MinIO service on Railway and never reads this file.
+  #
+  # Pinned rather than `latest` because an archive has no reason to move, and
+  # a pinned tag is what makes the next registry failure diagnosable.
+  #
+  # Bitnami's image has its own entrypoint and data path, so there is no
+  # `command:` override and the volume mounts at /bitnami/minio/data. It reads
+  # the same MINIO_ROOT_USER / MINIO_ROOT_PASSWORD.
   minio:
-    image: quay.io/minio/minio:latest
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     container_name: bnp-minio
-    command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-bnp_minio}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-bnp_minio_secret}
@@ -38,7 +50,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data:/data
+      - minio_data:/bitnami/minio/data
     # Deliberately no healthcheck. The previous one shelled out to `mc` inside
     # this image, which ties liveness to a binary the image is not obliged to
     # ship; the API's own /health/ready already probes object storage

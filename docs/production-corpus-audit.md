@@ -210,3 +210,57 @@ it, not a step this report takes:
    deactivate is a human call.
 2. Record the issuing authority on each, from the documents themselves.
 3. Re-read the inventory and compare it with §5.
+
+---
+
+## 10. First live scan: the formulary (2026-09-23)
+
+After §9 step 1 was run, JSH-DRUG FORMULARY 2026 (2,120 chunks, ~520 pages)
+produced **26 MAJOR findings and no BLOCKING**. Each was checked against its
+quoted evidence and against the rule that raised it.
+
+| Class | Count | Findings |
+| --- | ---: | --- |
+| **True** | 5 | `OD` for once daily (pp. 458–460); `IU` (pp. 268, 284); `SUBQ` (pp. 79–80); `8.0 g` and `2.0 g` in a product strength (p. 4) |
+| **False: the page quotes the do-not-use list** | 7 | p. 475 is ISMP's own table (MgSO4, MSO4, TIW, QD, QOD, D/C); p. 484 is a glossary entry, "PO By mouth (per os)" |
+| **False: rule defect** | 13 | `AS` matched the English word "as" before a number (3); nine "naked decimals" on p. 127 were sentence boundaries glued by extraction ("minutes.10 mL/hour"); three "trailing zeros" were laboratory concentrations (`1.0 mmol/L`, `3.0 mg/dL`, `5.0 mg/dL`) |
+| **False: not decidable from text** | 1 | `U` as an index letter: "Triptorelin 278 U Urea" (p. 520) |
+
+**21 of 26 false (81 %).** The rules had been tuned on the four demo
+documents only; this was their first contact with a real corpus.
+
+The finding that mattered most was raised by accident. `100 mg OD` is once
+daily, on ISMP's list because it is read as the right eye. The eye/ear
+pattern swallowed the sentence period and saw the "5" in "5 days", then told
+the reviewer to *write the eye in full*.
+
+Root causes, each fixed with a fixture built from the words above
+(`apps/api/src/findings/l1/structural-rules.spec.ts`):
+
+1. The ear/eye patterns carried the case-insensitive flag and accepted a
+   sentence period before the number. Now case-sensitive, and a separate
+   `od-once-daily` entry names the hazard correctly.
+2. `NAKED_DECIMAL` excluded only a digit or a point before the decimal point,
+   so a letter was allowed. A letter before the point is a sentence boundary.
+3. `TRAILING_ZERO` did not exempt concentrations per litre, which ISMP does.
+4. Nothing distinguished a page that quotes the do-not-use list from one that
+   uses it. Such pages are now skipped for the abbreviation rule, and the
+   trade-off is stated at the rule.
+5. Not a rule defect: `PdfExtractionService` joined same-line text items with
+   no separator, so "for 15 minutes." + "10 mL/hour" became one token. That
+   text also reaches `document_chunks`, so a citation of p. 127 would show a
+   nurse the glued form. Items with more than 1 pt between them are now
+   separated by a space; **existing chunks are unchanged until a reindex**,
+   which is a production write and an embedding-quota decision.
+
+The `U` index case is accepted: "278 U" and "10 U" are not distinguishable
+from text, and one false report per ~500 pages is within the bar the rule
+comment sets.
+
+**The 21 false rows already recorded on the formulary are not removed by a
+re-scan.** `ON CONFLICT DO NOTHING` preserves them, and a re-scan only adds.
+They are dismissed by hand, with a justification. Automatic dismissal of
+"findings the current rules no longer reproduce" was considered and rejected:
+a rule that silently stopped matching would then erase true findings, which is
+fail-open.
+

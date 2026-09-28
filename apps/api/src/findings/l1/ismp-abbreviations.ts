@@ -128,23 +128,41 @@ export const ISMP_ABBREVIATIONS: readonly DangerousAbbreviation[] = [
   {
     key: 'per-os',
     term: 'per os',
-    pattern: /\bper\s+os\b/gi,
+    // Not when it opens a parenthesis: "PO By mouth (per os)" is a glossary
+    // explaining the abbreviation, which is the opposite of using it.
+    pattern: /(?<!\()\bper\s+os\b/gi,
     meaning: 'by mouth',
     preferred: 'write "PO" or "by mouth"',
   },
   {
     key: 'au-as-ad-ears',
     term: 'AU / AS / AD',
-    pattern: /\bA\.?(?:U|S|D)\.?\s*(?=\d|drops?|gtt)/gi,
+    // Case-sensitive on purpose: with the `i` flag the English word "as"
+    // followed by a number — "doses as low as 0.5 mcg/kg/min" — read as the
+    // left ear, three times on one formulary page. And no sentence period:
+    // "…100 mg OD. 5 days" is a sentence boundary, not "OD 5".
+    pattern: /\bA(?:U|S|D)\s+(?=\d|drops?|gtt)/g,
     meaning: 'both ears / left ear / right ear',
     preferred: 'write the ear in full',
   },
   {
     key: 'ou-os-od-eyes',
     term: 'OU / OS / OD',
-    pattern: /\bO\.?(?:U|S|D)\.?\s*(?=\d|drops?|gtt)/gi,
+    pattern: /\bO(?:U|S|D)\s+(?=\d|drops?|gtt)/g,
     meaning: 'both eyes / left eye / right eye',
     preferred: 'write the eye in full',
+  },
+  {
+    key: 'od-once-daily',
+    term: 'OD',
+    // The other half of the OD hazard, and on this corpus the common one:
+    // "100 mg OD" means once daily and is read as the right eye. It follows a
+    // dose, which is what tells it apart from the eye entry above. Before this
+    // entry existed the formulary's "100 mg OD." was caught only by accident,
+    // through the eye pattern, and told the reviewer to write the eye in full.
+    pattern: /\d\s*(?:mg|mcg|g|mL|units?|tabs?|caps?)\s+O\.?D\.?(?![\p{L}\p{N}/])/giu,
+    meaning: 'once daily',
+    preferred: 'write "daily" — OD is read as the right eye',
   },
 ];
 
