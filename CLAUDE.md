@@ -185,7 +185,10 @@ pullable through the Docker Hub API, and pinned so the next registry failure
 is diagnosable rather than silent. Frozen means no security updates, which is
 fine for a CI harness and a local stack and would not be for a deployment;
 production runs its own MinIO service on Railway and never reads
-`docker-compose.yml`. Bitnami's image brings its own entrypoint and data path,
+`docker-compose.yml`. **That production service still references the withdrawn
+`minio/minio:latest` and must not be touched until it is migrated** — any
+redeploy fails to pull, and an in-place image swap risks the volume holding
+every PDF. `infra/railway/README.md` has the copy-first procedure. Bitnami's image brings its own entrypoint and data path,
 so the service has no `command:` and mounts at `/bitnami/minio/data`. The
 `minio-init` service was deleted earlier rather than repointed: its only job was
 `mc mb`, and `StorageService.ensureBucket()` (`storage.service.ts:53-64`)
