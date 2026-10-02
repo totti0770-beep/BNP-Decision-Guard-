@@ -326,15 +326,30 @@ corpus, bare `MS` is multiple sclerosis, `03/04/2026` is undecidable — each is
 deliberately not matched, and each has a test that fails if someone widens it.
 The bar was set twice: first on the four demo documents, then on the first
 live scan of the production formulary, which raised 26 findings of which 21
-were false (`docs/production-corpus-audit.md` §10). Three of those were rule
-defects now pinned by fixtures in the formulary's own words — the ear/eye
-patterns were case-insensitive and read the word "as"; `NAKED_DECIMAL` let a
-letter precede the point, so a glued sentence boundary "minutes.10 mL" was a
-dose; `TRAILING_ZERO` counted laboratory values like `1.0 mmol/L`. **A page
-that quotes the do-not-use list is skipped for the abbreviation rule** on
-purpose — the formulary reproduces ISMP's table — and the trade-off is written
-at `QUOTES_DO_NOT_USE_LIST`. `OD` after a dose is once daily, not the right
-eye, and has its own entry.
+were false (`docs/production-corpus-audit.md` §10). Thirteen of those came
+from three rule defects, now pinned by fixtures in the formulary's own words.
+The ear/eye patterns were case-insensitive and read the word "as".
+`NAKED_DECIMAL` let a letter precede the point, so a glued sentence boundary
+"minutes.10 mL" was a dose. `TRAILING_ZERO` counted laboratory values like
+`1.0 mmol/L`.
+
+**A page that quotes the do-not-use list is skipped for the abbreviation
+rule** on purpose — the formulary reproduces ISMP's table — and the trade-off
+is written at `QUOTES_DO_NOT_USE_LIST`. `OD` after a dose is once daily, not
+the right eye, and has its own entry.
+
+Replaying the 26 evidence snippets through the new rules removes 20 of the 21
+false findings. The one left is accepted by design: "Triptorelin 278 U Urea" is
+an index letter, and text alone cannot tell it from "10 U".
+
+**A rule fix does not retract a finding already recorded.** A re-scan only
+adds rows: `ON CONFLICT DO NOTHING` leaves every existing same-version row as
+it was, OPEN included. So after a rule fix, the old false rows stay until a
+reviewer dismisses them by hand, with a justification. Auto-dismissing
+"findings the current rules no longer reproduce" was rejected on purpose. A
+rule that silently stopped matching would then erase true findings, which is
+fail-open.
+
 `RagModule` exports `PdfExtractionService` and `ChunkingService` for the
 scanner, which reads text without indexing and so spends no embedding quota.
 `AUDITOR` lacks `findings:read` because evidence is verbatim source text.
@@ -436,6 +451,6 @@ Arabic pins the `latn` numbering system (`localeTag()`) so doses, versions, page
 
 ## Docs
 
-`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`), `docs/clinical-validation.md` (the reviewer's protocol and the unsigned attestation block), `docs/production-corpus-audit.md` (what the live assistant can cite, reconciled chunk by chunk, 2026-09-23), `docs/audit/` (15 forensic reports plus the coverage ledger) and `REPO-DISCOVERY.md` (an earlier discovery report, pinned to its own commit).
+`README.md` (setup, demo credentials, walkthroughs), `SECURITY.md` (control list + operational requirements), `docs/production-readiness.md` (pilot/production checklist and known gaps), `docs/architecture.md`, `docs/database-schema.md`, `docs/api.md`, `infra/railway/README.md` (the actual live deployment — auto-deploys `main`), `docs/clinical-validation.md` (the reviewer's protocol and the unsigned attestation block), `docs/production-corpus-audit.md` (what the live assistant can cite, reconciled chunk by chunk, 2026-09-23; §10 classifies the first live scan of the formulary, finding by finding), `docs/audit/` (15 forensic reports plus the coverage ledger) and `REPO-DISCOVERY.md` (an earlier discovery report, pinned to its own commit).
 
 CI (`.github/workflows/ci.yml`) runs six jobs: dependency-audit gates (root and mobile, both hard-fail on critical), lint, API build+unit+migrations+integration against a real pgvector service, web **unit tests then build**, browser smoke against the composed stack, and mobile typecheck+tests. The web job runs `npm test -w @bnp/web` before `next build`, so a broken session-layer test fails the build.
